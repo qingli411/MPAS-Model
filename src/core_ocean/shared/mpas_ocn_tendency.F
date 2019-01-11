@@ -241,6 +241,7 @@ contains
       logical, pointer :: config_disable_vel_all_tend
       logical, pointer :: config_use_wetting_drying
       logical, pointer :: config_prevent_drying
+      logical, pointer :: config_use_les_for_vmix
       character (len=StrKIND), pointer :: config_pressure_gradient_type
 
       if (present(timeLevelIn)) then
@@ -348,13 +349,10 @@ contains
       !
       call ocn_vel_hmix_tend(meshPool, scratchPool, divergence, relativeVorticity, normalVelocity, tangentialVelocity, viscosity, &
          tend_normalVelocity, err)
+    
 
-      !
-      ! velocity tendency: forcing and bottom drag
-      !
-      call ocn_vel_forcing_tend(meshPool, normalVelocity, surfaceFluxAttenuationCoefficient, &
-              surfaceStress, kineticEnergyCell, layerThicknessEdge, &
-                                tend_normalVelocity, err)
+      if (.not. config_use_les_for_vmix) then
+         !If LES option is enabled, surface forcing is computed with LES
 
       !
       ! velocity tendency: zero if drying
@@ -364,6 +362,32 @@ contains
          tend_normalVelocity(:, iEdge) = tend_normalVelocity(:, iEdge) * (1.0_RKIND - wettingVelocity(:, iEdge))
       end do
       !$omp end do
+         !$omp do schedule(runtime)
+         do iEdge = 1, nEdges
+            surfaceStress(iEdge) = 0.0_RKIND
+         end do
+         !$omp end do
+
+         !$omp do schedule(runtime)
+         do iCell = 1, nCells
+            surfaceStressMagnitude(iCell) = 0.0_RKIND
+         end do
+         !$omp end do
+
+         ! Build bulk forcing suface stress
+         call ocn_surface_bulk_forcing_vel(meshPool, forcingPool, surfaceStress, surfaceStressMagnitude, err)
+
+         ! Add top drag to suface stress
+         call ocn_surface_land_ice_fluxes_vel(meshPool, diagnosticsPool, surfaceStress, surfaceStressMagnitude, err)
+
+         !
+         ! velocity tendency: forcing and bottom_drag
+         !
+         call ocn_vel_forcing_tend(meshPool, normalVelocity, surfaceFluxAttenuationCoefficient, &
+                 surfaceStress, kineticEnergyCell, layerThicknessEdge, &
+                                   tend_normalVelocity, err)
+      end if
+>>>>>>> cc4853c1... first commit that successfully compiles
 
       !
       ! velocity tendency: vertical mixing d/dz( nu_v du/dz))
@@ -422,7 +446,9 @@ contains
                           config_use_tracerGroup_ttd_forcing, config_use_surface_salinity_monthly_restoring
 
       logical, pointer :: config_compute_active_tracer_budgets, &
-                          config_cvmix_kpp_nonlocal_with_implicit_mix
+                          config_cvmix_kpp_nonlocal_with_implicit_mix, &
+                          config_use_les_for_vmix
+
      real (kind=RKIND), pointer :: salinity_restoring_constant_piston_velocity
 
       ! iterator for tracer categories
@@ -513,6 +539,7 @@ contains
       !
       ! get configure options
       !
+      call mpas_pool_get_config(ocnConfigs, 'config_use_les_for_vmix', config_use_les_for_vmix)
       call mpas_pool_get_config(ocnConfigs, 'config_cvmix_kpp_nonlocal_with_implicit_mix', &
                                 config_cvmix_kpp_nonlocal_with_implicit_mix)
       call mpas_pool_get_config(ocnConfigs, 'config_disable_tr_all_tend', config_disable_tr_all_tend)
@@ -842,9 +869,11 @@ contains
                   endif
                endif
 
-               call ocn_tracer_surface_flux_tend(meshPool, fractionAbsorbed, fractionAbsorbedRunoff, layerThickness, &
+               if (.not. config_use_les_for_vmix) then
+                  call ocn_tracer_surface_flux_tend(meshPool, fractionAbsorbed, fractionAbsorbedRunoff, layerThickness, &
                                                  tracerGroupSurfaceFlux, tracerGroupSurfaceFluxRunoff,  &
                                                  tracerGroupTend, err)
+               endif
 
                !
                ! Performing shortwave absorption
