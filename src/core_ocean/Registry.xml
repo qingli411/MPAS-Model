@@ -56,6 +56,9 @@
 		<dim name="nVertLevelsP1" definition="nVertLevels+1" units="unitless"
 			 description="The number of interfaces in the vertical direction."
 		/>
+		<dim name="nVertLevelsLES" units="unitless" definition="namelist:config_les_nz"
+			 description="The number of vertical levels for the LES used as subgrid closure."
+		/>
 		<dim name="nPoints" definition="1" units="unitless"
 			 description="The number of points for AM_pointwiseStats"
 		/>
@@ -2706,6 +2709,23 @@
 			description="meridional Velocity increment from LES"
 			packages="forwardMode;analysisMode"
 		/>
+		<var name="temperatureLES" type="real" dimensions="nVertLevelsLES nCells Time" units="C"
+			description="horizontally averaged temperature from the LES"
+			packages="forwardMode;analysisMode"
+		/>
+		<var name="salinityLES" type="real" dimensions="nVertLevelsLES nCells Time" units="PSU"
+			description="horizontally averaged salinity from the LES"
+			packages="forwardMode;analysisMode"
+		/>
+		<var name="velocityZonalLES" type="real" dimensions="nVertLevelsLES nCells Time" units="m s^{-1}"
+			description="horizontally averaged zonal velocity from the LES"
+			packages="forwardMode;analysisMode"
+		/>
+		<var name="velocityMeridionalLES" type="real" dimensions="nVertLevelsLES nCells Time" units="m s^{-1}"
+			description="horizontally averaged meridional velocity from the LES"
+			packages="forwardMode;analysisMode"
+		/>
+
 		<var name="normalVelocityIncrementLES" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-2}"
 			description="normal velocity increment from LES"
 			packages="forwardMode;analysisMode"

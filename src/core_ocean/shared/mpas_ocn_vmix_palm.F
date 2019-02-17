@@ -65,7 +65,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_vmix_LES_interface(meshPool, statePool, forcingPool, diagnosticsPool, dt, err, timeLevelIn)!{{{
+   subroutine ocn_vmix_LES_interface(meshPool, statePool, forcingPool, diagnosticsPool, dt, err, timeLevelIn, first)!{{{
 
       !-----------------------------------------------------------------
       !
@@ -97,6 +97,8 @@ contains
 
       real(KIND=RKIND), intent(in) :: dt
 
+      logical, intent(in) :: first
+
       !-----------------------------------------------------------------
       !
       ! output variables
@@ -114,7 +116,7 @@ contains
       integer, dimension(:), pointer :: maxLevelCell
 
       real (kind=RKIND), dimension(:), pointer :: &
-        stressX, stressY, stressZ, stressZonal, stressMeridional, fCell, &
+        stressX, stressY, stressZ, stressZonal, stressMeridional, latCell, &
         surfaceStress, surfaceStressMagnitude,   &
         penetrativeTemperatureFlux, angleEdge, surfaceThicknessFlux, &
         surfaceThicknessFluxRunoff
@@ -124,7 +126,8 @@ contains
         normalVelocity, uIncrementLES, vIncrementLES, tIncrementLES, &
         sIncrementLES, normalVelocityIncrementLES,     &
         tracerGroupSurfaceFlux, tracerGroupSurfaceFluxRunoff, &
-        tracerGroupSurfaceFluxRemoved
+        tracerGroupSurfaceFluxRemoved, temperatureLES, &
+        salinityLES, velocityZonalLES, velocityMeridionalLES
 
       real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
       integer, pointer :: indexTemperature, indexSalinity, config_jerlov_water_type
@@ -134,6 +137,8 @@ contains
       integer :: nLevs, edgeCount, cell1, cell2
       integer, pointer :: nVertLevels
       integer, dimension(:), pointer :: nCellsArray, nEdgesArray
+
+      character(len=strKind), pointer :: config_dt
 
       logical, pointer :: config_use_les_for_vmix, config_use_ecosysTracers
       real (kind=RKIND), pointer :: config_les_dz, config_les_dt_data_output,   &
@@ -146,7 +151,7 @@ contains
 
       real (kind=RKIND), dimension(:), allocatable :: zonalAverage, meridionalAverage 
       real (kind=RKIND) :: fac, dep1, dep2, fracAbsorbed, fracAbsorbedRunoff,  &
-                           wt_sfc, uw_sfc, vw_sfc, ws_sfc
+                           etime, wt_sfc, uw_sfc, vw_sfc, ws_sfc
 
       err=0
 
@@ -156,6 +161,7 @@ contains
          timeLevel = 2 
       end if
 
+      call mpas_pool_get_config(ocnConfigs, 'config_dt', config_dt)
       call mpas_pool_get_config(ocnConfigs, 'config_use_les_for_vmix', config_use_les_for_vmix)
       call mpas_pool_get_config(ocnConfigs, 'config_use_ecosysTracers', config_use_ecosysTracers)
       if ( .not. config_use_les_for_vmix ) return
@@ -196,7 +202,7 @@ contains
       call mpas_pool_get_array(tracersSurfaceFluxPool, "activeTracersSurfaceFluxRemoved", tracerGroupSurfaceFluxRemoved)
       call mpas_pool_get_array(forcingPool, "surfaceThicknessFlux", surfaceThicknessFlux)
       call mpas_pool_get_array(forcingPool, "surfaceThicknessFluxRunoff", surfaceThicknessFluxRunoff)
-      call mpas_pool_get_array(meshPool, 'fCell', fCell)
+      call mpas_pool_get_array(meshPool, 'latCell', latCell)
       call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
       call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, timeLevel)
 
@@ -208,6 +214,11 @@ contains
       call mpas_pool_get_array(diagnosticsPool, 'velocityZonal', velocityZonal)
       call mpas_pool_get_array(diagnosticsPool, 'velocityMeridional', velocityMeridional)
 
+      call mpas_pool_get_array(diagnosticsPool, 'temperatureLES', temperatureLES)
+      call mpas_pool_get_array(diagnosticsPool, 'salinityLES', salinityLES)
+      call mpas_pool_get_array(diagnosticsPool, 'velocityZonalLES', velocityZonalLES)
+      call mpas_pool_get_array(diagnosticsPool, 'velocityMeridionalLES', velocityMeridionalLES)
+
       ! need to use RBFs to get stress at cell centers
       call mpas_pool_get_array(diagnosticsPool, 'stressZonal', stressZonal)
       call mpas_pool_get_array(diagnosticsPool, 'stressMeridional', stressMeridional)
@@ -218,6 +229,15 @@ contains
       call mpas_pool_get_array(forcingPool, 'surfaceStress', surfaceStress)
       call mpas_pool_get_array(forcingPool, 'surfaceStressMagnitude', surfaceStressMagnitude)
       
+      if (first) then
+         etime = 3600.0_RKIND !run longer for spinup
+      else
+                                             !spinup runs
+         etime = config_les_end_time
+      endif
+
+      etime = config_les_end_time
+
       allocate(zonalAverage(nVertLevels),meridionalAverage(nVertLevels))
 
       nCells = nCellsArray( 2 )
@@ -276,25 +296,30 @@ contains
                         activeTracers(indexSalinity,1,iCell)
 
          uw_sfc = sign(sqrt(abs(stressZonal(iCell)) / rho_sw), stressZonal(iCell))
-        
+       
+         if(abs(stressMeridional(iCell)) < 1e-6_RKIND) then
+                 stressMeridional(iCell) = 0.0_RKIND
+         endif
          vw_sfc = sign(sqrt(abs(stressMeridional(iCell)) / rho_sw), stressMeridional(iCell))
 
          nLevs = maxLevelCell(iCell)
 
-         print *, 'nz = ', config_les_nz, 'dz = ',config_les_dz
          call palm(activeTracers(1,:nLevs,iCell), activeTracers(2,:nLevs,iCell),               &
                 velocityZonal(:nLevs,iCell), velocityMeridional(:nLevs,iCell),                 &
-                layerThickness(:nLevs,iCell), fCell(iCell), nLevs,                             &
+                layerThickness(:nLevs,iCell), latCell(iCell), nLevs,                             &
                 -wt_sfc, penetrativeTemperatureFlux(iCell), ws_sfc, uw_sfc, vw_sfc,             &
-                fac, dep1, dep2, config_les_dz, config_les_nz, config_les_dt_data_output,      &
-                config_les_dt_disturb, config_les_dt_data_output_av, config_les_dt_dopr,       &
-                config_les_end_time, config_les_dt_dots, tIncrementLES(:nLevs,iCell),          &
-                sIncrementLES(:nLevs,iCell), uIncrementLES(:nLevs,iCell), vIncrementLES(:nLevs,iCell))
+                fac, dep1, dep2, config_les_dz, config_les_nz,       &
+                etime, config_les_dt_disturb, tIncrementLES(:nLevs,iCell),          &
+                sIncrementLES(:nLevs,iCell), uIncrementLES(:nLevs,iCell),                      &
+                vIncrementLES(:nLevs,iCell), temperatureLES(:,iCell),                     &
+                salinityLES(:,iCell), velocityZonalLES(:,iCell),                     &
+                velocityMeridionalLES(:,iCell),dt,first)
 
       enddo
-      !$ome end do
-
+      !$omp end do
       !average U,V increments to edges to increment normal Velocity
+
+      normalVelocityIncrementLES(:,:) = 0.0_RKIND
 
       !$omp do schedule(runtime)
       do iEdge = 1, nEdges
@@ -304,7 +329,7 @@ contains
          zonalAverage = 0.5_RKIND * (uIncrementLES(:,cell1) + uIncrementLES(:,cell2))
          meridionalAverage = 0.5_RKIND * (vIncrementLES(:,cell1) + vIncrementLES(:,cell2))
 
-         normalVelocityIncrementLES(:,iEdge) = normalVelocityIncrementLES(:,iEdge) + cos(angleEdge(iEdge)) * zonalAverage + &
+         normalVelocityIncrementLES(:,iEdge) = normalVelocityIncrementLES(:,iEdge) + cos(angleEdge(iEdge)) * zonalAverage  &
                                                + sin(angleEdge(iEdge)) * meridionalAverage
       end do
       !$omp end do
@@ -326,7 +351,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_vmix_LES_apply_tend(meshPool, statePool, forcingPool, diagnosticsPool, timeLevelIn)!{{{
+   subroutine ocn_vmix_LES_apply_tend(dt, meshPool, statePool, forcingPool, diagnosticsPool, timeLevelIn)!{{{
 
       !-----------------------------------------------------------------
       !
@@ -356,6 +381,7 @@ contains
 
       type (mpas_pool_type), pointer :: tracersPool
 
+      real (kind=RKIND) :: dt
       !-----------------------------------------------------------------
       !
       ! output variables
@@ -406,10 +432,10 @@ contains
       !$omp do schedule(runtime)
       do iCell=1,nCells
          do k=1,maxLevelCell(iCell)
-            activeTracers(indexTemperature,k,iCell) = activeTracers(indexTemperature,k,iCell) + &
-                                                      tIncrementLES(k,iCell)
+             activeTracers(indexTemperature,k,iCell) = activeTracers(indexTemperature,k,iCell) + &
+                                                      dt*tIncrementLES(k,iCell)
             activeTracers(indexSalinity,k,iCell) = activeTracers(indexSalinity,k,iCell) +       &
-                                                   sIncrementLES(k,iCell)
+                                                   dt*sIncrementLES(k,iCell)
          end do
       end do
       !$omp end do
@@ -417,7 +443,7 @@ contains
       !$omp do schedule(runtime)
       do iEdge=1,nEdges
          do k=1,maxLevelEdge(iEdge)
-            normalVelocity(k,iEdge) = normalVelocity(k,iEdge) + normalVelocityIncrementLES(k,iEdge)
+            normalVelocity(k,iEdge) = normalVelocity(k,iEdge) + dt*normalVelocityIncrementLES(k,iEdge)
          end do
       end do
       !$omp end do

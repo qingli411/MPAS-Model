@@ -66,7 +66,7 @@ libcvmix: cvmix_source
 
 libLES: LES_source
 	if [ -d les ]; then \
-		(cd les; make libs F90="$(FC)" F90FLAGS="$(FFLAGS) $(FCINCLUDES)" LDFLAGS="$(LIBS) $(NCLIBF)") \
+		(cd les; make libs makelib=True F90="$(FC)" F90FLAGS="$(FFLAGS) $(FCINCLUDES)" LDFLAGS="$(LIBS) $(NCLIBF)") \
 	else \
 		(exit 1) \
 	fi
@@ -90,7 +90,7 @@ clean:
 		(cd cvmix; make clean) \
 	fi
 	if [ -d les ]; then \
-		(cd les; make clean) \
+		(cd les; make clean makelib=True) \
 	fi
 	if [ -d inc ]; then \
 		($(RM) -r inc) \

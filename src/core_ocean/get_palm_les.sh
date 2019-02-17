@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ## CVMix Tag for build
-CVMIX_TAG=0470dd9
+CVMIX_TAG=bb146a6
 ## Subdirectory in CVMix repo to use
 CVMIX_SUBDIR=trunk/SOURCE
 

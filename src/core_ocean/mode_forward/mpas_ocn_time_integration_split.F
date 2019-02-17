@@ -392,8 +392,8 @@ module ocn_time_integration_split
       n_bcl_iter(config_n_ts_iter) = config_n_bcl_iter_end
 
       if (config_use_les_for_vmix) then
-          call ocn_vmix_les_interface(meshPool, statePool, forcingPool,  &
-                                        diagnosticsPool, dt, err, 2)
+          call ocn_vmix_LES_interface(meshPool, statePool, forcingPool,  &
+                                        diagnosticsPool, dt, err, 2, .false.)
       endif
 
       do split_explicit_step = 1, config_n_ts_iter
@@ -1795,7 +1795,7 @@ module ocn_time_integration_split
         if ( .not. config_use_les_for_vmix) then
            call ocn_vmix_implicit(dt, meshPool, diagnosticsPool, statePool, forcingPool, scratchPool, err, 2)
         else
-           call ocn_vmix_LES_apply_tend(meshPool, statePool, forcingPool, diagnosticsPool, 2)
+           call ocn_vmix_LES_apply_tend(dt, meshPool, statePool, forcingPool, diagnosticsPool, 2)
         end if
 
         block => block % next

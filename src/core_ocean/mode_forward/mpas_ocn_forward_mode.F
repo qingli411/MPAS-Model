@@ -74,6 +74,7 @@ module ocn_forward_mode
    use ocn_equation_of_state
 
    use ocn_vmix
+   use ocn_vmix_LES
 
    use ocn_forcing
    use ocn_sea_ice
@@ -117,6 +118,8 @@ module ocn_forward_mode
       real (kind=RKIND), dimension(:), pointer :: meshDensity
       type (mpas_pool_type), pointer :: meshPool
       type (mpas_pool_type), pointer :: diagnosticsPool
+      type (mpas_pool_type), pointer :: forcingPool
+      type (mpas_pool_type), pointer :: statePool
 
       character (len=StrKIND), pointer :: xtime, simulationStartTime
       real (kind=RKIND), pointer :: daysSinceStartOfSim
@@ -126,6 +129,7 @@ module ocn_forward_mode
       type (MPAS_TimeInterval_type) :: alarmTimeStep
 
       logical, pointer :: config_do_restart, config_read_nearest_restart, config_filter_btr_mode, config_conduct_tests
+      logical, pointer :: config_use_les_for_vmix
       character (len=StrKIND), pointer :: config_vert_coord_movement, config_pressure_gradient_type
       character (len=StrKIND), pointer :: config_surface_salinity_monthly_restoring_compute_interval
 
@@ -143,6 +147,7 @@ module ocn_forward_mode
       ! Setup ocean config pool
       call ocn_constants_init(domain % configs, domain % packages)
 
+      call mpas_pool_get_config(domain % configs, 'config_use_les_for_vmix', config_use_les_for_vmix)
       call mpas_pool_get_config(domain % configs, 'config_do_restart', config_do_restart)
       call mpas_pool_get_config(domain % configs, 'config_read_nearest_restart', config_read_nearest_restart)
       call mpas_pool_get_config(domain % configs, 'config_vert_coord_movement', config_vert_coord_movement)
@@ -329,11 +334,15 @@ module ocn_forward_mode
          call mpas_pool_get_array(diagnosticsPool, 'xtime', xtime)
          xtime = startTimeStamp
 
+
          ! Set simulationStartTime only if that variable is not read from the restart file.
          call mpas_pool_get_array(diagnosticsPool, 'simulationStartTime', simulationStartTime)
          if (trim(simulationStartTime)=="no_date_available") then
             simulationStartTime = startTimeStamp
          end if
+  
+         call mpas_pool_get_subpool(block % structs, 'forcing', forcingPool)
+         call mpas_pool_get_subpool(block % structs, 'state', statePool)
 
          ! compute time since start of simulation, in days
          call mpas_pool_get_array(diagnosticsPool, 'daysSinceStartOfSim',daysSinceStartOfSim)
@@ -341,7 +350,11 @@ module ocn_forward_mode
          call mpas_set_time(simulationStartTime_timeType, dateTimeString=simulationStartTime)
          call mpas_get_timeInterval(xtime_timeType - simulationStartTime_timeType,dt=daysSinceStartOfSim)
          daysSinceStartOfSim = daysSinceStartOfSim*days_per_second
-
+! init LES
+         if (config_use_les_for_vmix) then
+            call ocn_vmix_LES_interface(meshPool, statePool, forcingPool, &
+                                        diagnosticsPool, dt, err_tmp, 2, .true.)
+         endif
          block => block % next
       end do
 
