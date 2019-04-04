@@ -90,8 +90,12 @@ contains
       type (mpas_pool_type), pointer :: statePool
       type (mpas_pool_type), pointer :: tracersPool
       type (mpas_pool_type), pointer :: verticalMeshPool
+      type (mpas_pool_type), pointer :: forcingPool
 
       integer :: iCell, k, idx
+
+      real (kind=RKIND), dimension(:), pointer :: windStressZonal, windStressMeridional,  &
+                                    sensibleHeatFlux, evaporationFlux
 
       ! Define config variable pointers
       character (len=StrKIND), pointer :: config_init_configuration, config_vertical_grid
@@ -103,7 +107,11 @@ contains
                                     config_baroclinic_channel_bottom_temperature, &
                                     config_baroclinic_channel_temperature_difference, &
                                     config_baroclinic_channel_salinity, &
-                                    config_baroclinic_channel_coriolis_parameter
+                                    config_baroclinic_channel_coriolis_parameter,    &
+                                    config_baroclinic_channel_wind_stress_zonal,     &
+                                    config_baroclinic_channel_wind_stress_meridional, &
+                                    config_baroclinic_channel_heat_flux,             &
+                                    config_baroclinic_channel_evaporation_flux
 
       ! Define dimension pointers
       integer, pointer :: nCellsSolve, nEdgesSolve, nVertLevels, nVertLevelsP1
@@ -146,7 +154,18 @@ contains
       call mpas_pool_get_config(ocnConfigs, 'config_baroclinic_channel_coriolis_parameter', &
                                 config_baroclinic_channel_coriolis_parameter)
 
-      ! Determine vertical grid for configuration
+      call mpas_pool_get_config(ocnConfigs, 'config_baroclinic_channel_wind_stress_zonal', &
+                                  config_baroclinic_channel_wind_stress_zonal)
+      call mpas_pool_get_config(ocnConfigs, 'config_baroclinic_channel_wind_stress_meridional', &
+                                  config_baroclinic_channel_wind_stress_meridional)
+      call mpas_pool_get_config(ocnConfigs, 'config_baroclinic_channel_heat_flux', &
+                                  config_baroclinic_channel_heat_flux)
+
+      call mpas_pool_get_config(ocnConfigs, 'config_baroclinic_channel_evaporation_flux', &
+                                  config_baroclinic_channel_evaporation_flux)
+
+
+     ! Determine vertical grid for configuration
       call mpas_pool_get_subpool(domain % blocklist % structs, 'mesh', meshPool)
       call mpas_pool_get_dimension(meshPool, 'nVertLevelsP1', nVertLevelsP1)
       call mpas_pool_get_config(meshPool, 'on_a_sphere', on_a_sphere)
@@ -171,7 +190,6 @@ contains
 
         call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCellsSolve)
         call mpas_pool_get_dimension(meshPool, 'nEdgesSolve', nEdgesSolve)
-
         call mpas_pool_get_array(meshPool, 'xCell', xCell)
         call mpas_pool_get_array(meshPool, 'yCell', yCell)
         call mpas_pool_get_array(meshPool, 'dcEdge', dcEdge)
@@ -205,6 +223,7 @@ contains
       do while(associated(block_ptr))
         call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
         call mpas_pool_get_subpool(block_ptr % structs, 'state', statePool)
+        call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
         call mpas_pool_get_subpool(block_ptr % structs, 'verticalMesh', verticalMeshPool)
         call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
 
@@ -228,6 +247,11 @@ contains
         call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, 1)
         call mpas_pool_get_array(tracersPool, 'debugTracers', debugTracers, 1)
         call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, 1)
+        call mpas_pool_get_array(forcingPool, 'sensibleHeatFlux', sensibleHeatFlux)
+        call mpas_pool_get_array(forcingPool, 'evaporationFlux', evaporationFlux)
+        call mpas_pool_get_array(forcingPool, 'windStressZonal', windStressZonal, 1)
+        call mpas_pool_get_array(forcingPool, 'windStressMeridional',windStressMeridional, 1)
+
 
         call mpas_pool_get_array(verticalMeshPool, 'refZMid', refZMid)
         call mpas_pool_get_array(verticalMeshPool, 'restingThickness', restingThickness)
@@ -248,6 +272,10 @@ contains
            ! Determine cutoff location for large sin wave
            yOffset = perturbationWidth * sin (6.0_RKIND * pii * (xCell(iCell) - xMinGlobal) / (xMaxGlobal - xMinGlobal))
 
+           sensibleHeatFlux(iCell) = config_baroclinic_channel_heat_flux
+           evaporationFlux(iCell) = config_baroclinic_channel_evaporation_flux
+           windStressZonal(iCell) = config_baroclinic_channel_wind_stress_zonal
+           windStressMeridional(iCell) = config_baroclinic_channel_wind_stress_meridional
            ! Set debug tracer
            if ( associated(debugTracers) ) then
               idx = index_tracer1

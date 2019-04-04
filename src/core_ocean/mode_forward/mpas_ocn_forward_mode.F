@@ -351,10 +351,10 @@ module ocn_forward_mode
          call mpas_get_timeInterval(xtime_timeType - simulationStartTime_timeType,dt=daysSinceStartOfSim)
          daysSinceStartOfSim = daysSinceStartOfSim*days_per_second
 ! init LES
-         if (config_use_les_for_vmix) then
-            call ocn_vmix_LES_interface(meshPool, statePool, forcingPool, &
-                                        diagnosticsPool, dt, err_tmp, 2, .true.)
-         endif
+!         if (config_use_les_for_vmix) then
+!            call ocn_vmix_LES_interface(meshPool, statePool, forcingPool, &
+!                                        diagnosticsPool, dt, err_tmp, 2, .true.)
+!         endif
          block => block % next
       end do
 

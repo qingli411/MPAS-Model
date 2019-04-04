@@ -106,7 +106,8 @@ module ocn_time_integration_split
       type (mpas_pool_type), pointer :: tracersTendPool
       type (mpas_pool_type), pointer :: forcingPool
       type (mpas_pool_type), pointer :: scratchPool
-      type (mpas_pool_type), pointer :: swForcingPool
+      type (mpas_pool_type), pointer :: swForcingPool  
+      type (mpas_pool_type), pointer :: mixedLayerDepthsAMPool
 
       type (dm_info) :: dminfo
       integer :: iCell, i,k,j, iEdge, cell1, cell2, split_explicit_step, split, &
@@ -392,8 +393,10 @@ module ocn_time_integration_split
       n_bcl_iter(config_n_ts_iter) = config_n_bcl_iter_end
 
       if (config_use_les_for_vmix) then
+          call mpas_pool_get_subpool(domain % blocklist % structs,       &
+              'mixedLayerDepthsAM', mixedLayerDepthsAMPool)    
           call ocn_vmix_LES_interface(meshPool, statePool, forcingPool,  &
-                                        diagnosticsPool, dt, err, 2, .false.)
+                                        diagnosticsPool, mixedLayerDepthsAMPool, dt, err, 2)
       endif
 
       do split_explicit_step = 1, config_n_ts_iter

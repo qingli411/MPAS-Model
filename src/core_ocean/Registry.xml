@@ -505,6 +505,31 @@
 					description="time interval to write LES time series data, reserved for debugging only."
 					possible_values="positive real numbers"
 		/>
+		<nml_option name="config_les_disturb_energy_limit" type="real" default_value="0.01" units="m^2 s^{-2}"
+					description="maximum energy for the disturbance"
+					possible_values="positive real numbers"
+		/>
+		<nml_option name="config_les_disturb_amplitude" type="real" default_value="0.01" units="NA"
+					description="amplitude of the disturbance"
+					possible_values="positive real numbers"
+		/>
+		<nml_option name="config_les_disturb_bottom" type="real" default_value="-50.0" units="m"
+					description="bottom of disturbance layer in m"
+					possible_values="negative real numbers"
+		/>
+		<nml_option name="config_les_disturb_top" type="real" default_value="0" units="m"
+					description="top of disturbance layer in m"
+					possible_values="negative real numbers"
+					/>
+		<nml_option name="config_les_disturb_nblocks" type="integer" default_value="1" units="NA"
+			                description="number of blocks for initial disturbance"
+					possible_values="integers >= 1"
+		/>			
+		<nml_option name="config_les_time_avg" type="real" default_value="0" units="s"
+					description="interval over which to average the LES increments"
+					possible_values="real vals >= 0"
+		/>
+		
 	</nml_record>	
 	<nml_record name="cvmix" mode="forward">
 		<nml_option name="config_use_cvmix" type="logical" default_value=".false." units="NA"
@@ -2711,6 +2736,10 @@
 		/>
 		<var name="temperatureLES" type="real" dimensions="nVertLevelsLES nCells Time" units="C"
 			description="horizontally averaged temperature from the LES"
+			packages="forwardMode;analysisMode"
+		/>
+		<var name="zLES" type="real" dimensions="nVertLevelsLES nCells Time" units="C"
+			description="vertical grid from LES"
 			packages="forwardMode;analysisMode"
 		/>
 		<var name="salinityLES" type="real" dimensions="nVertLevelsLES nCells Time" units="PSU"

@@ -35,6 +35,22 @@
 			description="Salinity of the water in the entire domain."
 			possible_values="Any real number greater than 0."
 		/>
+		<nml_option name="config_baroclinic_channel_heat_flux" type="real" default_value="0.0" units="m ^oC s^{-1}"
+			description="Surface heat flux."
+			possible_values="Any real number."
+		/>
+		<nml_option name="config_baroclinic_channel_evaporation_flux" type="real" default_value="0.0" units="kg m^{-2} s^{-1}"
+			description="Evaporative flux"
+			possible_values="Any real number."
+		/>
+		<nml_option name="config_baroclinic_channel_wind_stress_zonal" type="real" default_value="0.0" units="Pa"
+			description="Surface Zonal Wind stress."
+			possible_values="Any real number."
+		/>
+		<nml_option name="config_baroclinic_channel_wind_stress_meridional" type="real" default_value="0" units="Pa"
+			description="Surface meridional windstress."
+			possible_values="Any real number."
+		/>
 		<nml_option name="config_baroclinic_channel_coriolis_parameter" type="real" default_value="-1.2e-4" units="s^{-1}"
 			description="Coriolis parameter for entrie domain."
 			possible_values="Any real number."

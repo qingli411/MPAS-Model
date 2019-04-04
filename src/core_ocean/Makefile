@@ -50,8 +50,8 @@ cvmix_source: get_cvmix.sh
 	(cd cvmix)
 
 LES_source: get_palm_les.sh
-	(/bin/bash ./get_palm_les.sh)
-	(cd les)
+#	(/bin/bash ./get_palm_les.sh)
+	(cd palm_les)
 
 BGC_source: get_BGC.sh
 	(/bin/bash ./get_BGC.sh)

@@ -318,9 +318,10 @@ contains
       !
       ! velocity tendency: nonlinear Coriolis term and grad of kinetic energy
       !
-      call ocn_vel_hadv_coriolis_tend(meshPool, normalizedRelativeVorticityEdge, normalizedPlanetaryVorticityEdge, layerThicknessEdge, &
+      if (.not. config_use_les_for_vmix) then
+        call ocn_vel_hadv_coriolis_tend(meshPool, normalizedRelativeVorticityEdge, normalizedPlanetaryVorticityEdge, layerThicknessEdge, &
          normalVelocity, kineticEnergyCell, tend_normalVelocity, err)
-
+      endif
       !
       ! velocity tendency: vertical advection term -w du/dz
       !
