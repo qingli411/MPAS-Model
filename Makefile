@@ -77,16 +77,17 @@ pgi:
 	"CC_SERIAL = pgcc" \
 	"CXX_SERIAL = pgc++" \
 	"FFLAGS_PROMOTION = -r8" \
-	"FFLAGS_OPT = -O3 -byteswapio -Mfree" \
+	"FFLAGS_OPT = -fpic -O3 -byteswapio -Mfree" \
 	"CFLAGS_OPT = -O3" \
 	"CXXFLAGS_OPT = -O3" \
 	"LDFLAGS_OPT = -O3" \
-	"FFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -byteswapio -Mfree -Ktrap=divz,fp,inv,ovf -traceback" \
+	"FFLAGS_DEBUG = -fpic -O0 -g -Mbounds -Mchkptr -byteswapio -Mfree -Ktrap=divz,fp,inv,ovf -traceback" \
 	"CFLAGS_DEBUG = -O0 -g -traceback" \
 	"CXXFLAGS_DEBUG = -O0 -g -traceback" \
 	"LDFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -Ktrap=divz,fp,inv,ovf -traceback" \
 	"FFLAGS_OMP = -mp" \
 	"CFLAGS_OMP = -mp" \
+	"LES_COPT = -Mpreprocess -D__netcdf" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
@@ -154,6 +155,7 @@ ifort:
 	"LDFLAGS_DEBUG = -g -fpe0 -traceback" \
 	"FFLAGS_OMP = -qopenmp" \
 	"CFLAGS_OMP = -qopenmp" \
+	"LES_COPT = -cpp -D__netcdf" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
@@ -229,6 +231,7 @@ gfortran:
 	"LDFLAGS_DEBUG = -g -m64" \
 	"FFLAGS_OMP = -fopenmp" \
 	"CFLAGS_OMP = -fopenmp" \
+	"LES_COPT = -cpp -D__netcdf" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
@@ -597,11 +600,17 @@ ifeq "$(TIMER_LIB)" "gptl"
 	TIMER_MESSAGE="GPTL is being used for the timer interface"
 endif
 
+ifeq "$(LES_GPU)" "true"
+	FFLAGS += -acc -ta=tesla:cc60,deepcopy -Minfo=accel -Mcuda
+	LDFLAGS += -acc -ta=tesla:cc60 -Minfo=accel -Mcuda -lcufft
+	LES_COPT += -D__lc -D__cudaProfiler -D__fftw -D__GPU
+endif
+
 ifeq "$(TIMER_LIB)" ""
 	override CPPFLAGS += -DMPAS_NATIVE_TIMERS
 	TIMER_MESSAGE="The native timer interface is being used"
 endif
-
+      
 else # else ifdef $(TIMER_LIB)
 
 	override CPPFLAGS += -DMPAS_NATIVE_TIMERS

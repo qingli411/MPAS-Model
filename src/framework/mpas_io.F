@@ -27,8 +27,8 @@ module mpas_io
    integer, parameter :: MPAS_INT_FILLVAL = PIO_FILL_INT
    character, parameter :: MPAS_CHAR_FILLVAL = achar(0)  ! TODO: To be replaced with PIO_FILL_CHAR once PIO2 provides this variable
 #else
-   integer, parameter :: MPAS_INT_FILLVAL = NF_FILL_INT
-   character, parameter :: MPAS_CHAR_FILLVAL = achar(NF_FILL_CHAR)
+   integer, parameter :: MPAS_INT_FILLVAL = -2147483647 !NF_FILL_INT
+   character, parameter :: MPAS_CHAR_FILLVAL = ' '!achar(NF_FILL_CHAR)
 #endif
 
 #ifdef USE_PIO2
@@ -41,7 +41,7 @@ module mpas_io
 #ifdef SINGLE_PRECISION
    real (kind=RKIND), parameter :: MPAS_REAL_FILLVAL = NF_FILL_FLOAT
 #else
-   real (kind=RKIND), parameter :: MPAS_REAL_FILLVAL = NF_FILL_DOUBLE
+   real (kind=RKIND), parameter :: MPAS_REAL_FILLVAL = 9.9692099683868690d+36 !NF_FILL_DOUBLE
 #endif
 #endif
 

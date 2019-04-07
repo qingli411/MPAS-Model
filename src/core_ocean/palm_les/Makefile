@@ -124,8 +124,6 @@ ifneq ($(makelib),True)
 	include MAKE.inc
 endif
 
-COPT= -cpp -D__netcdf
-
 .SUFFIXES:
 .SUFFIXES: .o .f90
 
