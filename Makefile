@@ -94,6 +94,54 @@ pgi:
 	"OPENMP = $(OPENMP)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
+pgi-titan-openacc:
+	( $(MAKE) all \
+	"FC_PARALLEL = ftn" \
+	"CC_PARALLEL = cc" \
+	"CXX_PARALLEL = CC" \
+	"FC_SERIAL = ftn" \
+	"CC_SERIAL = cc" \
+	"CXX_SERIAL = CC" \
+	"FFLAGS_PROMOTION = -r8" \
+	"FFLAGS_OPT = -O3 -byteswapio -Mfree" \
+	"LES_FFLAGS_OPT = -acc -ta=tesla:cc35 -Minfo=accel -Mcuda" \
+	"CFLAGS_OPT = -O3" \
+	"CXXFLAGS_OPT = -O3" \
+	"LDFLAGS_OPT = -O3 -ta=tesla:cc35 -Minfo=accel -Mcuda -lcufft" \
+	"LES_LDFLAGS_OPT = -acc -ta=tesla:cc35 -Minfo=accel -Mcuda -lcufft" \
+	"FFLAGS_OMP = -mp" \
+	"LES_COPT = -Mpreprocess -D__netcdf -D__lc -D__cudaProfiler -D__GPU" \
+	"CFLAGS_OMP = -mp" \
+	"CORE = $(CORE)" \
+	"DEBUG = $(DEBUG)" \
+	"USE_PAPI = $(USE_PAPI)" \
+	"OPENMP = $(OPENMP)" \
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DUNDERSCORE" )
+
+pgi-titan:
+	( $(MAKE) all \
+	"FC_PARALLEL = ftn" \
+	"CC_PARALLEL = cc" \
+	"CXX_PARALLEL = CC" \
+	"FC_SERIAL = ftn" \
+	"CC_SERIAL = cc" \
+	"CXX_SERIAL = CC" \
+	"FFLAGS_PROMOTION = -r8" \
+	"FFLAGS_OPT = -O3 -byteswapio -Mfree" \
+	"LES_FFLAGS_OPT = " \
+	"CFLAGS_OPT = -O3" \
+	"CXXFLAGS_OPT = -O3" \
+	"LDFLAGS_OPT = -O3" \
+	"LES_LDFLAGS_OPT = "\
+	"FFLAGS_OMP = -mp" \
+	"LES_COPT = -Mpreprocess -D__netcdf" \
+	"CFLAGS_OMP = -mp" \
+	"CORE = $(CORE)" \
+	"DEBUG = $(DEBUG)" \
+	"USE_PAPI = $(USE_PAPI)" \
+	"OPENMP = $(OPENMP)" \
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DUNDERSCORE" )
+
 pgi-nersc:
 	( $(MAKE) all \
 	"FC_PARALLEL = ftn" \
@@ -108,6 +156,7 @@ pgi-nersc:
 	"CXXFLAGS_OPT = -O3" \
 	"LDFLAGS_OPT = -O3" \
 	"FFLAGS_OMP = -mp" \
+	"LES_COPT = -Mpreprocess -D__netcdf" \
 	"CFLAGS_OMP = -mp" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \

@@ -315,19 +315,19 @@ contains
 
          latVal = ASIN(fCell(iCell) / (2.0_RKIND*7.292E-5_RKIND))
 
-!         call palm(activeTracers(1,:nLevs,iCell), activeTracers(2,:nLevs,iCell),               &
-!                velocityZonal(:nLevs,iCell), velocityMeridional(:nLevs,iCell),                 &
-!                layerThickness(:nLevs,iCell), latVal, nLevs,                             &
-!                -wt_sfc, penetrativeTemperatureFlux(iCell), ws_sfc, -uw_sfc, -vw_sfc,             &
-!                fac, dep1, dep2, config_les_dz, config_les_nz,       &
-!                etime, config_les_dt_disturb, tIncrementLES(:nLevs,iCell),          &
-!                sIncrementLES(:nLevs,iCell), uIncrementLES(:nLevs,iCell),                      &
-!                vIncrementLES(:nLevs,iCell), temperatureLES(:,iCell),                     &
-!                salinityLES(:,iCell), velocityZonalLES(:,iCell),                     &
-!                velocityMeridionalLES(:,iCell), dt, first, zLES(:,iCell),      &
-!                config_les_disturb_energy_limit, config_les_disturb_amplitude, &
-!                config_les_disturb_bottom, config_les_disturb_top, config_les_disturb_nblocks, dThreshMLD(iCell), &
-!                config_les_time_avg)
+         call palm(activeTracers(1,:nLevs,iCell), activeTracers(2,:nLevs,iCell),               &
+                velocityZonal(:nLevs,iCell), velocityMeridional(:nLevs,iCell),                 &
+                layerThickness(:nLevs,iCell), latVal, nLevs,                             &
+                -wt_sfc, penetrativeTemperatureFlux(iCell), ws_sfc, -uw_sfc, -vw_sfc,             &
+                fac, dep1, dep2, config_les_dz, config_les_nz,       &
+                etime, config_les_dt_disturb, tIncrementLES(:nLevs,iCell),          &
+                sIncrementLES(:nLevs,iCell), uIncrementLES(:nLevs,iCell),                      &
+                vIncrementLES(:nLevs,iCell), temperatureLES(:,iCell),                     &
+                salinityLES(:,iCell), velocityZonalLES(:,iCell),                     &
+                velocityMeridionalLES(:,iCell), dt, first, zLES(:,iCell),      &
+                config_les_disturb_energy_limit, config_les_disturb_amplitude, &
+                config_les_disturb_bottom, config_les_disturb_top, config_les_disturb_nblocks, dThreshMLD(iCell), &
+                config_les_time_avg)
 
       enddo
       !$omp end do

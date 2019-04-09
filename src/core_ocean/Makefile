@@ -4,8 +4,7 @@
 OCEAN_SHARED_INCLUDES = -I$(PWD)/../framework -I$(PWD)/../external/esmf_time_f90 -I$(PWD)/../operators
 OCEAN_SHARED_INCLUDES += -I$(PWD)/BGC -I$(PWD)/shared -I$(PWD)/analysis_members -I$(PWD)/cvmix -I$(PWD)/mode_forward -I$(PWD)/mode_analysis -I$(PWD)/mode_init
 
-all: shared libcvmix analysis_members libBGC 
-	#libLES
+all: shared libcvmix analysis_members libBGC libLES
 	(cd mode_forward; $(MAKE) FCINCLUDES="$(FCINCLUDES) $(OCEAN_SHARED_INCLUDES)" all )
 	(cd mode_analysis; $(MAKE) FCINCLUDES="$(FCINCLUDES) $(OCEAN_SHARED_INCLUDES)" all )
 	(cd mode_init; $(MAKE) FCINCLUDES="$(FCINCLUDES) $(OCEAN_SHARED_INCLUDES)" all )
@@ -50,9 +49,9 @@ cvmix_source: get_cvmix.sh
 	(/bin/bash ./get_cvmix.sh)
 	(cd cvmix)
 
-#LES_source: get_palm_les.sh
+LES_source: get_palm_les.sh
 #	(/bin/bash ./get_palm_les.sh)
-#	(cd palm_les)
+	(cd palm_les)
 
 BGC_source: get_BGC.sh
 	(/bin/bash ./get_BGC.sh)
@@ -65,12 +64,12 @@ libcvmix: cvmix_source
 		(exit 1) \
 	fi
 
-#libLES: LES_source
-#	if [ -d palm_les ]; then \
-#		(cd palm_les; make libs makelib=True COPT="$(LES_COPT)" F90="$(FC)" F90FLAGS="$(FFLAGS) $(FCINCLUDES)" LDFLAGS="$(LIBS) $(NCLIBF)") \
-#	else \
-#		(exit 1) \
-#	fi
+libLES: LES_source
+	if [ -d palm_les ]; then \
+		(cd palm_les; make libs makelib=True COPT="$(LES_COPT)" F90="$(FC)" F90FLAGS="$(FFLAGS) $(LES_FFLAGS_OPT) $(FCINCLUDES)" LDFLAGS="$(LES_LDFLAGS_OPT) $(LIBS) $(NCLIBF)") \
+	else \
+		(exit 1) \
+	fi
 
 
 libBGC: BGC_source
@@ -90,9 +89,9 @@ clean:
 	if [ -d cvmix ]; then \
 		(cd cvmix; make clean) \
 	fi
-#	if [ -d palm_les ]; then \
-#		(cd palm_les; make clean makelib=True) \
-#	fi
+	if [ -d palm_les ]; then \
+		(cd palm_les; make clean makelib=True) \
+	fi
 	if [ -d inc ]; then \
 		($(RM) -r inc) \
 	fi
