@@ -144,7 +144,8 @@ contains
       character(len=strKind), pointer :: config_dt
 
       logical, pointer :: config_use_les_for_vmix, config_use_ecosysTracers,    &
-                          config_use_activeTracers_surface_bulk_forcing
+                          config_use_activeTracers_surface_bulk_forcing,        &
+                          config_AM_mixedLayerDepths_enable
 
       real (kind=RKIND), pointer :: config_les_dz, config_les_dt_data_output,   &
                                     config_les_dt_disturb, config_les_dt_data_output_av,       &
@@ -159,7 +160,7 @@ contains
 
       real (kind=RKIND), dimension(:), allocatable :: zonalAverage, meridionalAverage 
       real (kind=RKIND) :: fac, dep1, dep2, fracAbsorbed, fracAbsorbedRunoff,  &
-                           etime, wt_sfc, uw_sfc, vw_sfc, ws_sfc, latVal
+                           etime, wt_sfc, uw_sfc, vw_sfc, ws_sfc, latVal, les_disturb_bottom
 
       err=0
 
@@ -173,6 +174,7 @@ contains
       call mpas_pool_get_config(ocnConfigs, 'config_use_les_for_vmix', config_use_les_for_vmix)
       call mpas_pool_get_config(ocnConfigs, 'config_use_ecosysTracers', config_use_ecosysTracers)
       call mpas_pool_get_config(ocnConfigs, 'config_use_activeTracers_surface_bulk_forcing', config_use_activeTracers_surface_bulk_forcing)
+      call mpas_pool_get_config(ocnConfigs, 'config_AM_mixedLayerDepths_enable', config_AM_mixedLayerDepths_enable)
 
       if ( .not. config_use_les_for_vmix ) return
       if (config_use_ecosysTracers) then
@@ -298,6 +300,13 @@ contains
 
       !$omp do schedule(runtime)
       do iCell = 1, nCells
+
+        if(config_AM_mixedLayerDepths_enable) then
+          les_disturb_bottom = -dThreshMLD(iCell)
+        else
+          les_disturb_bottom = config_les_disturb_bottom
+        endif
+
          fracAbsorbed = 1.0_RKIND - exp( max(-layerThickness(1, iCell) / config_flux_attenuation_coefficient, -100.0_RKIND) )
          fracAbsorbedRunoff = 1.0_RKIND - exp( max(-layerThickness(1, iCell) / config_flux_attenuation_coefficient_runoff, &
                               -100.0_RKIND) )
@@ -332,7 +341,7 @@ contains
                 salinityLES(:,iCell), velocityZonalLES(:,iCell),                     &
                 velocityMeridionalLES(:,iCell), dt, first, zLES(:,iCell),      &
                 config_les_disturb_energy_limit, config_les_disturb_amplitude, &
-                config_les_disturb_bottom, config_les_disturb_top, config_les_disturb_nblocks, dThreshMLD(iCell), &
+                les_disturb_bottom, config_les_disturb_top, config_les_disturb_nblocks, &
                 config_les_time_avg)
 
       enddo

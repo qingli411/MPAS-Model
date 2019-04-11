@@ -35,7 +35,7 @@
              uIncrementLES,vIncrementLES,tempLES,    &
              salinityLES, uLESout, vLESout, dtLS, first, zLES, &
              disturbMax, disturbAmp, disturbBot, disturbTop, disturbNblocks, &
-             MLD, timeAv)
+             timeAv)
 
 
     USE arrays_3d
@@ -75,7 +75,7 @@
 !
 ! -- Variables from MPAS
    integer(iwp) :: nVertLevels, il, jl, jloc, kl, knt, nzLES, iz, disturbNblocks
-   Real(wp),intent(in)                             :: dtLS, MLD
+   Real(wp),intent(in)                             :: dtLS
    logical,intent(in)                              :: first
    Real(wp),dimension(nVertLevels),intent(inout)   :: T_mpas, S_mpas, U_mpas, V_mpas
    Real(wp),dimension(nVertLevels),intent(inout)   :: tIncrementLES, sIncrementLES, &
@@ -119,8 +119,7 @@
    dt_ls = dtLS
    dt_avg = timeAv
 
-   print *, MLD
-   disturbance_level_b = min(disturbBot,-MLD) 
+   disturbance_level_b = disturbBot 
    disturbance_level_t = disturbTop
    disturbance_amplitude = disturbAmp
    disturbance_energy_limit = disturbMax
