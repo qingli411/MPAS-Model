@@ -1355,8 +1355,8 @@
     LOGICAL ::  neutral = .FALSE.                                !< namelist parameter
     LOGICAL ::  nudging = .FALSE.                                !< namelist parameter
     LOGICAL ::  ocean = .TRUE.                                  !< namelist parameter
-    LOGICAL ::  linear_eqnOfState = .TRUE.                      !< namelist parmaeter for linear equation of state in ocean
-    REAL(wp) :: rho_ref = 1000.0_wp                              !< reference density for linear eos
+    LOGICAL ::  linear_eqnOfState = .FALSE.                      !< namelist parmaeter for linear equation of state in ocean
+    REAL(wp) :: rho_ref = 1026.0_wp                              !< reference density for linear eos
     LOGICAL ::  fixed_alpha = .TRUE.                             !< use fixed thermal and haline expansion coefficients
     REAL(wp) :: alpha_const = 2.0E-4                             !< fixed alpha_T value
     REAL(wp) :: beta_const = 8.0E-4                              !< fixed beta_S value

@@ -143,7 +143,9 @@ contains
 
       character(len=strKind), pointer :: config_dt
 
-      logical, pointer :: config_use_les_for_vmix, config_use_ecosysTracers
+      logical, pointer :: config_use_les_for_vmix, config_use_ecosysTracers,    &
+                          config_use_activeTracers_surface_bulk_forcing
+
       real (kind=RKIND), pointer :: config_les_dz, config_les_dt_data_output,   &
                                     config_les_dt_disturb, config_les_dt_data_output_av,       &
                                     config_les_dt_dopr, config_les_end_time,                   &
@@ -170,6 +172,8 @@ contains
       call mpas_pool_get_config(ocnConfigs, 'config_dt', config_dt)
       call mpas_pool_get_config(ocnConfigs, 'config_use_les_for_vmix', config_use_les_for_vmix)
       call mpas_pool_get_config(ocnConfigs, 'config_use_ecosysTracers', config_use_ecosysTracers)
+      call mpas_pool_get_config(ocnConfigs, 'config_use_activeTracers_surface_bulk_forcing', config_use_activeTracers_surface_bulk_forcing)
+
       if ( .not. config_use_les_for_vmix ) return
       if (config_use_ecosysTracers) then
          call mpas_log_write('Error, superparameterization is not configured for use with BGC',MPAS_LOG_CRIT)
@@ -270,9 +274,11 @@ contains
 
       call ocn_surface_land_ice_fluxes_vel(meshPool, diagnosticsPool, surfaceStress, surfaceStressMagnitude, err)
 
-      call ocn_surface_bulk_forcing_tracers(meshPool, "activeTracers", forcingPool, activeTracers,  &
+      if(config_use_activeTracers_surface_bulk_forcing) then
+        call ocn_surface_bulk_forcing_tracers(meshPool, "activeTracers", forcingPool, activeTracers,  &
                                             tracerGroupSurfaceFlux, tracerGroupSurfaceFluxRunoff, &
                                             tracerGroupSurfaceFluxRemoved, dt, layerThickness, err)
+      endif
 
       call ocn_surface_land_ice_fluxes_tracers(meshPool, "activeTracers", forcingPool, tracerGroupSurfaceFlux, err)
 
@@ -304,7 +310,7 @@ contains
                         activeTracers(indexSalinity,1,iCell)
 
          uw_sfc = stressZonal(iCell) / rho_sw
-       
+
          if(abs(stressMeridional(iCell)) < 1e-6_RKIND) then
                  stressMeridional(iCell) = 0.0_RKIND
          endif
