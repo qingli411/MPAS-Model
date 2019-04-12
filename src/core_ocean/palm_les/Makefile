@@ -30,6 +30,7 @@ makelib=False
 PROG =  palm
 
 SOURCES = \
+	src/ppr_1d.f90 \
 	advec_ws.f90 \
 	average_3d_data.f90 \
 	boundary_conds.f90 \
@@ -145,7 +146,7 @@ endif
 	ranlib libLES.a
 
 clean:
-	rm -f libLES.a $(PROG) *.o $(OBJS) *.mod *.i *.lst
+	rm -f libLES.a $(PROG) *.o $(OBJS) *.mod *.i *.lst src/ppr_1d.o
 
 .f90.o:
 	$(F90) $(F90FLAGS) $(COPT) -c $<
@@ -368,6 +369,7 @@ outflow_turbulence.o: \
 	mod_kinds.o \
 	modules.o
 palm_mod.o: \
+	src/ppr_1d.o \
 	cpulog_mod.o \
 	mod_kinds.o \
 	modules.o \

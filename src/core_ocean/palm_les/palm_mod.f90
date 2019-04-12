@@ -28,6 +28,7 @@
 !> @todo create routine last_actions instead of calling lsm_last_actions etc.
 !> @todo move chem_init call to init_3d_model or to check_parameters
 !------------------------------------------------------------------------------!
+
  subroutine palm(T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
              lat_mpas,nVertLevels,wtflux,wtflux_solar, wsflux,uwflux, &
              vwflux,fac,dep1,dep2,dzLES,nzLES,        &
@@ -35,7 +36,7 @@
              uIncrementLES,vIncrementLES,tempLES,    &
              salinityLES, uLESout, vLESout, dtLS, first, zLES, &
              disturbMax, disturbAmp, disturbBot, disturbTop, disturbNblocks, &
-             timeAv)
+             botDepth, timeAv)
 
 
     USE arrays_3d
@@ -54,6 +55,8 @@
 !               netcdf_data_input_surface_data, netcdf_data_input_topo
 
     USE kinds
+
+    USE ppr_1d
 
     USE pegrid
 
@@ -75,6 +78,7 @@
 !
 ! -- Variables from MPAS
    integer(iwp) :: nVertLevels, il, jl, jloc, kl, knt, nzLES, iz, disturbNblocks
+   integer(iwp) :: nzMPAS, zmMPASspot, zeMPASspot
    Real(wp),intent(in)                             :: dtLS
    logical,intent(in)                              :: first
    Real(wp),dimension(nVertLevels),intent(inout)   :: T_mpas, S_mpas, U_mpas, V_mpas
@@ -86,6 +90,7 @@
    Real(wp),allocatable,dimension(:)   :: T_mpas2, S_mpas2, U_mpas2, V_mpas2
    Real(wp),allocatable,dimension(:)   :: Tles, Sles, Ules, Vles, zmid, zedge
    real(wp),allocatable,dimension(:)   :: zeLES, wtLES, wsLES, wuLES, wvLES
+   Real(wp),allocatable,dimension(:)   :: zeLESInv
    Real(wp) :: wtflux, wsflux, uwflux, vwflux, dzLES, z_fac, z_frst, z_cntr
    real(wp) :: z_fac1, z_fac2, z_facn, tol, test, lat_mpas, fac, dep1, dep2
    real(wp) :: dtDisturb, endTime, thickDiff, disturbMax, disturbAmp
@@ -99,17 +104,29 @@
    INTEGER(iwp)      ::  myid_openmpi    !< OpenMPI local rank for CUDA aware MPI
    Real(wp) :: coeff1, coeff2
 
-!more arguments to send
-! dt_data_output, dt_disturb, dt_data_output_av, dt_dopr
-! end_time
+!-- arrays and parameters for PPR remapping
+
+   integer, parameter :: nvar = 4
+   integer, parameter :: ndof = 1
+   real(wp) :: fLES(ndof, nvar, nzLES)
+   real(wp),allocatable :: fMPAS(:,:,:)
+   type(rmap_work) :: work
+   type(rmap_opts) :: opts
+   type(rcon_ends) :: bc_l(nvar)
+   type(rcon_ends) :: bc_r(nvar)
+
+!-- this specifies options for the method, here is quartic interp
+   opts%edge_meth = p5e_method
+   opts%cell_meth = pqm_method
+   opts%cell_lims = mono_limit
+
+   bc_l(:)%bcopt = bcon_loose
+   bc_r(:)%bcopt = bcon_loose
 
    call init_control_parameters
-!   dt_data_output = dtDataOutput
+
    dt_disturb = dtDisturb
-!   dt_data_output_av = dtDataOutputAv
-!   dt_dopr = dtDopr
    end_time = endTime
-!   dt_dots = dtDots
    ideal_solar_division = fac
    ideal_solar_efolding1 = dep1
    ideal_solar_efolding2 = dep2
@@ -119,12 +136,12 @@
    dt_ls = dtLS
    dt_avg = timeAv
 
-   disturbance_level_b = disturbBot 
+   disturbance_level_b = disturbBot
    disturbance_level_t = disturbTop
    disturbance_amplitude = disturbAmp
    disturbance_energy_limit = disturbMax
 
-   allocate(zmid(nVertLevels),zedge(nVertLevels+1))!,lt_mpas(nVertLevels))
+   allocate(zmid(nVertLevels),zedge(nVertLevels+1))
    allocate(T_mpas2(nVertLevels),S_mpas2(nVertLevels),U_mpas2(nVertLevels))
    allocate(V_mpas2(nVertLevels))
 
@@ -138,6 +155,25 @@
    enddo
 
    zedge(nvertLevels+1) = zedge(nVertLevels) - lt_mpas(nVertLevels)
+
+   do il=1,nVertLevels
+     if(zmid(il) < botDepth) then
+       zmMPASspot = il
+       nzMPAS = il
+       exit
+     endif
+   enddo
+
+   do il=1,nVertLevels
+     if(zedge(il) < botDepth) then
+       zeMPASspot = il
+       exit
+     endif
+   enddo
+
+   botDepth = zedge(zeMPASspot)
+
+   allocate(fMPAS(ndof, nvar, nzMPAS))
 
 !   U_mpas(:) = 0.0_wp
 !   V_mpas(:) = 0.0_wp
@@ -163,12 +199,6 @@
 !
 #endif
 
-!   f_mpas = 1e-4
-!   uwflux = 0.0
-!   vwflux = 0.0
-!   wsflux = 1e-4
-!   wtflux = -1.78e-5
-
 !TODO add check for right / acceptable range.
     top_momentumflux_u = uwflux
     top_momentumflux_v = vwflux
@@ -193,15 +223,14 @@
     CALL init_pegrid
     allocate(zu(nzb:nzt+1),zeLES(nzb-1:nzt+1),Tles(0:nzLES+1),Sles(0:nzLES+1))
     allocate(zw(nzb:nzt+1),Ules(0:nzLES+1),Vles(0:nzLES+1))
-
-    botDepth = -64.0_wp
+    allocate(zeLESinv(nzb-1:nzt+1))
 
     nzt = nzLES
     ! construct a stretched stretched grid
-    z_cntr = botDepth 
+    z_cntr = botDepth
     z_frst = -dzLES
     z_fac1 = z_cntr / z_frst
-    z_fac2 = 1.0_wp / float(nzt)
+    z_fac2 = 1.0_wp / REAL(nzt,kind=wp)
     z_fac = 1.10_wp
     tol = 1.0E-10_wp
     test = 10.00_wp
@@ -219,20 +248,21 @@
       z_fac = z_facn
     enddo
 
+    print *, z_fac,botDepth
     zeLES(nzt+1) = dzLES
     zeLES(nzt) = 0.0_wp
     zeLES(nzt-1) = -dzLES
     iz = 2
     do il = nzt-2,nzb,-1
-      zeLES(il) = zeLES(nzt-1)*(z_fac**(float(iz)) - 1.0_wp) / (z_fac - 1.0_wp)
+      zeLES(il) = zeLES(nzt-1)*(z_fac**(real(iz,kind=wp)) - 1.0_wp) / (z_fac - 1.0_wp)
       iz = iz + 1
     enddo
 
-    zeLES(nzt+1) = 1.0_wp
-    zeLES(nzt) = 0.0_wp
-    do il = nzt-1,nzb,-1
-       zeLES(il) = zeLES(il+1) - 1.0_wp
-    enddo
+!    zeLES(nzt+1) = 1.0_wp
+!    zeLES(nzt) = 0.0_wp
+!    do il = nzt-1,nzb,-1
+!       zeLES(il) = zeLES(il+1) - 1.0_wp
+!    enddo
 
     zeLES(nzb-1) = max(z_cntr,zeLES(nzb) - (zeLES(nzb+1) - zeLES(nzb)))
 
@@ -242,6 +272,7 @@
     zu(nzt+1) = dzLES 
     zLES(nzb+1:nzt) = zu(nzb+1:nzt)
 
+     call work%init(nzLES+1,nvar,opts) 
    !
 !-- Generate grid parameters, initialize generic topography and further process
 !-- topography information if required
@@ -265,32 +296,64 @@
 !       jl = jl - 1
 !    enddo
 
+    fMPAS(1,1,:) = T_mpas(1:nzMPAS)
+    fMPAS(1,2,:) = S_mpas(1:nzMPAS)
+    fMPAS(1,3,:) = U_mpas(1:nzMPAS)
+    fMPAS(1,4,:) = V_mpas(1:nzMPAS)
+
+    jl=1
+    do il = nzt,nzb-1,-1
+      zeLESinv(jl) = zeLES(il)
+      jl = jl + 1
+    enddo
+
+    call rmap1d(nzMPAS+1,nzLES+1,nvar,ndof,abs(zedge(1:nzMPAS+1)),abs(zeLESinv(1:nzLES+1)), &
+                fMPAS, fLES, bc_l, bc_r, work, opts)
+
+    print *, zEdge(1:nzMPAS+1)
+    print *, ' '
+    print *, zeLESinv(1:nzLES+1)
+    print *, ' '
+    print *, fMPAS(1,1,:)
+    print *, ' '
+    print *, ' '
+    print *, fLES(1,1,:)
+    stop
+    jl = 1
+    do il = nzt,nzb+1,-1
+      tLSforcing(il) = fLES(1,1,jl)
+      sLSforcing(il) = fLES(1,2,jl)
+      uLSforcing(il) = fLES(1,3,jl)
+      vLSforcing(il) = fLES(1,4,jl)
+      jl = jl + 1
+    enddo
+
 !    jloc = jl
-    il = 1
+!    il = 1
 !    do while (il < nVertLevels-1)
-      do jl=nzt,nzb+1,-1
-         if(zu(jl) < zmid(il+1)) then
-           il = il+1
-           il = min(il,nVertLevels-1)
-         endif
+!      do jl=nzt,nzb+1,-1
+!         if(zu(jl) < zmid(il+1)) then
+!           il = il+1
+!           il = min(il,nVertLevels-1)
+!         endif
+!
+!         coeff2 = (T_mpas(il) - T_mpas(il+1)) / (zmid(il) - zmid(il+1))
+!         coeff1 = T_mpas(il+1) - coeff2*zmid(il+1)
+!         tLSforcing(jl) = coeff2*zu(jl) + coeff1 + 273.15_wp
+!         
+!         coeff2 = (S_mpas(il) - S_mpas(il+1)) / (zmid(il) - zmid(il+1))
+!         coeff1 = S_mpas(il+1) - coeff2*zmid(il+1)
+!         sLSforcing(jl) = coeff2*zu(jl) + coeff1
+!
+!         coeff2 = (U_mpas(il) - U_mpas(il+1)) / (zmid(il) - zmid(il+1))
+!         coeff1 = U_mpas(il+1) - coeff2*zmid(il+1)
+!         uLSforcing(jl) = coeff2*zu(jl) + coeff1
+!
+!         coeff2 = (V_mpas(il) - V_mpas(il+1)) / (zmid(il) - zmid(il+1))
+!         coeff1 = V_mpas(il+1) - coeff2*zmid(il+1)
+!         vLSforcing(jl) = coeff2*zu(jl) + coeff1
 
-         coeff2 = (T_mpas(il) - T_mpas(il+1)) / (zmid(il) - zmid(il+1))
-         coeff1 = T_mpas(il+1) - coeff2*zmid(il+1)
-         tLSforcing(jl) = coeff2*zu(jl) + coeff1 + 273.15_wp
-         
-         coeff2 = (S_mpas(il) - S_mpas(il+1)) / (zmid(il) - zmid(il+1))
-         coeff1 = S_mpas(il+1) - coeff2*zmid(il+1)
-         sLSforcing(jl) = coeff2*zu(jl) + coeff1
-
-         coeff2 = (U_mpas(il) - U_mpas(il+1)) / (zmid(il) - zmid(il+1))
-         coeff1 = U_mpas(il+1) - coeff2*zmid(il+1)
-         uLSforcing(jl) = coeff2*zu(jl) + coeff1
-
-         coeff2 = (V_mpas(il) - V_mpas(il+1)) / (zmid(il) - zmid(il+1))
-         coeff1 = V_mpas(il+1) - coeff2*zmid(il+1)
-         vLSforcing(jl) = coeff2*zu(jl) + coeff1
-
-      enddo
+!      enddo
 !    enddo
 
 if(first) then
@@ -392,51 +455,63 @@ else
 
  if(minval(tempLES) < 100.0_wp) tempLES(:) = tempLES(:) + 273.15_wp
     tProfileInit(1:) = tempLES(:)
-   sProfileInit(1:) = salinityLES(:)
+    sProfileInit(1:) = salinityLES(:)
     uProfileInit(1:) = uLESout(:)
     vProfileInit(1:) = vLESout(:)
 
-    il = nzt
-    thickDiff = 0.0_wp
-    !find stopping spot
-    do knt = 1,nVertLevels
-       if(zedge(knt) < botDepth) then
-               exit
-       endif
+    jl=1
+    do il=nzt,nzb+1,-1
+      fLES(1,1,jl) = tProfileInit(il)
+      fLES(1,2,jl) = sProfileInit(il)
+      fLES(1,3,jl) = uProfileInit(il)
+      fLES(1,4,jl) = vProfileInit(il)
+      jl = jl+1
     enddo
 
-    do jl=1,knt-3
-      
-       sumValT = thickDiff*(tProfileInit(il) - Tles(il))
-       sumValS = thickDiff*(sProfileInit(il) - Sles(il))
-       sumValU = thickDiff*(uProfileInit(il) - uLES(il))
-       sumValV = thickDiff*(vProfileInit(il) - vLES(il))
+    call rmap1d(nzLES+1,nzMPAS+1,nvar,ndof,zeLES(0:nzLES),zedge,fLES,fMPAS,bc_l,bc_r,work,opts)
 
-       thickVal = 0.0_wp
-       do while (zw(il-1) >= zedge(jl+1)-1e-6)
-          sumValT = sumValT - (zw(il) - zw(il-1))*(tProfileInit(il) - Tles(il))
-          sumValS = sumValS - (zw(il) - zw(il-1))*(sProfileInit(il) - Sles(il))
-          sumValU = sumValU - (zw(il) - zw(il-1))*(uProfileInit(il) - uLES(il))
-          sumValV = sumValV - (zw(il) - zw(il-1))*(vProfileInit(il) - vLES(il))
-          thickVal = thickVal + (zw(il) - zw(il-1))
-          il = max(il - 1,1)
-       enddo
-       if (thickVal < lt_mpas(jl) -1e-6) then
-          sumValT = sumValT - (lt_mpas(jl) - thickVal)*(tProfileInit(il) - Tles(il))
-          sumValS = sumValS - (lt_mpas(jl) - thickVal)*(sProfileInit(il) - Sles(il))
-          sumValU = sumValU - (lt_mpas(jl) - thickVal)*(uProfileInit(il) - uLES(il))
-          sumValV = sumValV - (lt_mpas(jl) - thickVal)*(vProfileInit(il) - vLES(il))
-          thickDiff = (zw(il) - zw(il-1)) - (lt_mpas(jl) - thickVal) 
-        else
-          thickDiff = 0.0_wp
-        endif
+  
+ !   il = nzt
+ !   thickDiff = 0.0_wp
+ !   !find stopping spot
+ !   do knt = 1,nVertLevels
+ !      if(zedge(knt) < botDepth) then
+ !              exit
+ !      endif
+ !   enddo
 
-       tIncrementLES(jl) = sumValT / (dtLS*lt_mpas(jl))
-       sIncrementLES(jl) = sumValS / (dtLS*lt_mpas(jl))
-       uIncrementLES(jl) = sumValU / (dtLS*lt_mpas(jl))
-       vIncrementLES(jl) = sumValV / (dtLS*lt_mpas(jl))
-
-    enddo
+ !   do jl=1,knt-3
+ !     
+ !      sumValT = thickDiff*(tProfileInit(il) - Tles(il))
+ !      sumValS = thickDiff*(sProfileInit(il) - Sles(il))
+ !      sumValU = thickDiff*(uProfileInit(il) - uLES(il))
+ !      sumValV = thickDiff*(vProfileInit(il) - vLES(il))
+!
+!       thickVal = 0.0_wp
+!       do while (zw(il-1) >= zedge(jl+1)-1e-6)
+!          sumValT = sumValT - (zw(il) - zw(il-1))*(tProfileInit(il) - Tles(il))
+!          sumValS = sumValS - (zw(il) - zw(il-1))*(sProfileInit(il) - Sles(il))
+!          sumValU = sumValU - (zw(il) - zw(il-1))*(uProfileInit(il) - uLES(il))
+!          sumValV = sumValV - (zw(il) - zw(il-1))*(vProfileInit(il) - vLES(il))
+!          thickVal = thickVal + (zw(il) - zw(il-1))
+!          il = max(il - 1,1)
+!       enddo
+!       if (thickVal < lt_mpas(jl) -1e-6) then
+!          sumValT = sumValT - (lt_mpas(jl) - thickVal)*(tProfileInit(il) - Tles(il))
+!          sumValS = sumValS - (lt_mpas(jl) - thickVal)*(sProfileInit(il) - Sles(il))
+!          sumValU = sumValU - (lt_mpas(jl) - thickVal)*(uProfileInit(il) - uLES(il))
+!          sumValV = sumValV - (lt_mpas(jl) - thickVal)*(vProfileInit(il) - vLES(il))
+!          thickDiff = (zw(il) - zw(il-1)) - (lt_mpas(jl) - thickVal) 
+!        else
+!          thickDiff = 0.0_wp
+!        endif
+!
+!       tIncrementLES(jl) = sumValT / (dtLS*lt_mpas(jl))
+!       sIncrementLES(jl) = sumValS / (dtLS*lt_mpas(jl))
+!       uIncrementLES(jl) = sumValU / (dtLS*lt_mpas(jl))
+!       vIncrementLES(jl) = sumValV / (dtLS*lt_mpas(jl))
+!
+!    enddo
 
 !    print *, 'il = ',il
 !    print *, uProfileInit(nzt-20:nzt) - Ules(nzt-20:nzt)

@@ -130,7 +130,8 @@ contains
         sIncrementLES, normalVelocityIncrementLES,     &
         tracerGroupSurfaceFlux, tracerGroupSurfaceFluxRunoff, &
         tracerGroupSurfaceFluxRemoved, temperatureLES, zLES, &
-        salinityLES, velocityZonalLES, velocityMeridionalLES
+        salinityLES, velocityZonalLES, velocityMeridionalLES, &
+        zMid
 
       real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
       integer, pointer :: indexTemperature, indexSalinity, config_jerlov_water_type
@@ -153,14 +154,15 @@ contains
                                     config_les_dt_dots, config_flux_attenuation_coefficient,   &
                                     config_flux_attenuation_coefficient_runoff,                &
                                     config_les_disturb_top, config_les_disturb_bottom,         &
-                                    config_les_disturb_amplitude,                              &
+                                    config_les_disturb_amplitude, config_les_bottom,           &
                                     config_les_disturb_energy_limit, config_les_time_avg
 
       integer, pointer :: config_les_nz
 
       real (kind=RKIND), dimension(:), allocatable :: zonalAverage, meridionalAverage 
       real (kind=RKIND) :: fac, dep1, dep2, fracAbsorbed, fracAbsorbedRunoff,  &
-                           etime, wt_sfc, uw_sfc, vw_sfc, ws_sfc, latVal, les_disturb_bottom
+                           etime, wt_sfc, uw_sfc, vw_sfc, ws_sfc, latVal,      &
+                           les_disturb_bottom, les_bottom
 
       err=0
 
@@ -197,6 +199,7 @@ contains
       call mpas_pool_get_config(ocnConfigs, 'config_les_disturb_energy_limit', config_les_disturb_energy_limit)
       call mpas_pool_get_config(ocnConfigs, 'config_les_disturb_amplitude', config_les_disturb_amplitude)
       call mpas_pool_get_config(ocnConfigs, 'config_les_disturb_bottom', config_les_disturb_bottom)
+      call mpas_pool_get_config(ocnConfigs, 'config_les_bottom', config_les_bottom)
       call mpas_pool_get_config(ocnConfigs, 'config_les_disturb_top', config_les_disturb_top)
       call mpas_pool_get_config(ocnConfigs, 'config_les_disturb_nblocks', config_les_disturb_nblocks)
       call mpas_pool_get_config(ocnConfigs, 'config_les_time_avg', config_les_time_avg)
@@ -231,6 +234,7 @@ contains
       call mpas_pool_get_array(diagnosticsPool, 'normalVelocityIncrementLES', normalVelocityIncrementLES)
       call mpas_pool_get_array(diagnosticsPool, 'velocityZonal', velocityZonal)
       call mpas_pool_get_array(diagnosticsPool, 'velocityMeridional', velocityMeridional)
+      call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
 
       call mpas_pool_get_array(mixedLayerDepthsAMPool, 'dThreshMLD', dThreshMLD)
       call mpas_pool_get_array(diagnosticsPool, 'zLES', zLES)
@@ -307,6 +311,9 @@ contains
           les_disturb_bottom = config_les_disturb_bottom
         endif
 
+        les_bottom = max(zMid(maxLevelCell(iCell),iCell), config_les_bottom)
+
+        print *, les_bottom
          fracAbsorbed = 1.0_RKIND - exp( max(-layerThickness(1, iCell) / config_flux_attenuation_coefficient, -100.0_RKIND) )
          fracAbsorbedRunoff = 1.0_RKIND - exp( max(-layerThickness(1, iCell) / config_flux_attenuation_coefficient_runoff, &
                               -100.0_RKIND) )
@@ -342,7 +349,7 @@ contains
                 velocityMeridionalLES(:,iCell), dt, first, zLES(:,iCell),      &
                 config_les_disturb_energy_limit, config_les_disturb_amplitude, &
                 les_disturb_bottom, config_les_disturb_top, config_les_disturb_nblocks, &
-                config_les_time_avg)
+                les_bottom, config_les_time_avg)
 
       enddo
       !$omp end do

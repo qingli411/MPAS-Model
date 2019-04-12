@@ -525,7 +525,11 @@
 			                description="number of blocks for initial disturbance"
 					possible_values="integers >= 1"
 		/>			
-		<nml_option name="config_les_time_avg" type="real" default_value="0" units="s"
+	  <nml_option name="config_les_bottom" type="real" default_value="-64.0" units="m"
+					description="bottom of LES domain in m, will be clipped if deeper than bottomDepth"
+					possible_values="negative real numbers"
+		/>
+	  <nml_option name="config_les_time_avg" type="real" default_value="0" units="s"
 					description="interval over which to average the LES increments"
 					possible_values="real vals >= 0"
 		/>
