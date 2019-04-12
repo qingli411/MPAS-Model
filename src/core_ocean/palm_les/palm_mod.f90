@@ -118,7 +118,7 @@
 !-- this specifies options for the method, here is quartic interp
    opts%edge_meth = p5e_method
    opts%cell_meth = pqm_method
-   opts%cell_lims = mono_limit
+   opts%cell_lims = null_limit
 
    bc_l(:)%bcopt = bcon_loose
    bc_r(:)%bcopt = bcon_loose
@@ -248,7 +248,6 @@
       z_fac = z_facn
     enddo
 
-    print *, z_fac,botDepth
     zeLES(nzt+1) = dzLES
     zeLES(nzt) = 0.0_wp
     zeLES(nzt-1) = -dzLES
@@ -310,18 +309,9 @@
     call rmap1d(nzMPAS+1,nzLES+1,nvar,ndof,abs(zedge(1:nzMPAS+1)),abs(zeLESinv(1:nzLES+1)), &
                 fMPAS, fLES, bc_l, bc_r, work, opts)
 
-    print *, zEdge(1:nzMPAS+1)
-    print *, ' '
-    print *, zeLESinv(1:nzLES+1)
-    print *, ' '
-    print *, fMPAS(1,1,:)
-    print *, ' '
-    print *, ' '
-    print *, fLES(1,1,:)
-    stop
     jl = 1
     do il = nzt,nzb+1,-1
-      tLSforcing(il) = fLES(1,1,jl)
+      tLSforcing(il) = fLES(1,1,jl) + 273.15
       sLSforcing(il) = fLES(1,2,jl)
       uLSforcing(il) = fLES(1,3,jl)
       vLSforcing(il) = fLES(1,4,jl)
@@ -459,18 +449,51 @@ else
     uProfileInit(1:) = uLESout(:)
     vProfileInit(1:) = vLESout(:)
 
+!    jl=1
+!    do il=nzt,nzb+1,-1
+!      fLES(1,1,jl) = Tles(il) !tProfileInit(il)
+!      fLES(1,2,jl) = Sles(il) !sProfileInit(il)
+!      fLES(1,3,jl) = Ules(il) !uProfileInit(il)
+!      fLES(1,4,jl) = Vles(il) !vProfileInit(il)
+!      jl = jl+1
+!    enddo
+
+!    call rmap1d(nzLES+1,nzMPAS+1,nvar,ndof,abs(zeLESinv(1:nzLES+1)),abs(zedge(1:nzMPAS+1)), &
+!                fLES,fMPAS,bc_l,bc_r,work,opts)
+
+!    print *, ' '
+!    print *, fMPAS(1,1,:) - 273.15 - T_mpas(:nzMPAS)
+!    print *, ' '
+!    print *, ' '
+
     jl=1
     do il=nzt,nzb+1,-1
-      fLES(1,1,jl) = tProfileInit(il)
-      fLES(1,2,jl) = sProfileInit(il)
-      fLES(1,3,jl) = uProfileInit(il)
-      fLES(1,4,jl) = vProfileInit(il)
+      fLES(1,1,jl) = (Tles(il) - tProfileInit(il)) / dtLS
+      fLES(1,2,jl) = (Sles(il) - sProfileInit(il)) / dtLS
+      fLES(1,3,jl) = (Ules(il) - uProfileInit(il)) / dtLS
+      fLES(1,4,jl) = (Vles(il) - vProfileInit(il)) / dtLS
       jl = jl+1
     enddo
 
-    call rmap1d(nzLES+1,nzMPAS+1,nvar,ndof,zeLES(0:nzLES),zedge,fLES,fMPAS,bc_l,bc_r,work,opts)
+!    print *, fLES(1,1,:)
+!    print *, ' '
+    call rmap1d(nzLES+1,nzMPAS+1,nvar,ndof,abs(zeLESinv(1:nzLES+1)),abs(zedge(1:nzMPAS+1)), &
+                fLES,fMPAS,bc_l,bc_r,work,opts)
 
-  
+    tIncrementLES(:) = 0.0_wp
+    sIncrementLES(:) = 0.0_wp
+    uIncrementLES(:) = 0.0_wp
+    vIncrementLES(:) = 0.0_wp
+    do jl=1,nzMPAS
+      tIncrementLES(jl) = fMPAS(1,1,jl)
+      sIncrementLES(jl) = fMPAS(2,1,jl)
+      uIncrementLES(jl) = fMPAS(3,1,jl)
+      vIncrementLES(jl) = fMPAS(4,1,jl)
+    enddo
+
+!    print *, fMPAS(1,1,:) 
+!    stop
+ 
  !   il = nzt
  !   thickDiff = 0.0_wp
  !   !find stopping spot

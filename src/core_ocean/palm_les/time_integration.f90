@@ -760,7 +760,6 @@
           tProfileInit(:) =  hom(nzb:nzt,1,4,0)
           sProfileInit(:) =  hom(nzb:nzt,1,23,0)
           end_time = simulated_time + dt_LS 
-         ! print *, tProfileInit(:)
        endif
 
 !--    Computation and output of run control parameters.
