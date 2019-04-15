@@ -583,6 +583,8 @@ subroutine init_control_parameters
 
     openfile = file_status(.FALSE.,.FALSE.)
 
+    rayleigh_damping_factor = -1.0_wp
+    rayleigh_damping_height = -1.0_wp
     timestep_count = 0
         poisfft_initialized = .FALSE.
         psolver = 'poisfft'

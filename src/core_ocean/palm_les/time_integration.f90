@@ -549,7 +549,6 @@
              IF ( time_disturb < dt_disturb .and. disturbance_energy_limit /= 0.0_wp  .AND. &
                      hom(nzb+5,1,pr_palm,0) < disturbance_energy_limit ) then 
       !       if (dt_3d_old == dt_3d .and. first) then
-                 print *, 'disturb energy = ',hom(nzb+5,1,pr_palm,0)
                   CALL disturb_field( 'u', tend, u)
               CALL disturb_field( 'v', tend, v)
               !    call disturb_field('pt', tend, pt)
