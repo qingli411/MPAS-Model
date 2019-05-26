@@ -54,6 +54,9 @@
 !        ONLY:  netcdf_data_input_inquire_file, netcdf_data_input_init,         &
 !               netcdf_data_input_surface_data, netcdf_data_input_topo
 
+    USE fft_xy,                                                                 &
+        ONLY: fft_finalize
+
     USE kinds
 
     USE ppr_1d
@@ -72,6 +75,10 @@
         ONLY:  wrd_global, wrd_local
 
     use statistics
+
+    #if defined( __cudaProfiler )
+        USE cudafor
+    #endif
 
     IMPLICIT NONE
 
@@ -399,10 +406,20 @@ else
 !       CALL data_output_3d( 0 )
 !    ENDIF
 
+#if defined( __cudaProfiler )
+!-- Only profile time_integration
+    CALL cudaProfilerStart()
+#endif
 !
 !-- Integration of the model equations using timestep-scheme
     CALL time_integration
 
+#if defined( __cudaProfiler )
+!-- Only profile time_integration
+    CALL cudaProfilerStop()
+#endif
+
+!
 !-- If required, repeat output of header including the required CPU-time
 !    IF ( myid == 0 )  CALL header
 !
@@ -558,6 +575,8 @@ else
                nzb_v_outer, nzb_w_inner, nzb_w_outer, nzb_diff_s_inner,  &
                nzb_diff_s_outer, wall_flags_0, advc_flags_1, advc_flags_2)
 
+    deallocate(u_stk, v_stk, u_stk_zw, v_stk_zw )
+
     call deallocate_bc
     call deallocate_3d_variables
     call tcm_deallocate_arrays
@@ -566,6 +585,7 @@ else
 
     close(18)
 
+    CALL fft_finalize
 #if defined( __parallel )
     CALL MPI_FINALIZE( ierr )
 #endif
@@ -587,6 +607,7 @@ subroutine init_control_parameters
     rayleigh_damping_height = -1.0_wp
     timestep_count = 0
         poisfft_initialized = .FALSE.
+        init_fft = .FALSE.
         psolver = 'poisfft'
         momentum_advec = 'ws-scheme'
         loop_optimization = 'vector'

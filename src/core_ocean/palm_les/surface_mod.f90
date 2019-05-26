@@ -450,10 +450,6 @@
 
     TYPE (surf_type), DIMENSION(0:2), TARGET ::  surf_def_h  !< horizontal default surfaces (Up, Down, and Top)
     TYPE (surf_type), DIMENSION(0:3), TARGET ::  surf_def_v  !< vertical default surfaces (North, South, East, West)
-    TYPE (surf_type)                , TARGET ::  surf_lsm_h  !< horizontal natural land surfaces, so far only upward-facing
-    TYPE (surf_type), DIMENSION(0:3), TARGET ::  surf_lsm_v  !< vertical land surfaces (North, South, East, West)
-    TYPE (surf_type)                , TARGET ::  surf_usm_h  !< horizontal urban surfaces, so far only upward-facing
-    TYPE (surf_type), DIMENSION(0:3), TARGET ::  surf_usm_v  !< vertical urban surfaces (North, South, East, West)
 
     INTEGER(iwp), PARAMETER ::  ind_veg_wall  = 0            !< index for vegetation / wall-surface fraction, used for access of albedo, emissivity, etc., for each surface type   
     INTEGER(iwp), PARAMETER ::  ind_pav_green = 1            !< index for pavement / green-wall surface fraction, used for access of albedo, emissivity, etc., for each surface type
@@ -506,8 +502,8 @@
 !
 !-- Public variables
     PUBLIC bc_h, ind_pav_green, ind_veg_wall, ind_wat_win, ns_h_on_file,       &
-           ns_v_on_file, surf_def_h, surf_def_v, surf_lsm_h, surf_lsm_v,       &
-           surf_usm_h, surf_usm_v, surf_type, vertical_surfaces_exist
+           ns_v_on_file, surf_def_h, surf_def_v,      &
+           surf_type, vertical_surfaces_exist
 !
 !-- Public subroutines and functions
     PUBLIC get_topography_top_index, get_topography_top_index_ji, init_bc,     &
@@ -660,26 +656,15 @@
        INTEGER(iwp)                 ::  j         !< running index y-direction
        INTEGER(iwp)                 ::  k         !< running index z-direction
        INTEGER(iwp)                 ::  l         !< index variable for surface facing
-       INTEGER(iwp)                 ::  num_lsm_h !< number of horizontally-aligned natural surfaces 
-       INTEGER(iwp)                 ::  num_usm_h !< number of horizontally-aligned urban surfaces 
-
        INTEGER(iwp), DIMENSION(0:2) ::  num_def_h !< number of horizontally-aligned default surfaces 
        INTEGER(iwp), DIMENSION(0:3) ::  num_def_v !< number of vertically-aligned default surfaces 
-       INTEGER(iwp), DIMENSION(0:3) ::  num_lsm_v !< number of vertically-aligned natural surfaces 
-       INTEGER(iwp), DIMENSION(0:3) ::  num_usm_v !< number of vertically-aligned urban surfaces 
 
        INTEGER(iwp)              ::  num_surf_v_l !< number of vertically-aligned local urban/land surfaces
        INTEGER(iwp)              ::  num_surf_v   !< number of vertically-aligned total urban/land surfaces
 
-       LOGICAL ::  building                       !< flag indicating building grid point
-       LOGICAL ::  terrain                        !< flag indicating natural terrain grid point
 
        num_def_h = 0
        num_def_v = 0
-       num_lsm_h = 0
-       num_lsm_v = 0
-       num_usm_h = 0
-       num_usm_v = 0
 !
 !--    Surfaces are classified according to the input data read from static
 !--    input file. If no input file is present, all surfaces are classified
@@ -700,35 +685,8 @@
 
                    IF ( .NOT. BTEST( wall_flags_0(k-1,j,i), 0 ) )  THEN
 !
-!--                   Determine flags indicating terrain or building. 
-                      terrain  = BTEST( wall_flags_0(k-1,j,i), 5 )  .OR.       &
-                                 topo_no_distinct
-                      building = BTEST( wall_flags_0(k-1,j,i), 6 )  .OR.       &
-                                 topo_no_distinct
-!
-!--                   Land-surface type
-                      IF ( land_surface  .AND.  terrain )  THEN
-                         num_lsm_h    = num_lsm_h    + 1 
-!
-!--                   Urban surface tpye
-                      ELSEIF ( urban_surface  .AND.  building )  THEN
-                         num_usm_h    = num_usm_h    + 1 
-!
-!--                   Default-surface type
-                      ELSEIF ( .NOT. land_surface    .AND.                     &
-                               .NOT. urban_surface )  THEN
-                               
                          num_def_h(0) = num_def_h(0) + 1
 !
-!--                   Unclassifified surface-grid point. Give error message.
-                      ELSE 
-                         WRITE( message_string, * )                           &
-                                          'Unclassified upward-facing ' //    &
-                                          'surface element at '//             &
-                                          'grid point (k,j,i) = ', k, j, i
-                         CALL message( 'surface_mod', 'PA0999', 1, 2, 0, 6, 0 )
-                      ENDIF
-
                    ENDIF
 !
 !--                Check for top-fluxes
@@ -755,118 +713,29 @@
 !--                Northward-facing
                    IF ( .NOT. BTEST( wall_flags_0(k,j-1,i), 0 ) )  THEN
 !
-!--                   Determine flags indicating terrain or building
-
-                      terrain  = BTEST( wall_flags_0(k,j-1,i), 5 )  .OR.       &
-                                 topo_no_distinct
-                      building = BTEST( wall_flags_0(k,j-1,i), 6 )   .OR.       &
-                                 topo_no_distinct
-                      IF (  land_surface  .AND.  terrain )  THEN
-                         num_lsm_v(0) = num_lsm_v(0) + 1 
-                      ELSEIF ( urban_surface  .AND.  building )  THEN
-                         num_usm_v(0) = num_usm_v(0) + 1 
-!
-!--                   Default-surface type
-                      ELSEIF ( .NOT. land_surface    .AND.                     &
-                               .NOT. urban_surface )  THEN
                          num_def_v(0) = num_def_v(0) + 1 
 !
-!--                   Unclassifified surface-grid point. Give error message.
-                      ELSE 
-                         WRITE( message_string, * )                           &
-                                          'Unclassified northward-facing ' // &
-                                          'surface element at '//             &
-                                          'grid point (k,j,i) = ', k, j, i
-                         CALL message( 'surface_mod', 'PA0999', 1, 2, 0, 6, 0 ) 
-
-                      ENDIF
                    ENDIF
 !
 !--                Southward-facing
                    IF ( .NOT. BTEST( wall_flags_0(k,j+1,i), 0 ) )  THEN
 !
-!--                   Determine flags indicating terrain or building
-                      terrain  = BTEST( wall_flags_0(k,j+1,i), 5 )  .OR.       &
-                                 topo_no_distinct
-                      building = BTEST( wall_flags_0(k,j+1,i), 6 )  .OR.       &
-                                 topo_no_distinct
-                      IF (  land_surface  .AND.  terrain )  THEN
-                         num_lsm_v(1) = num_lsm_v(1) + 1 
-                      ELSEIF ( urban_surface  .AND.  building )  THEN
-                         num_usm_v(1) = num_usm_v(1) + 1 
-!
-!--                   Default-surface type
-                      ELSEIF ( .NOT. land_surface    .AND.                     &
-                               .NOT. urban_surface )  THEN
                          num_def_v(1) = num_def_v(1) + 1 
 !
-!--                   Unclassifified surface-grid point. Give error message.
-                      ELSE 
-                         WRITE( message_string, * )                           &
-                                          'Unclassified southward-facing ' // &
-                                          'surface element at '//             &
-                                          'grid point (k,j,i) = ', k, j, i
-                         CALL message( 'surface_mod', 'PA0999', 1, 2, 0, 6, 0 ) 
-
-                      ENDIF
                    ENDIF
 !
 !--                Eastward-facing
                    IF ( .NOT. BTEST( wall_flags_0(k,j,i-1), 0 ) )  THEN
 !
-!--                   Determine flags indicating terrain or building
-                      terrain  = BTEST( wall_flags_0(k,j,i-1), 5 )  .OR.       &
-                                 topo_no_distinct
-                      building = BTEST( wall_flags_0(k,j,i-1), 6 )  .OR.       &
-                                 topo_no_distinct
-                      IF (  land_surface  .AND.  terrain )  THEN
-                         num_lsm_v(2) = num_lsm_v(2) + 1 
-                      ELSEIF ( urban_surface  .AND.  building )  THEN
-                         num_usm_v(2) = num_usm_v(2) + 1 
-!
-!--                   Default-surface type
-                      ELSEIF ( .NOT. land_surface    .AND.                     &
-                               .NOT. urban_surface )  THEN
                          num_def_v(2) = num_def_v(2) + 1 
 !
-!--                   Unclassifified surface-grid point. Give error message.
-                      ELSE 
-                         WRITE( message_string, * )                           &
-                                          'Unclassified eastward-facing ' //  &
-                                          'surface element at '//             &
-                                          'grid point (k,j,i) = ', k, j, i
-                         CALL message( 'surface_mod', 'PA0999', 1, 2, 0, 6, 0 ) 
-
-                      ENDIF
                    ENDIF
 !
 !--                Westward-facing
                    IF ( .NOT. BTEST( wall_flags_0(k,j,i+1), 0 ) )  THEN
 !
-!--                   Determine flags indicating terrain or building
-                      terrain  = BTEST( wall_flags_0(k,j,i+1), 5 )  .OR.       &
-                                 topo_no_distinct
-                      building = BTEST( wall_flags_0(k,j,i+1), 6 )  .OR.       &
-                                 topo_no_distinct
-                      IF (  land_surface  .AND.  terrain )  THEN
-                         num_lsm_v(3) = num_lsm_v(3) + 1 
-                      ELSEIF ( urban_surface  .AND.  building )  THEN
-                         num_usm_v(3) = num_usm_v(3) + 1 
-!
-!--                   Default-surface type
-                      ELSEIF ( .NOT. land_surface    .AND.                     &
-                               .NOT. urban_surface )  THEN
                          num_def_v(3) = num_def_v(3) + 1 
 !
-!--                   Unclassifified surface-grid point. Give error message.
-                      ELSE 
-                         WRITE( message_string, * )                           &
-                                          'Unclassified westward-facing ' //  &
-                                          'surface element at '//             &
-                                          'grid point (k,j,i) = ', k, j, i
-                         CALL message( 'surface_mod', 'PA0999', 1, 2, 0, 6, 0 ) 
-
-                      ENDIF
                    ENDIF
                 ENDIF
              ENDDO
@@ -884,12 +753,6 @@
 !--    Horizontal surface, default type, top downward facing
        surf_def_h(2)%ns = num_def_h(2)
 !
-!--    Horizontal surface, natural type, so far only upward-facing
-       surf_lsm_h%ns    = num_lsm_h  
-!
-!--    Horizontal surface, urban type, so far only upward-facing
-       surf_usm_h%ns    = num_usm_h    
-!
 !--    Vertical surface, default type, northward facing
        surf_def_v(0)%ns = num_def_v(0)
 !
@@ -902,30 +765,6 @@
 !--    Vertical surface, default type, westward facing
        surf_def_v(3)%ns = num_def_v(3)
 !
-!--    Vertical surface, natural type, northward facing
-       surf_lsm_v(0)%ns = num_lsm_v(0)
-!
-!--    Vertical surface, natural type, southward facing
-       surf_lsm_v(1)%ns = num_lsm_v(1)
-!
-!--    Vertical surface, natural type, eastward facing
-       surf_lsm_v(2)%ns = num_lsm_v(2)
-!
-!--    Vertical surface, natural type, westward facing
-       surf_lsm_v(3)%ns = num_lsm_v(3)
-!
-!--    Vertical surface, urban type, northward facing
-       surf_usm_v(0)%ns = num_usm_v(0)
-!
-!--    Vertical surface, urban type, southward facing
-       surf_usm_v(1)%ns = num_usm_v(1)
-!
-!--    Vertical surface, urban type, eastward facing
-       surf_usm_v(2)%ns = num_usm_v(2)
-!
-!--    Vertical surface, urban type, westward facing
-       surf_usm_v(3)%ns = num_usm_v(3)
-!
 !--    Allocate required attributes for horizontal surfaces - default type. 
 !--    Upward-facing (l=0) and downward-facing (l=1).
        DO  l = 0, 1
@@ -934,13 +773,6 @@
 !
 !--    Allocate required attributes for model top
        CALL allocate_surface_attributes_h_top ( surf_def_h(2), nys, nyn, nxl, nxr )
-!
-!--    Allocate required attributes for horizontal surfaces - natural type. 
-       CALL allocate_surface_attributes_h ( surf_lsm_h, nys, nyn, nxl, nxr )
-!
-!--    Allocate required attributes for horizontal surfaces - urban type. 
-       CALL allocate_surface_attributes_h ( surf_usm_h, nys, nyn, nxl, nxr )
-
 !
 !--    Allocate required attributes for vertical surfaces. 
 !--    Northward-facing (l=0), southward-facing (l=1), eastward-facing (l=2)
@@ -951,23 +783,7 @@
                                                nys, nyn, nxl, nxr )
        ENDDO
 !
-!--    Natural type
-       DO  l = 0, 3
-          CALL allocate_surface_attributes_v ( surf_lsm_v(l),                  &
-                                               nys, nyn, nxl, nxr )
-       ENDDO
-!
-!--    Urban type
-       DO  l = 0, 3
-          CALL allocate_surface_attributes_v ( surf_usm_v(l),                  &
-                                               nys, nyn, nxl, nxr )
-       ENDDO
-!
-!--    Set the flag for the existence of vertical urban/land surfaces
        num_surf_v_l = 0
-       DO  l = 0, 3
-          num_surf_v_l = num_surf_v_l + surf_usm_v(l)%ns + surf_lsm_v(l)%ns
-       ENDDO
 
 #if defined( __parallel )
        CALL MPI_ALLREDUCE( num_surf_v_l, num_surf_v, 1, MPI_INTEGER, MPI_SUM, comm2d, ierr)
@@ -1030,10 +846,8 @@
        DEALLOCATE ( surfaces%vsws )  
 !
 !--    Required in production_e
-       IF ( .NOT. constant_diffusion )  THEN    
           DEALLOCATE ( surfaces%u_0 )  
           DEALLOCATE ( surfaces%v_0 )
-       ENDIF 
 !
 !--    Characteristic temperature and surface flux of sensible heat
        DEALLOCATE ( surfaces%ts )    
@@ -1120,10 +934,8 @@
        ALLOCATE ( surfaces%vsws(1:surfaces%ns) )  
 !
 !--    Required in production_e
-       IF ( .NOT. constant_diffusion )  THEN    
           ALLOCATE ( surfaces%u_0(1:surfaces%ns) )  
           ALLOCATE ( surfaces%v_0(1:surfaces%ns) )
-       ENDIF 
 !
 !--    Characteristic temperature and surface flux of sensible heat
        ALLOCATE ( surfaces%ts(1:surfaces%ns)  )    
@@ -1161,10 +973,8 @@
        DEALLOCATE ( surfaces%j )
        DEALLOCATE ( surfaces%k )
 
-       IF ( .NOT. constant_diffusion )  THEN    
           DEALLOCATE ( surfaces%u_0 )  
           DEALLOCATE ( surfaces%v_0 )
-       ENDIF 
 !
 !--    Vertical momentum fluxes of u and v
        DEALLOCATE ( surfaces%usws )  
@@ -1208,10 +1018,8 @@
        ALLOCATE ( surfaces%j(1:surfaces%ns)  )
        ALLOCATE ( surfaces%k(1:surfaces%ns)  )
 
-       IF ( .NOT. constant_diffusion )  THEN    
           ALLOCATE ( surfaces%u_0(1:surfaces%ns) )  
           ALLOCATE ( surfaces%v_0(1:surfaces%ns) )
-       ENDIF 
 !
 !--    Vertical momentum fluxes of u and v
        ALLOCATE ( surfaces%usws(1:surfaces%ns) )  
@@ -1416,28 +1224,14 @@
        INTEGER(iwp) ::  l         !< index variable used to distinguish surface facing
        INTEGER(iwp) ::  m         !< running index surface elements
 
-       INTEGER(iwp)                 ::  start_index_lsm_h !< dummy to determing local start index in surface type for given (j,i), for horizontal natural surfaces
-       INTEGER(iwp)                 ::  start_index_usm_h !< dummy to determing local start index in surface type for given (j,i), for horizontal urban surfaces
-
-       INTEGER(iwp)                 ::  num_lsm_h     !< current number of horizontal surface element, natural type
-       INTEGER(iwp)                 ::  num_lsm_h_kji !< dummy to determing local end index in surface type for given (j,i), for for horizonal natural surfaces
-       INTEGER(iwp)                 ::  num_usm_h     !< current number of horizontal surface element, urban type
-       INTEGER(iwp)                 ::  num_usm_h_kji !< dummy to determing local end index in surface type for given (j,i), for for horizonal urban surfaces
-
        INTEGER(iwp), DIMENSION(0:2) ::  num_def_h     !< current number of horizontal surface element, default type
        INTEGER(iwp), DIMENSION(0:2) ::  num_def_h_kji !< dummy to determing local end index in surface type for given (j,i), for horizonal default surfaces
        INTEGER(iwp), DIMENSION(0:2) ::  start_index_def_h !< dummy to determing local start index in surface type for given (j,i), for horizontal default surfaces
      
        INTEGER(iwp), DIMENSION(0:3) ::  num_def_v     !< current number of vertical surface element, default type
        INTEGER(iwp), DIMENSION(0:3) ::  num_def_v_kji !< dummy to determing local end index in surface type for given (j,i), for vertical default surfaces
-       INTEGER(iwp), DIMENSION(0:3) ::  num_lsm_v     !< current number of vertical surface element, natural type
-       INTEGER(iwp), DIMENSION(0:3) ::  num_lsm_v_kji !< dummy to determing local end index in surface type for given (j,i), for vertical natural surfaces
-       INTEGER(iwp), DIMENSION(0:3) ::  num_usm_v     !< current number of vertical surface element, urban type
-       INTEGER(iwp), DIMENSION(0:3) ::  num_usm_v_kji !< dummy to determing local end index in surface type for given (j,i), for vertical urban surfaces
 
        INTEGER(iwp), DIMENSION(0:3) ::  start_index_def_v !< dummy to determing local start index in surface type for given (j,i), for vertical default surfaces
-       INTEGER(iwp), DIMENSION(0:3) ::  start_index_lsm_v !< dummy to determing local start index in surface type for given (j,i), for vertical natural surfaces
-       INTEGER(iwp), DIMENSION(0:3) ::  start_index_usm_v !< dummy to determing local start index in surface type for given (j,i), for vertical urban surfaces
 
        LOGICAL ::  building     !< flag indicating building grid point
        LOGICAL ::  terrain      !< flag indicating natural terrain grid point
@@ -1449,91 +1243,50 @@
        surf_def_h(0:2)%ioff = 0
        surf_def_h(0:2)%joff = 0
 
-       surf_lsm_h%ioff = 0
-       surf_lsm_h%joff = 0
-
-       surf_usm_h%ioff = 0
-       surf_usm_h%joff = 0
-!
 !--    Upward facing vertical offsets
        surf_def_h(0)%koff   = -1
-       surf_lsm_h%koff      = -1
-       surf_usm_h%koff      = -1
 !
 !--    Downward facing vertical offset
        surf_def_h(1:2)%koff = 1
 !
 !--    Vertical surfaces - no vertical offset
        surf_def_v(0:3)%koff = 0
-       surf_lsm_v(0:3)%koff = 0
-       surf_usm_v(0:3)%koff = 0
 !
 !--    North- and southward facing - no offset in x
        surf_def_v(0:1)%ioff = 0
-       surf_lsm_v(0:1)%ioff = 0
-       surf_usm_v(0:1)%ioff = 0
 !
 !--    Northward facing offset in y
        surf_def_v(0)%joff = -1
-       surf_lsm_v(0)%joff = -1
-       surf_usm_v(0)%joff = -1
 !
 !--    Southward facing offset in y
        surf_def_v(1)%joff = 1
-       surf_lsm_v(1)%joff = 1
-       surf_usm_v(1)%joff = 1
-
 !
 !--    East- and westward facing - no offset in y
        surf_def_v(2:3)%joff = 0
-       surf_lsm_v(2:3)%joff = 0
-       surf_usm_v(2:3)%joff = 0
 !
 !--    Eastward facing offset in x
        surf_def_v(2)%ioff = -1
-       surf_lsm_v(2)%ioff = -1
-       surf_usm_v(2)%ioff = -1
 !
 !--    Westward facing offset in y
        surf_def_v(3)%ioff = 1
-       surf_lsm_v(3)%ioff = 1
-       surf_usm_v(3)%ioff = 1
-
 !
 !--    Initialize surface attributes, store indicies, surfaces orientation, etc., 
        num_def_h(0:2) = 1
        num_def_v(0:3) = 1
 
-       num_lsm_h      = 1
-       num_lsm_v(0:3) = 1
-
-       num_usm_h      = 1
-       num_usm_v(0:3) = 1
-
        start_index_def_h(0:2) = 1
        start_index_def_v(0:3) = 1
-
-       start_index_lsm_h      = 1
-       start_index_lsm_v(0:3) = 1
-
-       start_index_usm_h      = 1
-       start_index_usm_v(0:3) = 1
 
        DO  i = nxl, nxr
           DO  j = nys, nyn
 
              num_def_h_kji = 0
              num_def_v_kji = 0
-             num_lsm_h_kji = 0
-             num_lsm_v_kji = 0
-             num_usm_h_kji = 0
-             num_usm_v_kji = 0
 
              DO  k = nzb+1, nzt
 !
 !--             Check if current gridpoint belongs to the atmosphere
                 IF ( BTEST( wall_flags_0(k,j,i), 0 ) )  THEN
-
                         !
 !--                Upward-facing surface. Distinguish between differet surface types.
 !--                To do, think about method to flag natural and non-natural 
@@ -1712,10 +1465,8 @@
              surf%rib(num_h)     = 0.0_wp 
              surf%uvw_abs(num_h) = 0.0_wp
 
-             IF ( .NOT. constant_diffusion )  THEN    
                 surf%u_0(num_h)     = 0.0_wp  
                 surf%v_0(num_h)     = 0.0_wp
-             ENDIF 
 
              surf%ts(num_h)   = 0.0_wp
 
@@ -1790,11 +1541,9 @@
              surf%j(num_h) = j
              surf%k(num_h) = k
 !
-             IF ( ocean ) THEN
                surf%shf(num_h) = 0.0_wp
                surf%sasws(num_h) = 0.0_wp
                surf%shf_sol(num_h) = 0.0_wp
-             endif
 
 !--          Initialize top heat flux
              IF ( constant_top_heatflux )                                      &
@@ -1807,7 +1556,6 @@
  
 !--          Top momentum fluxes
              IF ( constant_top_momentumflux )  THEN
-
                 surf%usws(num_h) = top_momentumflux_u *                        &
                                             momentumflux_input_conversion(nzt+1)
                 surf%vsws(num_h) = top_momentumflux_v *                        &
@@ -2194,14 +1942,6 @@
                         surf_def_v(l)%end_index(j,i)
                    surf_v(l)%end_index(j,i) = surf_v(l)%end_index(j,i) + 1
                 ENDDO
-                DO  m = surf_lsm_v(l)%start_index(j,i),                        &
-                        surf_lsm_v(l)%end_index(j,i)
-                   surf_v(l)%end_index(j,i) = surf_v(l)%end_index(j,i) + 1
-                ENDDO
-                DO  m = surf_usm_v(l)%start_index(j,i),                        &
-                        surf_usm_v(l)%end_index(j,i)
-                   surf_v(l)%end_index(j,i) = surf_v(l)%end_index(j,i) + 1
-                ENDDO
 
                 start_index_v(l) = surf_v(l)%end_index(j,i) + 1
              ENDDO
@@ -2528,8 +2268,6 @@
        INTEGER(iwp), SAVE  ::  l           !< index variable for surface type
 
        LOGICAL                         ::  surf_match_def     !< flag indicating that surface element is of default type
-       LOGICAL                         ::  surf_match_lsm     !< flag indicating that surface element is of natural type
-       LOGICAL                         ::  surf_match_usm     !< flag indicating that surface element is of urban type
 
        LOGICAL, INTENT(OUT) ::  found
 

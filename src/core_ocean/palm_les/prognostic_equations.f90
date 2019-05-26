@@ -278,21 +278,21 @@
                flux_l_sa, nc, nc_p, nr, nr_p, pt, ptdf_x, ptdf_y, pt_init,     &
                pt_p, prho, q, q_init, q_p, qc, qc_p, qr, qr_p, rdf, rdf_sc,    &
                ref_state, rho_ocean, s,  s_init, s_p, sa, sa_init, sa_p, tend, &
-               te_m, tnc_m,  tnr_m, tpt_m, tq_m, tqc_m, tqr_m, ts_m, tsa_m,    &
+               tnc_m,  tnr_m, tpt_m, tq_m, tqc_m, tqr_m, ts_m, tsa_m,    &
                tu_m, tv_m, tw_m, u, ug, u_init, u_p, v, vg, vpt, v_init, v_p,  &
                w, w_p, alpha_T, beta_S
     USE kinds
 
     USE control_parameters,                                                    &
         ONLY:  air_chemistry, call_microphysics_at_all_substeps,               &
-               cloud_physics, cloud_top_radiation, constant_diffusion,         &
+               cloud_physics, cloud_top_radiation,         &
                dp_external, dp_level_ind_b, dp_smooth_factor, dpdxy, dt_3d,    &
-               humidity, idealized_diurnal, g, dt_LS, disturbFactor,           &
+               humidity, idealized_diurnal, g,                                 &
                inflow_l, intermediate_timestep_count,                          &
                intermediate_timestep_count_max, large_scale_forcing,           &
                large_scale_subsidence, microphysics_morrison,                  &
                microphysics_seifert, microphysics_sat_adjust, neutral, nudging,&
-               ocean, outflow_l, outflow_s, passive_scalar, plant_canopy,      &
+               ocean, outflow_l, outflow_s,      &
                prho_reference, prho_reference,                                 &
                prho_reference, pt_reference, pt_reference, pt_reference,       &
                scalar_advec, scalar_advec, simulated_time, sloping_surface,    &
@@ -300,7 +300,7 @@
                use_upstream_for_tke, wind_turbine, ws_scheme_mom,              &
                ws_scheme_sca, urban_surface, land_surface, wb_solar,           &
                stokes_force, tLSforcing, sLSforcing, uLSforcing,         &
-               vLSforcing
+               vLSforcing, dt_LS, disturbFactor
 
     USE cpulog,                                                                &
         ONLY:  cpu_log, log_point, log_point_s
@@ -384,39 +384,45 @@
 !-- u-velocity component
     CALL cpu_log( log_point(5), 'u-equation', 'start' )
 
-    tend = 0.0_wp
+    !$acc data create(tend)
 
-    call cpu_log( log_point(43), 'u advec', 'start')
+    !$acc parallel present( tend )
+    !$acc loop collapse(3)
+    DO  i = nxl, nxr
+       DO  j = nys, nyn
+          DO  k = nzb, nzt
+             tend(k,j,i) = 0.0_wp
+          ENDDO
+       ENDDO
+    ENDDO
+    !$acc end parallel
+
     CALL advec_u_ws
-    call cpu_log( log_point(43), 'u advec', 'stop')
 
-    call cpu_log( log_point(44), 'u diffusion', 'start')
     CALL diffusion_u
-    call cpu_log( log_point(44), 'u diffusion', 'stop')
 
-    call cpu_log( log_point(45), 'u coriolis', 'start')
     CALL coriolis( 1 )
-    call cpu_log( log_point(45), 'u coriolis', 'stop')
 
-    call cpu_log( log_point(46), 'u stokes', 'start')
     !
 !-- If required, compute Stokes forces
     IF ( ocean .AND. stokes_force ) THEN
        CALL stokes_force_uvw( 1 )
     ENDIF
-    call cpu_log( log_point(46), 'u stokes', 'stop')
 !
 !-- External pressure gradient
+    !$acc parallel present( dpdxy, dp_smooth_factor )
     IF ( dp_external )  THEN
+       !$acc loop collapse(2)
        DO  i = nxlu, nxr
           DO  j = nys, nyn
+             !$acc loop seq
              DO  k = dp_level_ind_b+1, nzt
                 tend(k,j,i) = tend(k,j,i) - dpdxy(1) * dp_smooth_factor(k)
              ENDDO
           ENDDO
        ENDDO
     ENDIF
-
+    !$acc end parallel
     if (disturbFactor .gt. 0.0_wp) then
        DO  i = nxlu, nxr
           DO  j = nys, nyn
@@ -430,8 +436,12 @@
 
 !
 !-- Prognostic equation for u-velocity component
+    !$acc parallel present( tsc, wall_flags_0, rdf ) &
+    !$acc present( u, u_p, tu_m, u_init )
+    !$acc loop collapse(2)
     DO  i = nxlu, nxr
        DO  j = nys, nyn
+          !$acc loop seq
           DO  k = nzb+1, nzt
              u_p(k,j,i) = u(k,j,i) + ( dt_3d * ( tsc(2) * tend(k,j,i) +          &
                                                  tsc(3) * tu_m(k,j,i) )          &
@@ -443,20 +453,24 @@
           ENDDO
        ENDDO
     ENDDO
+    !$acc end parallel
 
     !
 !-- Calculate tendencies for the next Runge-Kutta step
+    !$acc parallel present( tu_m, tend )
     IF ( timestep_scheme(1:5) == 'runge' )  THEN
        IF ( intermediate_timestep_count == 1 )  THEN
+          !$acc loop collapse(3)
           DO  i = nxlu, nxr
              DO  j = nys, nyn
                 DO  k = nzb+1, nzt
                    tu_m(k,j,i) = tend(k,j,i)
- 2               ENDDO
+               ENDDO
              ENDDO
           ENDDO
        ELSEIF ( intermediate_timestep_count < &
                 intermediate_timestep_count_max )  THEN
+          !$acc loop collapse(3)
           DO  i = nxlu, nxr
              DO  j = nys, nyn
                 DO  k = nzb+1, nzt
@@ -467,13 +481,24 @@
           ENDDO
        ENDIF
     ENDIF
+    !$acc end parallel
 
     CALL cpu_log( log_point(5), 'u-equation', 'stop' )
 !
 !-- v-velocity component
     CALL cpu_log( log_point(6), 'v-equation', 'start' )
 
-    tend = 0.0_wp
+    !$acc parallel present( tend )
+    !$acc loop collapse(3)
+    DO  i = nxl, nxr
+       DO  j = nys, nyn
+          DO  k = nzb, nzt
+             tend(k,j,i) = 0.0_wp
+          ENDDO
+       ENDDO
+    ENDDO
+    !$acc end parallel
+
     CALL advec_v_ws
     CALL diffusion_v
     CALL coriolis( 2 )
@@ -485,16 +510,19 @@
     ENDIF
 !
 !-- External pressure gradient
+    !$acc parallel present( dpdxy, dp_smooth_factor )
     IF ( dp_external )  THEN
+       !$acc loop collapse(2)
        DO  i = nxl, nxr
           DO  j = nysv, nyn
+             !$acc loop seq
              DO  k = dp_level_ind_b+1, nzt
                 tend(k,j,i) = tend(k,j,i) - dpdxy(2) * dp_smooth_factor(k)
              ENDDO
           ENDDO
        ENDDO
     ENDIF
-
+    !$acc end parallel
     IF ( disturbFactor .gt. 0.0_wp )  THEN
        DO  i = nxl, nxr
           DO  j = nysv, nyn
@@ -508,8 +536,12 @@
 
     !
 !-- Prognostic equation for v-velocity component
+    !$acc parallel present( tsc, wall_flags_0, rdf ) &
+    !$acc present( v, v_p, tv_m, v_init )
+    !$acc loop collapse(2)
     DO  i = nxl, nxr
        DO  j = nysv, nyn
+          !$acc loop seq
           DO  k = nzb+1, nzt
              v_p(k,j,i) = v(k,j,i) + ( dt_3d * ( tsc(2) * tend(k,j,i) +        &
                                                  tsc(3) * tv_m(k,j,i) )        &
@@ -521,11 +553,14 @@
           ENDDO
        ENDDO
     ENDDO
+    !$acc end parallel
 
 !
 !-- Calculate tendencies for the next Runge-Kutta step
+    !$acc parallel present( tv_m, tend )
     IF ( timestep_scheme(1:5) == 'runge' )  THEN
        IF ( intermediate_timestep_count == 1 )  THEN
+          !$acc loop collapse(3)
           DO  i = nxl, nxr
              DO  j = nysv, nyn
                 DO  k = nzb+1, nzt
@@ -535,6 +570,7 @@
           ENDDO
        ELSEIF ( intermediate_timestep_count < &
                 intermediate_timestep_count_max )  THEN
+          !$acc loop collapse(3)
           DO  i = nxl, nxr
              DO  j = nysv, nyn
                 DO  k = nzb+1, nzt
@@ -545,6 +581,7 @@
           ENDDO
        ENDIF
     ENDIF
+    !$acc end parallel
 
     CALL cpu_log( log_point(6), 'v-equation', 'stop' )
 
@@ -552,14 +589,22 @@
 !-- w-velocity component
     CALL cpu_log( log_point(7), 'w-equation', 'start' )
 
-    tend = 0.0_wp
+    !$acc parallel present( tend )
+    !$acc loop collapse(3)
+    DO  i = nxl, nxr
+       DO  j = nys, nyn
+          DO  k = nzb, nzt
+             tend(k,j,i) = 0.0_wp
+          ENDDO
+       ENDDO
+    ENDDO
+    !$acc end parallel
+
     CALL advec_w_ws
     CALL diffusion_w
     CALL coriolis( 3 )
 
-    call cpu_log( log_point(47), 'w buoy', 'start')
     CALL buoyancy( rho_ocean, 3 )
-    call cpu_log( log_point(47), 'w buoy', 'stop')
     !
 !-- If required, compute Stokes forces
     IF ( ocean .AND. stokes_force ) THEN
@@ -567,8 +612,12 @@
     ENDIF
 !
 !-- Prognostic equation for w-velocity component
+    !$acc parallel present( tsc, wall_flags_0, rdf ) &
+    !$acc present( w, w_p, tw_m )
+    !$acc loop collapse(2)
     DO  i = nxl, nxr
        DO  j = nys, nyn
+          !$acc loop seq
           DO  k = nzb+1, nzt-1
              w_p(k,j,i) = w(k,j,i) + ( dt_3d * ( tsc(2) * tend(k,j,i) +        &
                                                  tsc(3) * tw_m(k,j,i) )        &
@@ -579,11 +628,14 @@
           ENDDO
        ENDDO
     ENDDO
+    !$acc end parallel
 
 !
 !-- Calculate tendencies for the next Runge-Kutta step
+    !$acc parallel present( tw_m, tend )
     IF ( timestep_scheme(1:5) == 'runge' )  THEN
        IF ( intermediate_timestep_count == 1 )  THEN
+          !$acc loop collapse(3)
           DO  i = nxl, nxr
              DO  j = nys, nyn
                 DO  k = nzb+1, nzt-1
@@ -593,6 +645,7 @@
           ENDDO
        ELSEIF ( intermediate_timestep_count < &
                 intermediate_timestep_count_max )  THEN
+          !$acc loop collapse(3)
           DO  i = nxl, nxr
              DO  j = nys, nyn
                 DO  k = nzb+1, nzt-1
@@ -603,6 +656,7 @@
           ENDDO
        ENDIF
     ENDIF
+    !$acc end parallel
 
     CALL cpu_log( log_point(7), 'w-equation', 'stop' )
 
@@ -612,44 +666,44 @@
 !--    pt-tendency terms with communication
        sbt = tsc(2)
 !
-       tend = 0.0_wp
-       call cpu_log( log_point(40), 'pt advection', 'start')
-       CALL advec_s_ws( pt, 'pt' )
-       call cpu_log( log_point(40), 'pt advection', 'stop')
+    !$acc parallel present( tend )
+    !$acc loop collapse(3)
+    DO  i = nxl, nxr
+       DO  j = nys, nyn
+          DO  k = nzb, nzt
+             tend(k,j,i) = 0.0_wp
+          ENDDO
+       ENDDO
+    ENDDO
+    !$acc end parallel
 
+       CALL advec_s_ws( pt, 'pt' )
+
+    IF (idealized_diurnal) THEN
       k = nzt
+       !$acc parallel present( alpha_T, beta_S, surf_def_h )
+       !$acc loop collapse(2)
        DO i = nxl, nxr
           DO j = nys,nyn
-                 IF (idealized_diurnal) THEN
                     m = surf_def_h(2)%start_index(j,i)
                     wb_sfc = g*(surf_def_h(2)%shf(m)*alpha_T(k,j,i) -        &
                                      surf_def_h(2)%sasws(m)*beta_S(k,j,i))
                     tod = simulated_time / 86400.0_wp
                     arg1 = cos(2.0_wp*pi*(tod - 0.75_wp))
                     surf_def_h(2)%shf_sol(m) = wb_solar*max(arg1,0.0_wp)
+          ENDDO
+       ENDDO
+       !$acc end parallel
                 ENDIF
-          enddo
-       enddo
-
-       call cpu_log( log_point(41), 'pt diffusion' , 'start')
 
        CALL diffusion_s( pt,                                                   &
-                         surf_def_h(0)%shf, surf_def_h(1)%shf,                 &
                          surf_def_h(2)%shf,                                    &
-                         surf_def_v(0)%shf, surf_def_v(1)%shf,                 &
-                         surf_def_v(2)%shf, surf_def_v(3)%shf,                 &
                          surf_def_h(2)%shf_sol )
 
-       call cpu_log( log_point(41), 'pt diffusion' , 'stop')
-
-       call cpu_log( log_point(42), 'pt stokes' ,'start')
-!
 !--    If required, compute Stokes-advection term
        IF ( ocean .AND. stokes_force ) THEN
           CALL stokes_force_s( pt )
        ENDIF
-
-       call cpu_log( log_point(42), 'pt stokes', 'stop' )
 
        if (disturbFactor .gt. 0.0_wp) then
           do i = nxl, nxr
@@ -663,8 +717,13 @@
        endif
 !
 !--    Prognostic equation for potential temperature
+    !$acc parallel present( tsc, wall_flags_0, rdf_sc ) &
+    !$acc present( ptdf_x, ptdf_y ) &
+    !$acc present( pt, pt_p, tpt_m, pt_init )
+    !$acc loop collapse(2)
        DO  i = nxl, nxr
           DO  j = nys, nyn
+          !$acc loop seq
              DO  k = nzb+1, nzt
                 pt_p(k,j,i) = pt(k,j,i) + ( dt_3d * ( sbt * tend(k,j,i) +      &
                                                    tsc(3) * tpt_m(k,j,i) )     &
@@ -677,10 +736,14 @@
              ENDDO
           ENDDO
        ENDDO
+    !$acc end parallel
+
 !
 !--    Calculate tendencies for the next Runge-Kutta step
+    !$acc parallel present( tpt_m, tend )
        IF ( timestep_scheme(1:5) == 'runge' )  THEN
           IF ( intermediate_timestep_count == 1 )  THEN
+          !$acc loop collapse(3)
              DO  i = nxl, nxr
                 DO  j = nys, nyn
                    DO  k = nzb+1, nzt
@@ -690,6 +753,7 @@
              ENDDO
           ELSEIF ( intermediate_timestep_count < &
                    intermediate_timestep_count_max )  THEN
+          !$acc loop collapse(3)
              DO  i = nxl, nxr
                 DO  j = nys, nyn
                    DO  k = nzb+1, nzt
@@ -700,6 +764,7 @@
              ENDDO
           ENDIF
        ENDIF
+    !$acc end parallel
 
        CALL cpu_log( log_point(13), 'pt-equation', 'stop' )
 
@@ -709,14 +774,21 @@
 !--    sa-tendency terms with communication
        sbt = tsc(2)
 !
-       tend = 0.0_wp
+    !$acc parallel present( tend )
+    !$acc loop collapse(3)
+    DO  i = nxl, nxr
+       DO  j = nys, nyn
+          DO  k = nzb, nzt
+             tend(k,j,i) = 0.0_wp
+          ENDDO
+       ENDDO
+    ENDDO
+    !$acc end parallel
+
        CALL advec_s_ws( sa, 'sa' )
 
        CALL diffusion_s( sa,                                                   &
-                         surf_def_h(0)%sasws, surf_def_h(1)%sasws,             &
-                         surf_def_h(2)%sasws,                                  &
-                         surf_def_v(0)%sasws, surf_def_v(1)%sasws,             &
-                         surf_def_v(2)%sasws, surf_def_v(3)%sasws)
+                      surf_def_h(2)%sasws)
 
 !
 !--    If required, compute Stokes-advection term
@@ -736,8 +808,12 @@
 !
 !
 !--    Prognostic equation for salinity
+    !$acc parallel present( tsc, wall_flags_0, rdf_sc ) &
+    !$acc present( sa, sa_p, tsa_m, sa_init )
+    !$acc loop collapse(2)
        DO  i = nxl, nxr
           DO  j = nys, nyn
+          !$acc loop seq
              DO  k = nzb+1, nzt
                 sa_p(k,j,i) = sa(k,j,i) + ( dt_3d * ( sbt * tend(k,j,i) +      &
                                                    tsc(3) * tsa_m(k,j,i) )     &
@@ -750,11 +826,14 @@
              ENDDO
           ENDDO
        ENDDO
+    !$acc end parallel
 
 !
 !--    Calculate tendencies for the next Runge-Kutta step
+    !$acc parallel present( tsa_m, tend )
        IF ( timestep_scheme(1:5) == 'runge' )  THEN
           IF ( intermediate_timestep_count == 1 )  THEN
+          !$acc loop collapse(3)
              DO  i = nxl, nxr
                 DO  j = nys, nyn
                    DO  k = nzb+1, nzt
@@ -764,6 +843,7 @@
              ENDDO
           ELSEIF ( intermediate_timestep_count < &
                    intermediate_timestep_count_max )  THEN
+          !$acc loop collapse(3)
              DO  i = nxl, nxr
                 DO  j = nys, nyn
                    DO  k = nzb+1, nzt
@@ -774,6 +854,8 @@
              ENDDO
           ENDIF
        ENDIF
+    !$acc end parallel
+    !$acc end data
 
        CALL cpu_log( log_point(37), 'sa-equation', 'stop' )
 
@@ -783,6 +865,7 @@
        CALL eqn_state_seawater
        CALL cpu_log( log_point(38), 'eqns-seawater', 'stop' )
 
+!-- Turbulence closure model
     CALL tcm_prognostic()
 
  END SUBROUTINE prognostic_equations_vector

@@ -380,8 +380,6 @@
                 READ ( 13 )  inflow_disturbance_begin
              CASE ( 'inflow_disturbance_end' )
                 READ ( 13 )  inflow_disturbance_end
-             CASE ( 'km_constant' )
-                READ ( 13 )  km_constant
              CASE ( 'large_scale_forcing' )
                 READ ( 13 )  large_scale_forcing
              CASE ( 'large_scale_subsidence' )
@@ -479,8 +477,6 @@
                 READ ( 13 )  random_generator
              CASE ( 'random_heatflux' )
                 READ ( 13 )  random_heatflux
-             CASE ( 'rans_mode' )
-                READ ( 13 )  rans_mode
              CASE ( 'rayleigh_damping_factor' )
                 READ ( 13 )  rayleigh_damping_factor
              CASE ( 'rayleigh_damping_height' )

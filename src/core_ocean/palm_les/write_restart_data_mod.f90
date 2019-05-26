@@ -382,9 +382,6 @@
        CALL wrd_write_string( 'inflow_disturbance_end' ) 
        WRITE ( 14 )  inflow_disturbance_end
 
-       CALL wrd_write_string( 'km_constant' ) 
-       WRITE ( 14 )  km_constant
-
        CALL wrd_write_string( 'large_scale_forcing' ) 
        WRITE ( 14 )  large_scale_forcing
 
@@ -527,9 +524,6 @@
 
        CALL wrd_write_string( 'random_heatflux' ) 
        WRITE ( 14 )  random_heatflux
-
-       CALL wrd_write_string( 'rans_mode' ) 
-       WRITE ( 14 )  rans_mode
 
        CALL wrd_write_string( 'rayleigh_damping_factor' ) 
        WRITE ( 14 )  rayleigh_damping_factor

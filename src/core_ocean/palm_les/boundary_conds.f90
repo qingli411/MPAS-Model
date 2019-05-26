@@ -190,7 +190,7 @@
 
     USE control_parameters,                                                    &
         ONLY:  air_chemistry, bc_pt_t_val, bc_q_t_val, bc_s_t_val,             &
-               constant_diffusion, cloud_physics, coupling_mode, dt_3d,        &
+               cloud_physics, coupling_mode, dt_3d,        &
                force_bound_l, force_bound_s, forcing, humidity,                &
                ibc_pt_b, ibc_pt_t, ibc_q_b, ibc_q_t, ibc_s_b, ibc_s_t,         &
                ibc_sa_b, ibc_sa_t, ibc_uv_b, ibc_uv_t, inflow_l, inflow_n,     &
@@ -198,7 +198,7 @@
                microphysics_morrison, microphysics_seifert, nest_domain,       &
                nest_bound_l, nest_bound_n, nest_bound_r, nest_bound_s, nudging,&
                ocean, outflow_l, outflow_n, outflow_r, outflow_s,              &
-               passive_scalar, rans_mode, rans_tke_e, tsc, use_cmax
+               passive_scalar, tsc, use_cmax
 
     USE grid_variables,                                                        &
         ONLY:  ddx, ddy, dx, dy
@@ -323,9 +323,7 @@
 !
 !-- Boundary conditions for TKE.
 !-- Generally Neumann conditions with de/dz=0 are assumed.
-    IF ( .NOT. constant_diffusion )  THEN
 
-       IF ( .NOT. rans_tke_e )  THEN
           DO  l = 0, 1
 !
 !--         Set kb, for upward-facing surfaces value at topography top (k-1) is set,
@@ -339,7 +337,6 @@
                 e_p(k+kb,j,i) = e_p(k,j,i)
              ENDDO
           ENDDO
-       ENDIF
 
           e_p(nzt+1,:,:) = e_p(nzt,:,:)
 !
@@ -348,14 +345,8 @@
 !--    top child boundaries. 
 !--    If not ( both either in RANS or in LES mode ), TKE boundary condition
 !--    is treated in the nesting. 
-   ENDIF
 
 !
-!-- Boundary conditions for TKE dissipation rate. 
-    IF ( rans_tke_e .AND. .NOT. nest_domain )  THEN
-       diss_p(nzt+1,:,:) = diss_p(nzt,:,:)
-    ENDIF
-
 !-- Bottom boundary: Dirichlet condition.
        IF ( ibc_sa_b == 0 )  THEN
           DO  l = 0, 1

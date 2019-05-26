@@ -1280,6 +1280,7 @@
     INTEGER(iwp), DIMENSION(:,:), ALLOCATABLE ::  mask_k_global  !< global grid index of masked output point on z-dimension
 
     LOGICAL ::  poisfft_initialized = .FALSE.
+    LOGICAL ::  init_fft = .FALSE.
     LOGICAL ::  aerosol_nacl =.TRUE.                             !< nacl aerosol for bulk scheme
     LOGICAL ::  aerosol_c3h4o4 =.FALSE.                          !< malonic acid aerosol for bulk scheme
     LOGICAL ::  aerosol_nh4no3 =.FALSE.                          !< malonic acid aerosol for bulk scheme
@@ -1298,7 +1299,6 @@
     LOGICAL ::  cloud_top_radiation = .FALSE.                    !< namelist parameter
     LOGICAL ::  complex_terrain = .FALSE.                        !< namelist parameter
     LOGICAL ::  conserve_volume_flow = .FALSE.                   !< namelist parameter
-    LOGICAL ::  constant_diffusion = .FALSE.                     !< diffusion coefficient constant?
     LOGICAL ::  constant_flux_layer = .FALSE.                     !< namelist parameter
     LOGICAL ::  constant_heatflux = .TRUE.                       !< heat flux at all surfaces constant?
     LOGICAL ::  constant_top_heatflux = .TRUE.                   !< heat flux at domain top constant?
@@ -1375,9 +1375,6 @@
     LOGICAL ::  plant_canopy = .FALSE.                           !< switch for use of plant canopy model
     LOGICAL ::  precipitation = .FALSE.                          !< namelist parameter
     LOGICAL ::  random_heatflux = .FALSE.                        !< namelist parameter
-    LOGICAL ::  rans_mode = .FALSE.                              !< switch between RANS and LES mode
-    LOGICAL ::  rans_tke_e = .FALSE.                             !< use TKE-e turbulence closure for RANS mode
-    LOGICAL ::  rans_tke_l = .FALSE.                             !< use TKE-l turbulence closure for RANS mode
     LOGICAL ::  read_svf = .FALSE.                               !< ENVPAR namelist parameter to steer input of svf (ENVPAR is created by palmrun)
     LOGICAL ::  recycling_yshift = .FALSE.                       !< namelist parameter
     LOGICAL ::  run_control_header = .FALSE.                     !< onetime output of RUN_CONTROL header
@@ -1491,7 +1488,6 @@
     REAL(wp) ::  inflow_damping_height = 9999999.9_wp          !< namelist parameter
     REAL(wp) ::  inflow_damping_width = 9999999.9_wp           !< namelist parameter
     REAL(wp) ::  kappa = 0.4_wp                                !< von Karman constant
-    REAL(wp) ::  km_constant = -1.0_wp                         !< namelist parameter
     REAL(wp) ::  latitude = 55.6_wp                            !< namelist parameter
     REAL(wp) ::  longitude = 0.0_wp                            !< namelist parameter
     REAL(wp) ::  mask_scale_x = 1.0_wp                         !< namelist parameter

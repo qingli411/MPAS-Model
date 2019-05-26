@@ -473,7 +473,7 @@
              galilei_transformation, humidity,                                 &
              inflow_damping_height, inflow_damping_width,                      &
              inflow_disturbance_begin, inflow_disturbance_end,                 &
-             initializing_actions, km_constant,                                &
+             initializing_actions,                                &
              large_scale_forcing, large_scale_subsidence, latitude,            &
              longitude,                                 &
              loop_optimization, lsf_exception, masking_method, mg_cycles,      &
@@ -490,7 +490,6 @@
              pt_vertical_gradient_level, q_surface, q_surface_initial_change,  &
              q_vertical_gradient, q_vertical_gradient_level,                   &
              random_generator, random_heatflux, rans_const_c, rans_const_sigma,&
-             rans_mode,                                                        &
              rayleigh_damping_factor, rayleigh_damping_height,                 &
              recycling_width, recycling_yshift,                                &
              reference_state, residual_limit,                                  &
@@ -553,7 +552,7 @@
              galilei_transformation, humidity,                                 &
              inflow_damping_height, inflow_damping_width,                      &
              inflow_disturbance_begin, inflow_disturbance_end,                 &
-             initializing_actions, km_constant,                                &
+             initializing_actions,                                &
              large_scale_forcing, large_scale_subsidence, latitude,            &
              longitude,                                 &
              loop_optimization, lsf_exception, masking_method, mg_cycles,      &
@@ -570,7 +569,6 @@
              pt_vertical_gradient_level, q_surface, q_surface_initial_change,  &
              q_vertical_gradient, q_vertical_gradient_level,                   &
              random_generator, random_heatflux, rans_const_c, rans_const_sigma,&
-             rans_mode,                                                        &
              rayleigh_damping_factor, rayleigh_damping_height,                 &
              recycling_width, recycling_yshift,                                &
              reference_state, residual_limit,                                  &
@@ -891,7 +889,6 @@
 !--       NAMELIST-file is not needed anymore
           CALL close_file( 11 )
 
-          print *, 'dz = ',dz
        ENDIF
 #if defined( __parallel )
        CALL MPI_BARRIER( MPI_COMM_WORLD, ierr )

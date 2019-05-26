@@ -519,12 +519,13 @@
                sums_l_l, sums_wsts_bc_l, ts_value,                             &
                weight_pres, weight_substep
 
+
     USE surface_layer_fluxes_mod,                                              &
         ONLY:  init_surface_layer_fluxes
 
     USE surface_mod,                                                           &
         ONLY :  init_surface_arrays, init_surfaces, surf_def_h,     &
-                get_topography_top_index_ji, vertical_surfaces_exist
+                get_topography_top_index_ji, vertical_surfaces_exist, bc_h
    
     USE transpose_indices
 
@@ -839,7 +840,6 @@ subroutine init_3d_model
        THEN
 
           CALL location_message( 'initializing with constant profiles', .FALSE. )
-
           !
 !--       Use constructed initial profiles (velocity constant with height,
 !--       temperature profile with constant gradient)
@@ -1143,7 +1143,6 @@ subroutine init_3d_model
 
        CALL location_message( 'creating initial disturbances', .FALSE. )
        CALL disturb_field( 'u', tend, u)
-      
        CALL disturb_field( 'v', tend, v )
  !      CALL disturb_field( 'pt', tend, pt )
 !       call disturb_field( 'sa', tend, sa )
@@ -1152,7 +1151,9 @@ subroutine init_3d_model
 
        CALL location_message( 'calling pressure solver', .FALSE. )
        n_sor = nsor_ini
+       !$acc data copyin( u, v, w, rho_air, rho_air_zw, ddzw, ddzu, wall_flags_0, ngp_2dh_outer, bc_h )
        CALL pres
+       !$acc end data
        n_sor = nsor
        CALL location_message( 'finished', .TRUE. )
       

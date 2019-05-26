@@ -536,11 +536,6 @@
 !
 !-- Numerical schemes
     WRITE ( io, 110 )
-    IF ( rans_mode )  THEN
-       WRITE ( io, 124 )  TRIM( turbulence_closure ), 'RANS'
-    ELSE
-       WRITE ( io, 124 )  TRIM( turbulence_closure ), 'LES'
-    ENDIF
     WRITE ( io, 121 )  TRIM( approximation )
     IF ( psolver(1:7) == 'poisfft' )  THEN
        WRITE ( io, 111 )  TRIM( fft_method )
@@ -552,10 +547,10 @@
     ENDIF
 
     IF ( momentum_advec == 'ws-scheme' )  THEN
-       WRITE ( io, 113 )
+       WRITE ( io, 503 )
     ENDIF
     IF ( scalar_advec == 'ws-scheme' )  THEN
-       WRITE ( io, 116 )
+       WRITE ( io, 504 )
     ENDIF
 
     WRITE ( io, 139 )  TRIM( loop_optimization )
@@ -797,7 +792,6 @@
 
     WRITE ( io, 300 )  r_lower, r_upper
 
-    IF ( .NOT. constant_diffusion )  THEN
        IF ( ibc_e_b == 1 )  THEN
           r_lower = 'e(0)     = e(1)'
        ELSE
@@ -807,7 +801,6 @@
 
        WRITE ( io, 301 )  'e', r_lower, r_upper       
 
-    ENDIF
 
        IF ( ibc_sa_b == 0 ) THEN
           r_lower = 'sa(0)    = sa_surface'
@@ -1354,18 +1347,9 @@
 !--
 ! ... LES-constants used must still be added here
 !--
-    IF ( constant_diffusion )  THEN
-       WRITE ( io, 451 )  km_constant, km_constant/prandtl_number, &
-                          prandtl_number
-    ENDIF
-    IF ( .NOT. constant_diffusion)  THEN
        IF ( e_init > 0.0_wp )  WRITE ( io, 455 )  e_init
        IF ( e_min > 0.0_wp )  WRITE ( io, 454 )  e_min
        IF ( wall_adjustment )  WRITE ( io, 453 )  wall_adjustment_factor
-    ENDIF
-    IF ( rans_mode )  THEN
-       WRITE ( io, 457 )  rans_const_c, rans_const_sigma
-    ENDIF
 !
 !-- Special actions during the run
     WRITE ( io, 470 )

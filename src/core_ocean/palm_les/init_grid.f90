@@ -363,8 +363,6 @@
 
     USE pegrid
 
-    USE poismg_noopt_mod
-
     USE surface_mod,                                                           &
         ONLY:  get_topography_top_index, get_topography_top_index_ji, init_bc
 

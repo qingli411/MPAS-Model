@@ -347,10 +347,15 @@
         ONLY:  ws_statistics, ws_finalize
 
     USE arrays_3d,                                                             &
-        ONLY:  diss, diss_p, dzu, e, e_p, nc, nc_p, nr, nr_p, prho, pt, pt_p, pt_init, &
+        ONLY:  p, hyp, dzu, e, e_p, nc, nc_p, nr, nr_p, prho, pt, pt_p, pt_init, sa_init, &
                q_init, q, qc, qc_p, ql, ql_c, ql_v, ql_vp, qr, qr_p, q_p,      &
-               ref_state, rho_ocean, s, s_p, sa_p, tend, u, u_p, v, vpt,       &
-               v_p, w, w_p, alpha_T, beta_S, solar3d, sa,dzw
+               ref_state, rho_ocean, s, s_p, sa_p, tend, u, u_p, v,            &
+               v_p, w, w_p, alpha_T, beta_S, solar3d, sa, &
+               ddzu, ddzw, dzw, dd2zu, drho_air, drho_air_zw,                  &
+               rho_air, rho_air_zw, kh, km,                                    &
+               te_m, tu_m, tv_m, tw_m, tpt_m, tsa_m,     &
+               u_stk, v_stk, ug, vg, u_init, v_init, rdf, rdf_sc,              &
+               ptdf_x, ptdf_y
 
     USE calc_mean_profile_mod,                                                 &
         ONLY:  calc_mean_profile
@@ -361,21 +366,21 @@
                bc_lr_cyc, bc_ns_cyc, bc_pt_t_val,                              &
                bc_q_t_val, call_psolver_at_all_substeps,       &
                constant_flux_layer, constant_heatflux,          &
-               create_disturbances, dopr_n, constant_diffusion, coupling_mode, &
+               create_disturbances, dopr_n, coupling_mode, &
                coupling_start_time, current_timestep_number,                   &
                disturbance_created, disturbance_energy_limit, dist_range,      &
                do_sum, old_dt, dt_3d, dt_averaging_input, dt_averaging_input_pr,       &
                dt_coupling, dt_data_output_av, dt_disturb, dt_do2d_xy,         &
                dt_do2d_xz, dt_do2d_yz, dt_do3d, dt_domask,dt_dopts, dt_dopr,   &
                dt_dopr_listing, dt_dots, dt_run_control, end_time,    &
-               forcing, timestep_count,       &
+               forcing, timestep_count,g,dp_smooth_factor,       &
                intermediate_timestep_count, intermediate_timestep_count_max,   &
                masks, time_avg,                   &
                mid, average_count_meanpr,  &
                neutral, nr_timesteps_this_run, nudging,                        &
-               ocean, passive_scalar, prho_reference, pt_reference,            &
-               pt_slope_offset, random_heatflux, rans_mode,                    &
-               rans_tke_e, run_coupled, simulated_time, simulated_time_chr,    &
+               passive_scalar, pt_reference,            &
+               pt_slope_offset, random_heatflux,                    &
+               run_coupled, simulated_time, simulated_time_chr,    &
                skip_time_do2d_xy, skip_time_do2d_xz, skip_time_do2d_yz,        &
                skip_time_do3d, skip_time_domask, skip_time_dopr,               &
                skip_time_data_output_av, sloping_surface,                      &
@@ -384,19 +389,20 @@
                time_do3d, time_domask, time_dopr, time_dopr_av,                &
                time_dopr_listing, time_dopts, time_dosp, time_dosp_av,         &
                time_dots, time_do_av, time_do_sla, time_disturb, time_dvrp,    &
-               time_run_control, time_since_reference_point,                   &
+               time_run_control, time_since_reference_point, tsc,              &
                turbulent_inflow, turbulent_outflow, urban_surface,             &
                use_initial_profile_as_reference, dt_avg, time_avg,             &
                use_single_reference_value, uv_exposure, u_gtrans, v_gtrans,    &
                virtual_flight, wind_turbine, ws_scheme_mom, ws_scheme_sca,     &
                stokes_force, disturbFactor, uProfileInit, vProfileInit,        &
-               tProfileInit, sProfileInit, dt_LS
+               tProfileInit, sProfileInit, dt_LS, dpdxy
 
     USE cpulog,                                                                &
         ONLY:  cpu_log, log_point, log_point_s
 
     USE indices,                                                               &
-        ONLY:  nbgp, nx, nxl, nxlg, nxr, nxrg, nyn, nyng, nys, nysg, nzb, nzt
+        ONLY:  nbgp, nx, nxl, nxlg, nxr, nxrg, nyn, nyng, nys, nysg, nzb, nzt, &
+               wall_flags_0, advc_flags_1, advc_flags_2, ngp_2dh_outer
 
     USE interfaces
 
@@ -412,19 +418,21 @@
 
     USE prognostic_equations_mod,                                              &
         ONLY:  prognostic_equations_vector
+
     USE statistics,                                                            &
         ONLY:  flow_statistics_called, hom, pr_palm, sums_ls_l, u_max,         &
                u_max_ijk, v_max, v_max_ijk, w_max, w_max_ijk,                  &
-               statistic_regions, meanFields_avg
+               statistic_regions, meanFields_avg, rmask
 
     USE surface_layer_fluxes_mod,                                              &
         ONLY:  surface_layer_fluxes
 
     USE surface_mod,                                                           &
-        ONLY:  surf_def_h, surf_lsm_h, surf_usm_h
+        ONLY:  surf_def_h, bc_h
 
     USE turbulence_closure_mod,                                                &
-        ONLY:  tcm_diffusivities, production_e_init
+        ONLY:  tcm_diffusivities, production_e_init, &
+               l_grid, l_wall
 
     USE stokes_force_mod,                                                      &
         ONLY:  stokes_pressure_head
@@ -436,11 +444,50 @@
     INTEGER(iwp)      ::  lsp
     INTEGER(iwp)      ::  n
 
+    #define MY_DEBUG print *,"DEBUG",__LINE__,__FILE__
 
-    logical :: first,firstav
     REAL(wp) ::  dt_3d_old  !< temporary storage of timestep to be used for
                             !< steering of run control output interval
     REAL(wp) ::  tsrp_org   !< original value of time_since_reference_point
+
+    logical :: first, firstav
+!$acc data copyin( g ) &
+!$acc      copyin( drho_air ) &
+!$acc      copyin( drho_air_zw ) &
+!$acc      copyin( rho_air ) &
+!$acc      copyin( rho_air_zw ) &
+!$acc      copyin( ref_state ) &
+!$acc      copyin( dd2zu ) &
+!$acc      copyin( ddzu ) &
+!$acc      copyin( ddzw ) &
+!$acc      copyin( dzw ) &
+!$acc      copyin( bc_h ) &
+!$acc      copyin( l_grid ) &
+!$acc      copyin( l_wall ) &
+!$acc      copyin( surf_def_h ) &
+!!$acc      copyin( rmask ) &
+!$acc      copyin( ngp_2dh_outer ) &
+!$acc      copyin( wall_flags_0 ) &
+!$acc      copyin( advc_flags_1, advc_flags_2 ) &
+!$acc      copyin( dp_smooth_factor, dpdxy ) &
+!$acc      copyin( ptdf_x, ptdf_y ) &
+!$acc      copyin( hyp ) &
+!$acc      copyin( tsc ) &
+!$acc       copyin( rdf, rdf_sc ) &
+!$acc      copyin( u_stk, v_stk ) &
+!$acc      copyin( u_init, v_init ) &
+!$acc      copyin( pt_init, sa_init ) &
+!$acc      copyin( u, u_p, tu_m ) &
+!$acc      copyin( v, v_p, tv_m ) &
+!$acc      copyin( w, w_p, tw_m ) &
+!$acc      copyin( e, e_p, te_m ) &
+!$acc      copyin( pt, pt_p, tpt_m ) &
+!$acc      copyin( sa, sa_p, tsa_m ) &
+!$acc      copyin( kh, km ) &
+!$acc      copyin( prho, rho_ocean ) &
+!$acc      copyin( alpha_T, beta_S, solar3d ) &
+!$acc      copyin( ug, vg )
+
 !
 !-- At beginning determine the first time step
     CALL timestep
@@ -478,6 +525,7 @@
 !--       Set the steering factors for the prognostic equations which depend
 !--       on the timestep scheme
           CALL timestep_scheme_steering
+          !$acc update device(tsc)
 
 !--          Horizontally averaged profiles to be used as reference state in
 !--          buoyancy terms (WARNING: only the respective last call of
@@ -491,11 +539,14 @@
              ref_state = MERGE( MAXVAL(ref_state), ref_state,                  &
                                 ref_state == 0.0_wp )
 
-          IF ( .NOT. constant_diffusion )  CALL production_e_init
+          CALL production_e_init
           IF ( ( ws_scheme_mom .OR. ws_scheme_sca )  .AND.  &
                intermediate_timestep_count == 1 )  CALL ws_statistics
 !
+          !$acc update device( u, v, w, e, pt, sa, rho_ocean, prho, alpha_T, beta_S, ref_state)
             CALL prognostic_equations_vector
+          !$acc update self( u_p, v_p, w_p, e_p, pt_p, sa_p, tu_m, tv_m, tw_m, tpt_m, tsa_m ) &
+          !$acc self( rho_ocean, prho, alpha_T, beta_S, solar3d )
             !
 !
 !--       Exchange of ghost points (lateral boundary conditions)
@@ -505,10 +556,7 @@
           CALL exchange_horiz( v_p, nbgp )
           CALL exchange_horiz( w_p, nbgp )
           CALL exchange_horiz( pt_p, nbgp )
-          IF ( .NOT. constant_diffusion )  CALL exchange_horiz( e_p, nbgp )
-             IF ( rans_tke_e )  THEN
-                CALL exchange_horiz( diss_p, nbgp )
-             ENDIF
+          CALL exchange_horiz( e_p, nbgp )
              CALL exchange_horiz( sa_p, nbgp )
              CALL exchange_horiz( rho_ocean, nbgp )
              CALL exchange_horiz( prho, nbgp )
@@ -521,10 +569,11 @@
 !--       Boundary conditions for the prognostic quantities (except of the
 !--       velocities at the outflow in case of a non-cyclic lateral wall)
           CALL boundary_conds
-
           !
 !--       Swap the time levels in preparation for the next time step.
+          !$acc update device( u_p, v_p, w_p, e_p, pt_p, sa_p )
           CALL swap_timelevel
+          !$acc update self( u, v, w, e, pt, sa )
 !
 !--       Temperature offset must be imposed at cyclic boundaries in x-direction
 !--       when a sloping surface is used
@@ -534,7 +583,6 @@
              IF ( nxr == nx )  pt(:,:,nxr+1:nxrg) = pt(:,:,nxr+1:nxrg) + &
                                                     pt_slope_offset
           ENDIF
-          
           !
 !--       Impose a random perturbation on the horizontal velocity field
           IF ( create_disturbances  .AND.                                      &
@@ -543,7 +591,6 @@
           .OR. ( .NOT. call_psolver_at_all_substeps  .AND.                     &
                intermediate_timestep_count == 1 ) )                            &
           THEN
-
   time_disturb = time_disturb + dt_3d
 
              IF ( time_disturb < dt_disturb .and. disturbance_energy_limit /= 0.0_wp  .AND. &
@@ -561,12 +608,10 @@
 !
 !--       Reduce the velocity divergence via the equation for perturbation
 !--       pressure.
+          !$acc update device( u, v, w )
           CALL pres
-
 !
 !--       Compute the diffusion quantities
-          IF ( .NOT. constant_diffusion )  THEN
-
 
 !--          First the vertical (and horizontal) fluxes in the surface
 !--          (constant flux) layer are computed
@@ -578,17 +623,17 @@
 
 !--          Compute the diffusion coefficients
              CALL cpu_log( log_point(17), 'diffusivities', 'start' )
-             CALL tcm_diffusivities( prho, prho_reference )
+          !$acc update device(e, prho)
+          CALL tcm_diffusivities
+          !$acc update self(km, kh, e)
              CALL cpu_log( log_point(17), 'diffusivities', 'stop' )
 !
-
-          ENDIF
 
        ENDDO   ! Intermediate step loop
        !
 !--    Update perturbation pressure to account for the Stokes pressure
 !--    head, if required
-       IF ( ocean .AND. stokes_force ) THEN
+       IF ( stokes_force ) THEN
           CALL stokes_pressure_head
        ENDIF
 
@@ -781,6 +826,8 @@
 
 
     ENDDO   ! time loop
+
+!$acc end data
 
     call ws_finalize
 

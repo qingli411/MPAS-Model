@@ -173,15 +173,7 @@
 !
 !-- Loop of all variables to be averaged.
     DO  ii = 1, doav_n
-
-!
-!--    Temporary solution to account for data output within the new urban 
-!--    surface model (urban_surface_mod.f90), see also SELECT CASE ( trimvar )
        trimvar = TRIM( doav(ii) )
-       IF ( urban_surface  .AND.  trimvar(1:4) == 'usm_' )  THEN
-          trimvar = 'usm_output'
-       ENDIF
-
 !
 !--    Store the array chosen on the temporary array.
        SELECT CASE ( trimvar )

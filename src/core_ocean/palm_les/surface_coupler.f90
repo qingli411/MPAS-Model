@@ -121,7 +121,7 @@
     USE pegrid
 
     USE surface_mod,                                                           &
-        ONLY :  surf_def_h, surf_lsm_h, surf_type, surf_usm_h
+        ONLY :  surf_def_h, surf_type
 
     IMPLICIT NONE
 
@@ -223,15 +223,13 @@
 !
 !--       Send heat flux at bottom surface to the ocean. First, transfer from 
 !--       1D surface type to 2D grid.
-          CALL transfer_1D_to_2D_equal( surf_def_h(0)%shf, surf_lsm_h%shf,     &
-                                        surf_usm_h%shf )
+          CALL transfer_1D_to_2D_equal( surf_def_h(0)%shf)
           CALL MPI_SEND( surface_flux(nysg,nxlg), ngp_xy, MPI_REAL, target_id, &
                          12, comm_inter, ierr )
 !
 !--       Send humidity flux at bottom surface to the ocean. First, transfer
 !--       from 1D surface type to 2D grid.
-          CALL transfer_1D_to_2D_equal( surf_def_h(0)%qsws, surf_lsm_h%qsws,   &
-                                        surf_usm_h%qsws )
+          CALL transfer_1D_to_2D_equal( surf_def_h(0)%qsws)
           IF ( humidity )  THEN
              CALL MPI_SEND( surface_flux(nysg,nxlg), ngp_xy, MPI_REAL,         &
                             target_id, 13, comm_inter, ierr )
@@ -243,15 +241,13 @@
 !
 !--       Send the momentum flux (u) at bottom surface to the ocean. First, 
 !--       transfer from 1D surface type to 2D grid.
-          CALL transfer_1D_to_2D_equal( surf_def_h(0)%usws, surf_lsm_h%usws,   &
-                                        surf_usm_h%usws )
+          CALL transfer_1D_to_2D_equal( surf_def_h(0)%usws)
           CALL MPI_SEND( surface_flux(nysg,nxlg), ngp_xy, MPI_REAL, target_id, &
                          15, comm_inter, ierr )
 !
 !--       Send the momentum flux (v) at bottom surface to the ocean. First, 
 !--       transfer from 1D surface type to 2D grid.
-          CALL transfer_1D_to_2D_equal( surf_def_h(0)%vsws, surf_lsm_h%vsws,   &
-                                        surf_usm_h%vsws )
+          CALL transfer_1D_to_2D_equal( surf_def_h(0)%vsws)
           CALL MPI_SEND( surface_flux(nysg,nxlg), ngp_xy, MPI_REAL, target_id, &
                          16, comm_inter, ierr )
 !
@@ -273,8 +269,7 @@
           total_2d   = 0.0_wp
 !
 !--       Transfer from 1D surface type to 2D grid.
-          CALL transfer_1D_to_2D_unequal( surf_def_h(0)%shf, surf_lsm_h%shf,   &
-                                          surf_usm_h%shf )
+          CALL transfer_1D_to_2D_unequal( surf_def_h(0)%shf)
 
           CALL MPI_REDUCE( total_2d, total_2d_a, ngp_a, MPI_REAL, MPI_SUM, 0,  &
                            comm2d, ierr )
@@ -286,9 +281,7 @@
              total_2d   = 0.0_wp
 !
 !--          Transfer from 1D surface type to 2D grid.
-             CALL transfer_1D_to_2D_unequal( surf_def_h(0)%qsws,              &
-                                             surf_lsm_h%qsws,                 &
-                                             surf_usm_h%qsws )
+             CALL transfer_1D_to_2D_unequal( surf_def_h(0)%qsws)
 
              CALL MPI_REDUCE( total_2d, total_2d_a, ngp_a, MPI_REAL, MPI_SUM, &
                               0, comm2d, ierr )
@@ -310,8 +303,7 @@
           total_2d   = 0.0_wp
 !
 !--       Transfer from 1D surface type to 2D grid.
-          CALL transfer_1D_to_2D_unequal( surf_def_h(0)%usws, surf_lsm_h%usws, &
-                                          surf_usm_h%usws )
+          CALL transfer_1D_to_2D_unequal( surf_def_h(0)%usws)
           CALL MPI_REDUCE( total_2d, total_2d_a, ngp_a, MPI_REAL, MPI_SUM, 0, &
                            comm2d, ierr )
           CALL interpolate_to_ocean( 15 )
@@ -321,8 +313,7 @@
           total_2d   = 0.0_wp
 !
 !--       Transfer from 1D surface type to 2D grid.
-          CALL transfer_1D_to_2D_unequal( surf_def_h(0)%usws, surf_lsm_h%usws, &
-                                          surf_usm_h%usws )
+          CALL transfer_1D_to_2D_unequal( surf_def_h(0)%usws)
           CALL MPI_REDUCE( total_2d, total_2d_a, ngp_a, MPI_REAL, MPI_SUM, 0, &
                            comm2d, ierr )
           CALL interpolate_to_ocean( 16 )
@@ -520,7 +511,7 @@
 !>      Data transfer from 1D surface-data type to 2D dummy array for equal 
 !>      grids in atmosphere and ocean.
 !------------------------------------------------------------------------------!
-        SUBROUTINE transfer_1D_to_2D_equal( def_1d, lsm_1d, usm_1d )
+        SUBROUTINE transfer_1D_to_2D_equal( def_1d )
 
            IMPLICIT NONE
 
@@ -529,8 +520,6 @@
             INTEGER(iwp) ::  m   !< running index surface type
 
             REAL(wp), DIMENSION(1:surf_def_h(0)%ns) ::  def_1d !< 1D surface flux, default surfaces
-            REAL(wp), DIMENSION(1:surf_lsm_h%ns)    ::  lsm_1d !< 1D surface flux, natural surfaces
-            REAL(wp), DIMENSION(1:surf_usm_h%ns)    ::  usm_1d !< 1D surface flux, urban surfaces
 !
 !--         Transfer surface flux at default surfaces to 2D grid 
             DO  m = 1, surf_def_h(0)%ns
@@ -539,24 +528,6 @@
                surface_flux(j,i) = def_1d(m)
             ENDDO
 !
-!--         Transfer surface flux at natural surfaces to 2D grid 
-            IF ( land_surface )  THEN 
-               DO  m = 1, SIZE(lsm_1d)
-                  i = surf_lsm_h%i(m)
-                  j = surf_lsm_h%j(m)
-                  surface_flux(j,i) = lsm_1d(m)
-               ENDDO
-            ENDIF
-!
-!--         Transfer surface flux at natural surfaces to 2D grid 
-            IF ( urban_surface )  THEN 
-               DO  m = 1, SIZE(usm_1d)
-                  i = surf_usm_h%i(m)
-                  j = surf_usm_h%j(m)
-                  surface_flux(j,i) = usm_1d(m)
-               ENDDO
-            ENDIF
-
         END SUBROUTINE transfer_1D_to_2D_equal
 
 !       Description:
@@ -588,7 +559,7 @@
 !>      Data transfer from 1D surface-data type to 2D dummy array from unequal 
 !>      grids in atmosphere and ocean.
 !------------------------------------------------------------------------------!
-        SUBROUTINE transfer_1D_to_2D_unequal( def_1d, lsm_1d, usm_1d )
+        SUBROUTINE transfer_1D_to_2D_unequal( def_1d )
 
            IMPLICIT NONE
 
@@ -597,8 +568,6 @@
             INTEGER(iwp) ::  m   !< running index surface type
 
             REAL(wp), DIMENSION(1:surf_def_h(0)%ns) ::  def_1d !< 1D surface flux, default surfaces
-            REAL(wp), DIMENSION(1:surf_lsm_h%ns)    ::  lsm_1d !< 1D surface flux, natural surfaces
-            REAL(wp), DIMENSION(1:surf_usm_h%ns)    ::  usm_1d !< 1D surface flux, urban surfaces
 !
 !--         Transfer surface flux at default surfaces to 2D grid. Transfer no
 !--         ghost-grid points since total_2d is a global array.
@@ -611,32 +580,6 @@
                   total_2d(j,i) = def_1d(m)
                ENDIF
             ENDDO
-!
-!--         Transfer surface flux at natural surfaces to 2D grid 
-            IF ( land_surface )  THEN 
-               DO  m = 1, SIZE(lsm_1d)
-                  i = surf_lsm_h%i(m)
-                  j = surf_lsm_h%j(m)
-
-                  IF ( i >= nxl  .AND.  i <= nxr  .AND.                        &
-                       j >= nys  .AND.  j <= nyn )  THEN
-                     total_2d(j,i) = lsm_1d(m)
-                  ENDIF
-               ENDDO
-            ENDIF
-!
-!--         Transfer surface flux at natural surfaces to 2D grid 
-            IF ( urban_surface )  THEN 
-               DO  m = 1, SIZE(usm_1d)
-                  i = surf_usm_h%i(m)
-                  j = surf_usm_h%j(m)
-
-                  IF ( i >= nxl  .AND.  i <= nxr  .AND.                        &
-                       j >= nys  .AND.  j <= nyn )  THEN
-                     total_2d(j,i) = usm_1d(m)
-                  ENDIF
-               ENDDO
-            ENDIF
 
         END SUBROUTINE transfer_1D_to_2D_unequal
 

@@ -92,7 +92,7 @@
 
     USE control_parameters,                                                    &
         ONLY:  averaging_interval_pr, calc_soil_moisture_during_spinup,        &
-               constant_diffusion, constant_flux_layer,                        &
+               constant_flux_layer,                        &
                coupling_start_time, current_timestep_number,                   &
                data_output_during_spinup, disturbance_created, dopr_n, do_sum, &
                dt_averaging_input_pr, dt_dopr, dt_dots, dt_do2d_xy, dt_do3d,   &
@@ -218,7 +218,6 @@
      
 !
 !--       Compute the diffusion quantities
-          IF ( .NOT. constant_diffusion )  THEN
 
 !
 !--          First the vertical (and horizontal) fluxes in the surface 
@@ -230,7 +229,6 @@
              ENDIF
 
 !
-          ENDIF
        ENDDO   ! Intermediate step loop
 
 !

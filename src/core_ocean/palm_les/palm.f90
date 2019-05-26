@@ -45,6 +45,9 @@
         ONLY:  netcdf_data_input_inquire_file, netcdf_data_input_init,         &
                netcdf_data_input_surface_data, netcdf_data_input_topo
 
+    USE fft_xy,                                                                &
+        ONLY: fft_finalize
+
     USE kinds
 
     USE pegrid
@@ -61,6 +64,10 @@
         ONLY:  wrd_global, wrd_local
 
     use statistics
+
+#if defined( __cudaProfiler )
+    USE cudafor
+#endif
 
     IMPLICIT NONE
 
@@ -249,10 +256,20 @@
        CALL data_output_3d( 0 )
     ENDIF
 
+#if defined( __cudaProfiler )
+!-- Only profile time_integration
+    CALL cudaProfilerStart()
+#endif
 !
 !-- Integration of the model equations using timestep-scheme
     CALL time_integration
 
+#if defined( __cudaProfiler )
+!-- Only profile time_integration
+    CALL cudaProfilerStop()
+#endif
+
+!
 !-- If required, repeat output of header including the required CPU-time
     IF ( myid == 0 )  CALL header
 !
@@ -271,25 +288,7 @@
     CALL cpu_log( log_point(1), 'total', 'stop' )
     CALL cpu_statistics
 
-    DEALLOCATE( pt_init, q_init, s_init, ref_state, sa_init, ug,         &
-                       u_init, v_init, vg, hom, hom_sum )
-
-   deallocate(hor_index_bounds)
-
-    deallocate(hyp)
-    deallocate(ddzu, ddzw, dd2zu, dzu, dzw, zw, ddzu_pres, nzb_s_inner,  &
-               nzb_s_outer, nzb_u_inner, nzb_u_outer, nzb_v_inner,       &
-               nzb_v_outer, nzb_w_inner, nzb_w_outer, nzb_diff_s_inner,  &
-               nzb_diff_s_outer, wall_flags_0, advc_flags_1, advc_flags_2)
-
-    call deallocate_bc
-    call deallocate_3d_variables
-    call tcm_deallocate_arrays
-    call deallocate_random_generator
-    call tridia_deallocate
-
-    close(18)
-
+    CALL fft_finalize
 #if defined( __parallel )
     CALL MPI_FINALIZE( ierr )
 #endif

@@ -822,13 +822,7 @@
           i = 1
 
           DO WHILE ( do3d(av,i)(1:1) /= ' ' )
-!
-!--          Temporary solution to account for data output within the new urban 
-!--          surface model (urban_surface_mod.f90), see also SELECT CASE ( trimvar )
              trimvar = TRIM( do3d(av,i) )
-             IF ( urban_surface  .AND.  trimvar(1:4) == 'usm_' )  THEN
-                trimvar = 'usm_output'
-             ENDIF
 !
 !--          Check for the grid
              found = .FALSE.

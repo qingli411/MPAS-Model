@@ -38,7 +38,7 @@
 ! Forced header and separation lines into 80 columns
 ! 
 ! 1682 2015-10-07 23:56:08Z knoop
-! Code annotations made doxygen readable 
+! Code annotations made doygen readable
 ! 
 ! 1324 2014-03-21 09:13:16Z suehring
 ! Bugfix: ONLY statement for module pegrid removed 

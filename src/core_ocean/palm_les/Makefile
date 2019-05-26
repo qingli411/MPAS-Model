@@ -94,7 +94,6 @@ SOURCES = \
 	random_generator_parallel_mod.f90 \
         read_restart_data_mod.f90 \
 	run_control.f90 \
-	singleton_mod.f90 \
 	sor.f90 \
 	stokes_drift_mod.f90 \
 	stokes_force_mod.f90 \
@@ -270,7 +269,6 @@ exchange_horiz_2d.o: \
 fft_xy_mod.o: \
 	mod_kinds.o \
 	modules.o \
-	singleton_mod.o \
 	temperton_fft_mod.o
 flow_statistics.o: \
 	cpulog_mod.o \
@@ -372,6 +370,7 @@ palm_mod.o: \
 	src/ppr_1d.o \
 	cpulog_mod.o \
 	mod_kinds.o \
+	fft_xy_mod.o \
 	modules.o \
 	netcdf_data_input_mod.o \
 	surface_layer_fluxes_mod.o \
@@ -463,8 +462,6 @@ run_control.o: \
 	cpulog_mod.o \
 	mod_kinds.o \
 	modules.o
-singleton_mod.o: \
-	mod_kinds.o
 sor.o: \
 	mod_kinds.o \
 	modules.o

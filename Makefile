@@ -104,11 +104,11 @@ pgi-titan-openacc:
 	"CXX_SERIAL = CC" \
 	"FFLAGS_PROMOTION = -r8" \
 	"FFLAGS_OPT = -O3 -byteswapio -Mfree" \
-	"LES_FFLAGS_OPT = -acc -ta=tesla:cc35 -Minfo=accel -Mcuda" \
+	"LES_FFLAGS_OPT = -acc -ta=tesla:cc35,deepcopy -Minfo=accel -Mcuda" \
 	"CFLAGS_OPT = -O3" \
 	"CXXFLAGS_OPT = -O3" \
-	"LDFLAGS_OPT = -O3 -ta=tesla:cc35 -Minfo=accel -Mcuda -lcufft" \
-	"LES_LDFLAGS_OPT = -acc -ta=tesla:cc35 -Minfo=accel -Mcuda -lcufft" \
+	"LDFLAGS_OPT = -O3 -ta=tesla:cc35,deepcopy -Minfo=accel -Mcuda -lcufft" \
+	"LES_LDFLAGS_OPT = -acc -ta=tesla:cc35,deepcopy -Minfo=accel -Mcuda -lcufft" \
 	"FFLAGS_OMP = -mp" \
 	"LES_COPT = -Mpreprocess -D__netcdf -D__lc -D__cudaProfiler -D__GPU" \
 	"CFLAGS_OMP = -mp" \
@@ -650,8 +650,8 @@ ifeq "$(TIMER_LIB)" "gptl"
 endif
 
 ifeq "$(LES_GPU)" "true"
-	FFLAGS += -acc -ta=tesla:cc60,deepcopy -Minfo=accel -Mcuda
-	LDFLAGS += -acc -ta=tesla:cc60 -Minfo=accel -Mcuda -lcufft
+	FFLAGS += -acc -ta=tesla:cc35,deepcopy -Minfo=accel -Mcuda
+	LDFLAGS += -acc -ta=tesla:cc35 -Minfo=accel -Mcuda -lcufft
 	LES_COPT += -D__lc -D__cudaProfiler -D__fftw -D__GPU
 endif
 

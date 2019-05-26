@@ -2179,12 +2179,7 @@
        SELECT CASE ( TRIM( var ) )
 
           CASE ( 'e' )
-             IF ( constant_diffusion )  THEN
-                message_string = 'output of "' // TRIM( var ) // '" requi' //  &
-                                 'res constant_diffusion = .FALSE.'
-                CALL message( 'check_parameters', 'PA0103', 1, 2, 0, 6, 0 )
-             ENDIF
-             unit = 'm2/s2'
+            unit = 'm2/s2'
 
           CASE ( 'solar3d' )
              IF (  .NOT.  ocean )  THEN
@@ -2398,27 +2393,6 @@
 #endif
 
 !
-!-- Check, whether a constant diffusion coefficient shall be used
-    IF ( km_constant /= -1.0_wp )  THEN
-       IF ( km_constant < 0.0_wp )  THEN
-          WRITE( message_string, * )  'km_constant = ', km_constant, ' < 0.0'
-          CALL message( 'check_parameters', 'PA0121', 1, 2, 0, 6, 0 )
-       ELSE
-          IF ( prandtl_number < 0.0_wp )  THEN
-             WRITE( message_string, * )  'prandtl_number = ', prandtl_number,  &
-                                         ' < 0.0'
-             CALL message( 'check_parameters', 'PA0122', 1, 2, 0, 6, 0 )
-          ENDIF
-          constant_diffusion = .TRUE.
-
-          IF ( constant_flux_layer )  THEN
-             message_string = 'constant_flux_layer is not allowed with fixed ' &
-                              // 'value of km'
-             CALL message( 'check_parameters', 'PA0123', 1, 2, 0, 6, 0 )
-          ENDIF
-       ENDIF
-    ENDIF
-
 !
 !-- In case of non-cyclic lateral boundaries and a damping layer for the
 !-- potential temperature, check the width of the damping layer
