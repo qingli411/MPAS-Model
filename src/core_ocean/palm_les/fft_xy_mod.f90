@@ -202,14 +202,14 @@
     INTEGER(KIND=C_INT) ::  nx_c  !<
     INTEGER(KIND=C_INT) ::  ny_c  !<
     
-    COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(:), ALLOCATABLE, SAVE ::         &
-       x_out  !<
-    COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(:), ALLOCATABLE, SAVE ::         &
+    COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(:), ALLOCATABLE ::         &
+       x_out  
+    COMPLEX(KIND=C_DOUBLE_COMPLEX), DIMENSION(:), ALLOCATABLE ::         &
        y_out  !<
     
-    REAL(KIND=C_DOUBLE), DIMENSION(:), ALLOCATABLE, SAVE ::                    &
+    REAL(KIND=C_DOUBLE), DIMENSION(:), ALLOCATABLE ::                    &
        x_in   !<
-    REAL(KIND=C_DOUBLE), DIMENSION(:), ALLOCATABLE, SAVE ::                    &
+    REAL(KIND=C_DOUBLE), DIMENSION(:), ALLOCATABLE ::                    &
        y_in   !<
     !$OMP THREADPRIVATE( x_out, y_out, x_in, y_in )
     
@@ -283,6 +283,8 @@
 
 #ifdef __GPU
        DEALLOCATE(y_out_dev, x_out_dev)
+#else
+       DEALLOCATE(x_out, y_out, x_in, y_in)
 #endif
 
     END SUBROUTINE fft_finalize
