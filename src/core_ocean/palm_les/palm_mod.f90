@@ -142,8 +142,8 @@ module palm_mod
 
    call init_control_parameters
 
-   dt_disturb = 10.0_WP!dtDisturb
-   end_time = 60.0_wp 
+   dt_disturb = dtDisturb
+   end_time = 3600.0_wp 
    ideal_solar_division = fac
    ideal_solar_efolding1 = dep1
    ideal_solar_efolding2 = dep2
