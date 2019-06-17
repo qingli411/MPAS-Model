@@ -20,6 +20,7 @@ module ocn_vmix_LES
    use mpas_log
    use mpas_vector_reconstruction
 
+!   use palm_mod
    use ocn_constants
    use ocn_surface_bulk_forcing
    use ocn_surface_land_ice_fluxes
@@ -159,10 +160,11 @@ contains
 
       integer, pointer :: config_les_nz
 
-      real (kind=RKIND), dimension(:), allocatable :: zonalAverage, meridionalAverage 
+      real (kind=RKIND), dimension(:), allocatable :: zonalAverage, meridionalAverage, uw_sfc, &
+                           vw_sfc, latVal, ws_sfc, wt_sfc, les_disturb_bottom, les_bottom
+
       real (kind=RKIND) :: fac, dep1, dep2, fracAbsorbed, fracAbsorbedRunoff,  &
-                           etime, wt_sfc, uw_sfc, vw_sfc, ws_sfc, latVal,      &
-                           les_disturb_bottom, les_bottom
+                           etime
 
       err=0
 
@@ -259,6 +261,8 @@ contains
       nCells = nCellsArray( 2 )
       nEdges = nEdgesArray( 1 )
 
+      allocate(uw_sfc(nCells), vw_sfc(nCells), ws_sfc(nCells), wt_sfc(nCells))
+      allocate(les_disturb_bottom(nCells), les_bottom(nCells),latVal(nCells))
       !$omp do schedule(runtime)
       do iEdge=1,nEdges
          surfaceStress(iEdge) = 0.0_RKIND
@@ -304,66 +308,66 @@ contains
 
       !$omp do schedule(runtime)
       do iCell = 1, nCells
+         les_bottom(iCell) = max(zMid(maxLevelCell(iCell),iCell), config_les_bottom)
 
-        if(config_AM_mixedLayerDepths_enable) then
-          les_disturb_bottom = -dThreshMLD(iCell)
-        else
-          les_disturb_bottom = config_les_disturb_bottom
-        endif
+         if(config_AM_mixedLayerDepths_enable) then
+            les_disturb_bottom(iCell) = -dThreshMLD(iCell)
+         else
+            les_disturb_bottom(iCell) = config_les_disturb_bottom
+         endif
 
-        les_bottom = max(zMid(maxLevelCell(iCell),iCell), config_les_bottom)
-
-        print *, les_bottom
          fracAbsorbed = 1.0_RKIND - exp( max(-layerThickness(1, iCell) / config_flux_attenuation_coefficient, -100.0_RKIND) )
          fracAbsorbedRunoff = 1.0_RKIND - exp( max(-layerThickness(1, iCell) / config_flux_attenuation_coefficient_runoff, &
                               -100.0_RKIND) )
 
-         wt_sfc = tracerGroupSurfaceFlux(indexTemperature, iCell) - fracAbsorbed * surfaceThicknessFlux(iCell) * &
+         wt_sfc(iCell) = tracerGroupSurfaceFlux(indexTemperature, iCell) - fracAbsorbed * surfaceThicknessFlux(iCell) * &
                         activeTracers(indexTemperature,1,iCell) + tracerGroupSurfaceFluxRunoff(indexTemperature,iCell) * &
                         fracAbsorbedRunoff
 
-         ws_sfc = tracerGroupSurfaceFlux(indexSalinity, iCell) - fracAbsorbed * surfaceThicknessFlux(iCell) *  &
+         ws_sfc(iCell) = tracerGroupSurfaceFlux(indexSalinity, iCell) - fracAbsorbed * surfaceThicknessFlux(iCell) *  &
                         activeTracers(indexSalinity,1,iCell)
 
-         uw_sfc = stressZonal(iCell) / rho_sw
+         uw_sfc(iCell) = stressZonal(iCell) / rho_sw
 
          if(abs(stressMeridional(iCell)) < 1e-6_RKIND) then
                  stressMeridional(iCell) = 0.0_RKIND
          endif
-         vw_sfc = stressMeridional(iCell) / rho_sw
 
-         nLevs = maxLevelCell(iCell)
+         vw_sfc(iCell) = stressMeridional(iCell) / rho_sw
 
+         latVal(iCell) = ASIN(fCell(iCell) / (2.0_RKIND*7.292E-5_RKIND))
 
-         latVal = ASIN(fCell(iCell) / (2.0_RKIND*7.292E-5_RKIND))
+     enddo
+     !$omp end do
 
-         call palm(activeTracers(1,:nLevs,iCell), activeTracers(2,:nLevs,iCell),               &
-                velocityZonal(:nLevs,iCell), velocityMeridional(:nLevs,iCell),                 &
-                layerThickness(:nLevs,iCell), latVal, nLevs,                             &
-                -wt_sfc, penetrativeTemperatureFlux(iCell), ws_sfc, -uw_sfc, -vw_sfc,             &
-                fac, dep1, dep2, config_les_dz, config_les_nz,       &
-                etime, config_les_dt_disturb, tIncrementLES(:nLevs,iCell),          &
-                sIncrementLES(:nLevs,iCell), uIncrementLES(:nLevs,iCell),                      &
-                vIncrementLES(:nLevs,iCell), temperatureLES(:,iCell),                     &
-                salinityLES(:,iCell), velocityZonalLES(:,iCell),                     &
-                velocityMeridionalLES(:,iCell), dt, first, zLES(:,iCell),      &
-                config_les_disturb_energy_limit, config_les_disturb_amplitude, &
-                les_disturb_bottom, config_les_disturb_top, config_les_disturb_nblocks, &
-                les_bottom, config_les_time_avg)
+      if(first) then
 
-      enddo
-      !$omp end do
-      !average U,V increments to edges to increment normal Velocity
+        call palm_mod_palm_init(nCells, nVertLevels, activeTracers(1,:,:), activeTracers(2,:,:),              &
+             velocityZonal, velocityMeridional, layerThickness, latVal,                       &
+             maxLevelCell, -wt_sfc, penetrativeTemperatureFlux, ws_sfc,                       &
+             -uw_sfc, -vw_sfc, fac, dep1, dep2, config_les_dz, config_les_nz,                 &
+             etime, config_les_dt_disturb, tIncrementLES, sIncrementLES, uIncrementLES,       &
+             vIncrementLES, temperatureLES, salinityLES, velocityZonalLES,                    &
+             velocityMeridionalLES, dt, zLES, config_les_disturb_energy_limit,                &
+             config_les_disturb_amplitude, les_disturb_bottom, config_les_disturb_top,        &
+             config_les_disturb_nblocks, les_bottom, config_les_time_avg)
 
-!      do iCell = 2,nCells
-!         tIncrementLES(:,iCell) = tIncrementLES(:,1)
-!         sIncrementLES(:,iCell) = sIncrementLES(:,1)
-!         uIncrementLES(:,iCell) = uIncrementLES(:,1)
-!         vIncrementLES(:,iCell) = vIncrementLES(:,1)
-!      enddo
+      endif
+
+      etime = dt
+
+      call palm_mod_palm_main(nCells, nVertLevels, activeTracers(1,:,:), activeTracers(2,:,:),              &
+             velocityZonal, velocityMeridional, layerThickness, latVal,                       &
+             maxLevelCell, -wt_sfc, penetrativeTemperatureFlux, ws_sfc,                       &
+             -uw_sfc, -vw_sfc, fac, dep1, dep2, config_les_dz, config_les_nz,                 &
+             etime, config_les_dt_disturb, tIncrementLES, sIncrementLES, uIncrementLES,       &
+             vIncrementLES, temperatureLES, salinityLES, velocityZonalLES,                    &
+             velocityMeridionalLES, dt, zLES, config_les_disturb_energy_limit,                &
+             config_les_disturb_amplitude, les_disturb_bottom, config_les_disturb_top,        &
+             config_les_disturb_nblocks, les_bottom, config_les_time_avg)
+
 
       normalVelocityIncrementLES(:,:) = 0.0_RKIND
-
       !$omp do schedule(runtime)
       do iEdge = 1, nEdges
          cell1 = cellsOnEdge(1, iEdge)

@@ -3,6 +3,7 @@
 #Missing In Objs?
 #mpas_ocn_tracer_surface_flux.o
 
+FCINCLUDES += -I../palm_les
 
 OBJS = mpas_ocn_init_routines.o \
 	   mpas_ocn_gm.o \
@@ -166,8 +167,8 @@ mpas_ocn_forcing.o: mpas_ocn_constants.o mpas_ocn_forcing_restoring.o
 
 mpas_ocn_surface_bulk_forcing.o: mpas_ocn_constants.o mpas_ocn_equation_of_state.o
 
-mpas_ocn_vmix_palm.o: mpas_ocn_surface_bulk_forcing.o 
-
+mpas_ocn_vmix_palm.o: mpas_ocn_surface_bulk_forcing.o ../palm_les/palm_mod.o
+ 
 mpas_ocn_surface_land_ice_fluxes.o: mpas_ocn_constants.o mpas_ocn_equation_of_state.o
 
 mpas_ocn_frazil_forcing.o: mpas_ocn_constants.o mpas_ocn_equation_of_state.o

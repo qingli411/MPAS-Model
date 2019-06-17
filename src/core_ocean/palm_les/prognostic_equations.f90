@@ -280,7 +280,7 @@
                ref_state, rho_ocean, s,  s_init, s_p, sa, sa_init, sa_p, tend, &
                tnc_m,  tnr_m, tpt_m, tq_m, tqc_m, tqr_m, ts_m, tsa_m,    &
                tu_m, tv_m, tw_m, u, ug, u_init, u_p, v, vg, vpt, v_init, v_p,  &
-               w, w_p, alpha_T, beta_S
+               w, w_p, alpha_T, beta_S, shf_sol
     USE kinds
 
     USE control_parameters,                                                    &
@@ -300,7 +300,8 @@
                use_upstream_for_tke, wind_turbine, ws_scheme_mom,              &
                ws_scheme_sca, urban_surface, land_surface, wb_solar,           &
                stokes_force, tLSforcing, sLSforcing, uLSforcing,         &
-               vLSforcing, dt_LS, disturbFactor
+               vLSforcing, dt_LS, disturbFactor, top_heatflux,                &
+               top_salinityflux, top_momentumflux_u, top_momentumflux_v
 
     USE cpulog,                                                                &
         ONLY:  cpu_log, log_point, log_point_s
@@ -445,8 +446,8 @@
           DO  k = nzb+1, nzt
              u_p(k,j,i) = u(k,j,i) + ( dt_3d * ( tsc(2) * tend(k,j,i) +          &
                                                  tsc(3) * tu_m(k,j,i) )          &
-                                               - tsc(5) * rdf(k) *               &
-                                                        ( u(k,j,i) - u_init(k) ) &
+           !                                    - tsc(5) * rdf(k) *               &
+           !                                             ( u(k,j,i) - u_init(k) ) &
                              ) * MERGE( 1.0_wp, 0.0_wp,   &
                                                 BTEST( wall_flags_0(k,j,i), 1 )) 
                                     
@@ -545,8 +546,8 @@
           DO  k = nzb+1, nzt
              v_p(k,j,i) = v(k,j,i) + ( dt_3d * ( tsc(2) * tend(k,j,i) +        &
                                                  tsc(3) * tv_m(k,j,i) )        &
-                                               - tsc(5) * rdf(k) *             &
-                                                      ( v(k,j,i) - v_init(k) ) &
+          !                                     - tsc(5) * rdf(k) *             &
+          !                                            ( v(k,j,i) - v_init(k) ) &
                                                     ) * MERGE( 1.0_wp, 0.0_wp , &
                                                 BTEST( wall_flags_0(k,j,i), 2 )&
                                               )
@@ -677,28 +678,12 @@
     ENDDO
     !$acc end parallel
 
+
        CALL advec_s_ws( pt, 'pt' )
 
-    IF (idealized_diurnal) THEN
-      k = nzt
-       !$acc parallel present( alpha_T, beta_S, surf_def_h )
-       !$acc loop collapse(2)
-       DO i = nxl, nxr
-          DO j = nys,nyn
-                    m = surf_def_h(2)%start_index(j,i)
-                    wb_sfc = g*(surf_def_h(2)%shf(m)*alpha_T(k,j,i) -        &
-                                     surf_def_h(2)%sasws(m)*beta_S(k,j,i))
-                    tod = simulated_time / 86400.0_wp
-                    arg1 = cos(2.0_wp*pi*(tod - 0.75_wp))
-                    surf_def_h(2)%shf_sol(m) = wb_solar*max(arg1,0.0_wp)
-          ENDDO
-       ENDDO
-       !$acc end parallel
-                ENDIF
-
-       CALL diffusion_s( pt,                                                   &
-                         surf_def_h(2)%shf,                                    &
-                         surf_def_h(2)%shf_sol )
+       CALL diffusion_s( pt,                                                 &
+                         top_heatflux,                                    &
+                         wb_solar )
 
 !--    If required, compute Stokes-advection term
        IF ( ocean .AND. stokes_force ) THEN
@@ -715,7 +700,7 @@
              enddo
           enddo
        endif
-!
+
 !--    Prognostic equation for potential temperature
     !$acc parallel present( tsc, wall_flags_0, rdf_sc ) &
     !$acc present( ptdf_x, ptdf_y ) &
@@ -727,10 +712,11 @@
              DO  k = nzb+1, nzt
                 pt_p(k,j,i) = pt(k,j,i) + ( dt_3d * ( sbt * tend(k,j,i) +      &
                                                    tsc(3) * tpt_m(k,j,i) )     &
-                                                 - tsc(5) *                    &
-                                                   ( pt(k,j,i) - pt_init(k) ) *&
-                                          ( rdf_sc(k) + ptdf_x(i) + ptdf_y(j) )&
-                                 )  * MERGE( 1.0_wp, 0.0_wp,                    &
+                      !                           - tsc(5) *                    &
+                      !                             ( pt(k,j,i) - pt_init(k) ) *&
+                      !                    ( rdf_sc(k) + ptdf_x(i) + ptdf_y(j) )&
+                                       )                                      &
+                                * MERGE( 1.0_wp, 0.0_wp,                      &
                                              BTEST( wall_flags_0(k,j,i), 0 )   &
                                           )
              ENDDO
@@ -786,10 +772,8 @@
     !$acc end parallel
 
        CALL advec_s_ws( sa, 'sa' )
-
        CALL diffusion_s( sa,                                                   &
-                      surf_def_h(2)%sasws)
-
+                      top_salinityflux)
 !
 !--    If required, compute Stokes-advection term
        IF ( stokes_force ) THEN
@@ -817,9 +801,10 @@
              DO  k = nzb+1, nzt
                 sa_p(k,j,i) = sa(k,j,i) + ( dt_3d * ( sbt * tend(k,j,i) +      &
                                                    tsc(3) * tsa_m(k,j,i) )     &
-                                                 - tsc(5) * rdf_sc(k) *        &
-                                                 ( sa(k,j,i) - sa_init(k) )    &
-                                  ) * MERGE( 1.0_wp, 0.0_wp,                    &
+!                                                 - tsc(5) * rdf_sc(k) *        &
+!                                                 ( sa(k,j,i) - sa_init(k) )    &
+                                       )                                    &
+                                * MERGE( 1.0_wp, 0.0_wp,                    &
                                              BTEST( wall_flags_0(k,j,i), 0 )   &
                                           )
                 IF ( sa_p(k,j,i) < 0.0_wp )  sa_p(k,j,i) = 0.1_wp * sa(k,j,i)

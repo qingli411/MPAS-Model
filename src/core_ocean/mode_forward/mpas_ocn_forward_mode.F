@@ -741,6 +741,8 @@ module ocn_forward_mode
 
       call mpas_decomp_destroy_decomp_list(domain % decompositions)
 
+      call palm_mod_palm_finalize()
+
    end function ocn_forward_mode_finalize!}}}
 
 end module ocn_forward_mode

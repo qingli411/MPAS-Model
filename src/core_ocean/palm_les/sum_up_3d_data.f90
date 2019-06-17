@@ -575,15 +575,6 @@
                 ENDDO
              ENDIF
 
-          CASE ( 'ol*' )
-             IF ( ALLOCATED( ol_av ) ) THEN
-                DO  m = 1, surf_def_h(0)%ns
-                   i = surf_def_h(0)%i(m)
-                   j = surf_def_h(0)%j(m)
-                   ol_av(j,i) = ol_av(j,i) + surf_def_h(0)%ol(m)
-                ENDDO
-             ENDIF
-
           CASE ( 'p' )
              IF ( ALLOCATED( p_av ) ) THEN
                 DO  i = nxlg, nxrg
@@ -681,22 +672,6 @@
                    ENDDO
                 ENDDO
              ENDIF
-
-          CASE ( 'qsws*' )
-!
-!--          In case of default surfaces, clean-up flux by density.
-!--          In case of land- and urban-surfaces, convert fluxes into
-!--          dynamic units.
-             IF ( ALLOCATED( qsws_av ) ) THEN 
-                DO  m = 1, surf_def_h(0)%ns
-                   i = surf_def_h(0)%i(m)
-                   j = surf_def_h(0)%j(m)
-                   k = surf_def_h(0)%k(m)
-                   qsws_av(j,i) = qsws_av(j,i) + surf_def_h(0)%qsws(m) *          &
-                                                 waterflux_output_conversion(k)
-                ENDDO
-             ENDIF
-
           CASE ( 'qv' )
              IF ( ALLOCATED( qv_av ) ) THEN 
                 DO  i = nxlg, nxrg
@@ -775,6 +750,7 @@
                 ENDDO
              ENDIF
 
+#ifndef __GPU
           CASE ( 'shf*' )
 !
 !--          In case of default surfaces, clean-up flux by density.
@@ -801,34 +777,7 @@
                 ENDDO
              ENDIF
 
-          CASE ( 'ssws*' )
-             IF ( ALLOCATED( ssws_av ) ) THEN 
-                DO  m = 1, surf_def_h(0)%ns
-                   i = surf_def_h(0)%i(m)
-                   j = surf_def_h(0)%j(m)
-                   ssws_av(j,i) = ssws_av(j,i) + surf_def_h(0)%ssws(m)
-                ENDDO
-             ENDIF
-
-          CASE ( 't*' )
-             IF ( ALLOCATED( ts_av ) ) THEN 
-                DO  m = 1, surf_def_h(0)%ns
-                   i = surf_def_h(0)%i(m)
-                   j = surf_def_h(0)%j(m)
-                   ts_av(j,i) = ts_av(j,i) + surf_def_h(0)%ts(m)
-                ENDDO
-             ENDIF
-
-          CASE ( 'tsurf*' )
-             IF ( ALLOCATED( tsurf_av ) ) THEN             
-                DO  m = 1, surf_def_h(0)%ns
-                   i   = surf_def_h(0)%i(m)            
-                   j   = surf_def_h(0)%j(m)
-                   tsurf_av(j,i) = tsurf_av(j,i) + surf_def_h(0)%pt_surface(m)
-                ENDDO
-
-             ENDIF
-
+#endif
           CASE ( 'u' )
              IF ( ALLOCATED( u_av ) ) THEN
                 DO  i = nxlg, nxrg
@@ -839,16 +788,6 @@
                    ENDDO
                 ENDDO
              ENDIF
-
-          CASE ( 'u*' )
-             IF ( ALLOCATED( us_av ) ) THEN   
-                DO  m = 1, surf_def_h(0)%ns
-                   i = surf_def_h(0)%i(m)
-                   j = surf_def_h(0)%j(m)
-                   us_av(j,i) = us_av(j,i) + surf_def_h(0)%us(m)
-                ENDDO
-             ENDIF
-
           CASE ( 'v' )
              IF ( ALLOCATED( v_av ) ) THEN 
                 DO  i = nxlg, nxrg
@@ -879,33 +818,6 @@
                          w_av(k,j,i) = w_av(k,j,i) + w(k,j,i)
                       ENDDO
                    ENDDO
-                ENDDO
-             ENDIF
-
-          CASE ( 'z0*' )
-             IF ( ALLOCATED( z0_av ) ) THEN 
-                DO  m = 1, surf_def_h(0)%ns
-                   i = surf_def_h(0)%i(m)
-                   j = surf_def_h(0)%j(m)
-                   z0_av(j,i) = z0_av(j,i) + surf_def_h(0)%z0(m)
-                ENDDO
-             ENDIF
-
-          CASE ( 'z0h*' )
-             IF ( ALLOCATED( z0h_av ) ) THEN 
-                DO  m = 1, surf_def_h(0)%ns
-                   i = surf_def_h(0)%i(m)
-                   j = surf_def_h(0)%j(m)
-                   z0h_av(j,i) = z0h_av(j,i) + surf_def_h(0)%z0h(m)
-                ENDDO
-             ENDIF
-   
-          CASE ( 'z0q*' )
-             IF ( ALLOCATED( z0q_av ) ) THEN 
-                DO  m = 1, surf_def_h(0)%ns
-                   i = surf_def_h(0)%i(m)
-                   j = surf_def_h(0)%j(m)
-                   z0q_av(j,i) = z0q_av(j,i) + surf_def_h(0)%z0q(m)
                 ENDDO
              ENDIF
           CASE DEFAULT

@@ -110,7 +110,7 @@ pgi-titan-openacc:
 	"LDFLAGS_OPT = -O3 -ta=tesla:cc35,deepcopy -Minfo=accel -Mcuda -lcufft" \
 	"LES_LDFLAGS_OPT = -acc -ta=tesla:cc35,deepcopy -Minfo=accel -Mcuda -lcufft" \
 	"FFLAGS_OMP = -mp" \
-	"LES_COPT = -Mpreprocess -D__netcdf -D__lc -D__cudaProfiler -D__GPU" \
+	"LES_COPT = -Mpreprocess -D__netcdf -D__lc -D__cudaProfiler -D__GPU -D__nopointers" \
 	"CFLAGS_OMP = -mp" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \

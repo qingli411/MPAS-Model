@@ -534,12 +534,11 @@
        !$acc end parallel
 
     ENDIF
-    !$acc end data
 
 !
 !-- Exchange boundaries for p
-    CALL exchange_horiz( tend, nbgp )
-
+CALL exchange_horiz( tend, nbgp )
+!$acc end data
 !-- Store perturbation pressure on array p, used for pressure data output.
 !-- Ghost layers are added in the output routines (except sor-method: see below)
     !$acc data copyin( tend, p ) &
@@ -620,7 +619,7 @@
     !$OMP END PARALLEL
 
 !-- Exchange of boundaries for the velocities
-    CALL exchange_horiz( u, nbgp )
+CALL exchange_horiz( u, nbgp )
     CALL exchange_horiz( v, nbgp )
     CALL exchange_horiz( w, nbgp )
 

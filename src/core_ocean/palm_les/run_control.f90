@@ -103,7 +103,7 @@
 
     CHARACTER (LEN=1) ::  disturb_chr
 
-!
+    !
 !-- If required, do statistics
     IF ( .NOT. flow_statistics_called ) THEN
            CALL flow_statistics

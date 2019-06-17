@@ -19,60 +19,60 @@
 !
 ! Current revisions:
 ! -----------------
-! 
+!
 ! 2018-10-25 cbegeman
 ! Treatment of dirichlet bottom boundary conditions for salinity
-! 
+!
 ! Former revisions:
 ! -----------------
 ! $Id: boundary_conds.f90 2938 2018-03-27 15:52:42Z suehring $
 ! Set boundary condition for TKE and TKE dissipation rate in case of nesting
 ! and if parent model operates in RANS mode but child model in LES mode.
 ! mode
-! 
+!
 ! 2793 2018-02-07 10:54:33Z suehring
 ! Removed preprocessor directive __chem
-! 
+!
 ! 2718 2018-01-02 08:49:38Z maronga
 ! Corrected "Former revisions" section
-! 
+!
 ! 2696 2017-12-14 17:12:51Z kanani
 ! Change in file header (GPL part)
 ! Adjust boundary conditions for e and diss in case of TKE-e closure (TG)
 ! Implementation of chemistry module (FK)
-! 
+!
 ! 2569 2017-10-20 11:54:42Z kanani
 ! Removed redundant code for ibc_s_b=1 and ibc_q_b=1
-! 
+!
 ! 2365 2017-08-21 14:59:59Z kanani
-! Vertical grid nesting implemented: exclude setting vertical velocity to zero 
+! Vertical grid nesting implemented: exclude setting vertical velocity to zero
 ! on fine grid (SadiqHuq)
-! 
+!
 ! 2320 2017-07-21 12:47:43Z suehring
 ! Remove unused control parameter large_scale_forcing from only-list
-! 
+!
 ! 2292 2017-06-20 09:51:42Z schwenkel
-! Implementation of new microphysic scheme: cloud_scheme = 'morrison' 
-! includes two more prognostic equations for cloud drop concentration (nc)  
-! and cloud water content (qc). 
-! 
+! Implementation of new microphysic scheme: cloud_scheme = 'morrison'
+! includes two more prognostic equations for cloud drop concentration (nc)
+! and cloud water content (qc).
+!
 ! 2233 2017-05-30 18:08:54Z suehring
 !
 ! 2232 2017-05-30 17:47:52Z suehring
 ! Set boundary conditions on topography top using flag method.
-! 
+!
 ! 2118 2017-01-17 16:38:49Z raasch
 ! OpenACC directives removed
-! 
+!
 ! 2000 2016-08-20 18:09:15Z knoop
 ! Forced header and separation lines into 80 columns
-! 
+!
 ! 1992 2016-08-12 15:14:59Z suehring
 ! Adjustments for top boundary condition for passive scalar
-! 
+!
 ! 1960 2016-07-12 16:34:24Z suehring
 ! Treat humidity and passive scalar separately
-! 
+!
 ! 1823 2016-04-07 08:57:52Z hoffmann
 ! Initial version of purely vertical nesting introduced.
 !
@@ -93,29 +93,29 @@
 !
 ! 1682 2015-10-07 23:56:08Z knoop
 ! Code annotations made doxygen readable
-! 
+!
 ! 1410 2014-05-23 12:16:18Z suehring
-! Bugfix: set dirichlet boundary condition for passive_scalar at model domain 
-! top 
+! Bugfix: set dirichlet boundary condition for passive_scalar at model domain
+! top
 !
 ! 1399 2014-05-07 11:16:25Z heinze
 ! Bugfix: set inflow boundary conditions also if no humidity or passive_scalar
 ! is used.
-! 
+!
 ! 1398 2014-05-07 11:15:00Z heinze
-! Dirichlet-condition at the top for u and v changed to u_init and v_init also 
+! Dirichlet-condition at the top for u and v changed to u_init and v_init also
 ! for large_scale_forcing
-! 
+!
 ! 1380 2014-04-28 12:40:45Z heinze
 ! Adjust Dirichlet-condition at the top for pt in case of nudging
-! 
+!
 ! 1361 2014-04-16 15:17:48Z hoffmann
-! Bottom and top boundary conditions of rain water content (qr) and 
+! Bottom and top boundary conditions of rain water content (qr) and
 ! rain drop concentration (nr) changed to Dirichlet
-! 
+!
 ! 1353 2014-04-08 15:21:23Z heinze
 ! REAL constants provided with KIND-attribute
-!  
+!
 ! 1320 2014-03-20 08:40:49Z raasch
 ! ONLY-attribute added to USE-statements,
 ! kind-parameters added to all INTEGER and REAL declaration statements,
@@ -136,7 +136,7 @@
 ! velocity that ensures numerical stability (CFL-condition).
 ! Hence, logical operator use_cmax is now used instead of bc_lr_dirneu/_neudir.
 ! Bugfix: In case of use_cmax at the outflow, u, v, w are replaced by
-! u_p, v_p, w_p  
+! u_p, v_p, w_p
 !
 ! 1115 2013-03-26 18:16:16Z hoffmann
 ! boundary conditions of two-moment cloud scheme are restricted to Neumann-
@@ -148,7 +148,7 @@
 ! Bugfix: wrong index in loops of radiation boundary condition
 !
 ! 1053 2012-11-13 17:11:03Z hoffmann
-! boundary conditions for the two new prognostic equations (nr, qr) of the 
+! boundary conditions for the two new prognostic equations (nr, qr) of the
 ! two-moment cloud scheme
 !
 ! 1036 2012-10-22 13:43:42Z raasch
@@ -161,7 +161,7 @@
 ! Neumann boudnary conditions are added at the inflow boundary for the SGS-TKE.
 ! Outflow boundary conditions for the velocity components can be set to Neumann
 ! conditions or to radiation conditions with a horizontal averaged phase
-! velocity. 
+! velocity.
 !
 ! 875 2012-04-02 15:35:15Z gryschka
 ! Bugfix in case of dirichlet inflow bc at the right or north boundary
@@ -179,11 +179,11 @@
 !> explicitly set in routines pres, poisfft, poismg and sor.
 !------------------------------------------------------------------------------!
  SUBROUTINE boundary_conds
- 
+
 
     USE arrays_3d,                                                             &
         ONLY:  c_u, c_u_m, c_u_m_l, c_v, c_v_m, c_v_m_l, c_w, c_w_m, c_w_m_l,  &
-               diss_p, dzu, e_p, nc_p, nr_p, pt, pt_p, q, q_p, qc_p, qr_p, s,  & 
+               diss_p, dzu, e_p, nc_p, nr_p, pt, pt_p, q, q_p, qc_p, qr_p, s,  &
                s_p, sa, sa_p, u, ug, u_init, u_m_l, u_m_n, u_m_r, u_m_s, u_p,  &
                v, vg, v_init, v_m_l, v_m_n, v_m_r, v_m_s, v_p,                 &
                w, w_p, w_m_l, w_m_n, w_m_r, w_m_s, pt_init
@@ -219,7 +219,7 @@
     INTEGER(iwp) ::  i  !< grid index x direction
     INTEGER(iwp) ::  j  !< grid index y direction
     INTEGER(iwp) ::  k  !< grid index z direction
-    INTEGER(iwp) ::  kb !< variable to set respective boundary value, depends on facing. 
+    INTEGER(iwp) ::  kb !< variable to set respective boundary value, depends on facing.
     INTEGER(iwp) ::  l  !< running index boundary type, for up- and downward-facing walls
     INTEGER(iwp) ::  m  !< running index surface elements
 
@@ -228,43 +228,74 @@
 
 
 !
-!-- Bottom boundary 
+!-- Bottom boundary
     IF ( ibc_uv_b == 1 )  THEN
-       u_p(nzb,:,:) = u_p(nzb+1,:,:)
-       v_p(nzb,:,:) = v_p(nzb+1,:,:)
+       !$acc parallel present( u_p, v_p )
+       !$acc loop collapse(2)
+       DO  i = nxlg, nxrg
+          DO  j = nysg, nyng
+             u_p(nzb,j,i) = u_p(nzb+1,j,i)
+             v_p(nzb,j,i) = v_p(nzb+1,j,i)
+          ENDDO
+       ENDDO
+       !$acc end parallel
     ENDIF
 !
 !-- Set zero vertical velocity at topography top (l=0), or bottom (l=1) in case
-!-- of downward-facing surfaces. 
+!-- of downward-facing surfaces.
     DO  l = 0, 1
 !
 !--    Set kb, for upward-facing surfaces value at topography top (k-1) is set,
-!--    for downward-facing surfaces at topography bottom (k+1). 
+!--    for downward-facing surfaces at topography bottom (k+1).
        kb = MERGE( -1, 1, l == 0 )
        !$OMP PARALLEL DO PRIVATE( i, j, k )
+       !$acc parallel present( w_p, bc_h )
+       !$acc loop
        DO  m = 1, bc_h(l)%ns
-          i = bc_h(l)%i(m)            
+          i = bc_h(l)%i(m)
           j = bc_h(l)%j(m)
           k = bc_h(l)%k(m)
           w_p(k+kb,j,i) = 0.0_wp
        ENDDO
+       !$acc end parallel
     ENDDO
 
 !
 !-- Top boundary. A nested domain ( ibc_uv_t = 3 ) does not require settings.
     IF ( ibc_uv_t == 0 )  THEN
-        u_p(nzt+1,:,:) = u_init(nzt+1)
-        v_p(nzt+1,:,:) = v_init(nzt+1)
+       !$acc parallel present( u_p, v_p, u_init, v_init )
+       !$acc loop collapse(2)
+       DO  i = nxlg, nxrg
+          DO  j = nysg, nyng
+              u_p(nzt+1,j,i) = u_init(nzt+1)
+              v_p(nzt+1,j,i) = v_init(nzt+1)
+          ENDDO
+       ENDDO
+       !$acc end parallel
     ELSEIF ( ibc_uv_t == 1 )  THEN
-        u_p(nzt+1,:,:) = u_p(nzt,:,:)
-        v_p(nzt+1,:,:) = v_p(nzt,:,:)
+       !$acc parallel present( u_p, v_p )
+       !$acc loop collapse(2)
+       DO  i = nxlg, nxrg
+          DO  j = nysg, nyng
+              u_p(nzt+1,j,i) = u_p(nzt,j,i)
+              v_p(nzt+1,j,i) = v_p(nzt,j,i)
+          ENDDO
+       ENDDO
+       !$acc end parallel
     ENDIF
 
 !
 !-- Vertical nesting: Vertical velocity not zero at the top of the fine grid
     IF (  .NOT.  nest_domain  .AND.                                            &
                  TRIM(coupling_mode) /= 'vnested_fine' )  THEN
-       w_p(nzt:nzt+1,:,:) = 0.0_wp  !< nzt is not a prognostic level (but cf. pres)
+       !$acc parallel present( w_p )
+       !$acc loop collapse(2)
+       DO  i = nxlg, nxrg
+          DO  j = nysg, nyng
+             w_p(nzt:nzt+1,j,i) = 0.0_wp  !< nzt is not a prognostic level (but cf. pres)
+          ENDDO
+       ENDDO
+       !$acc end parallel
     ENDIF
 
 !
@@ -276,75 +307,128 @@
        DO  l = 0, 1
 !
 !--       Set kb, for upward-facing surfaces value at topography top (k-1) is set,
-!--       for downward-facing surfaces at topography bottom (k+1). 
+!--       for downward-facing surfaces at topography bottom (k+1).
           kb = MERGE( -1, 1, l == 0 )
           !$OMP PARALLEL DO PRIVATE( i, j, k )
+          !$acc parallel present( pt_p, pt, bc_h )
+          !$acc loop
           DO  m = 1, bc_h(l)%ns
-             i = bc_h(l)%i(m)            
+             i = bc_h(l)%i(m)
              j = bc_h(l)%j(m)
              k = bc_h(l)%k(m)
              pt_p(k+kb,j,i) = pt(k+kb,j,i)
           ENDDO
+          !$acc end parallel
        ENDDO
 !
 !-- Neumann, zero-gradient
     ELSEIF ( ibc_pt_b == 1 )  THEN
-       DO  l = 0, 1
+!       DO  l = 0, 1
 !
 !--       Set kb, for upward-facing surfaces value at topography top (k-1) is set,
-!--       for downward-facing surfaces at topography bottom (k+1). 
-          kb = MERGE( -1, 1, l == 0 )
+!--       for downward-facing surfaces at topography bottom (k+1).
+!          kb = MERGE( -1, 1, l == 0 )
           !$OMP PARALLEL DO PRIVATE( i, j, k )
-          DO  m = 1, bc_h(l)%ns
-             i = bc_h(l)%i(m)            
-             j = bc_h(l)%j(m)
-             k = bc_h(l)%k(m)
-             pt_p(k+kb,j,i) = pt_p(k,j,i)
-          ENDDO
-       ENDDO
+!          !$acc parallel present( pt_p, bc_h )
+!          !$acc loop
+!          DO  m = 1, bc_h(l)%ns
+!             i = bc_h(l)%i(m)
+!             j = bc_h(l)%j(m)
+!             k = bc_h(l)%k(m)
+!             pt_p(k+kb,j,i) = pt_p(k,j,i)
+!          ENDDO
+!          !$acc end parallel
+!       ENDDO
+
+       !$acc parallel present(pt_p)
+       !$acc loop collapse(2)
+       do i = nxlg, nxrg
+         do j = nysg, nyng
+            pt_p(nzb,j,i) = pt_p(nzb+1,j,i)
+         enddo
+       enddo
+       !$acc end parallel
     ENDIF
 
 !
 !-- Temperature at top boundary
     IF ( ibc_pt_t == 0 )  THEN
-        pt_p(nzt+1,:,:) = pt(nzt+1,:,:)
+       !$acc parallel present( pt_p, pt )
+       !$acc loop collapse(2)
+       DO  i = nxlg, nxrg
+          DO  j = nysg, nyng
+              pt_p(nzt+1,j,i) = pt(nzt+1,j,i)
+          ENDDO
+       ENDDO
+       !$acc end parallel
 !
-!--     In case of nudging adjust top boundary to pt which is
-!--     read in from NUDGING-DATA
-        IF ( nudging )  THEN
-           pt_p(nzt+1,:,:) = pt_init(nzt+1)
-        ENDIF
+!--    In case of nudging adjust top boundary to pt which is
+!--    read in from NUDGING-DATA
+       IF ( nudging )  THEN
+          !$acc parallel present( pt_p, pt_init )
+          !$acc loop collapse(2)
+          DO  i = nxlg, nxrg
+             DO  j = nysg, nyng
+                pt_p(nzt+1,:,:) = pt_init(nzt+1)
+             ENDDO
+          ENDDO
+          !$acc end parallel
+       ENDIF
     ELSEIF ( ibc_pt_t == 1 )  THEN
-        pt_p(nzt+1,:,:) = pt_p(nzt,:,:)
+       !$acc parallel present( pt_p )
+       !$acc loop collapse(2)
+       DO  i = nxlg, nxrg
+          DO  j = nysg, nyng
+              pt_p(nzt+1,j,i) = pt_p(nzt,j,i)
+          ENDDO
+       ENDDO
+       !$acc end parallel
     ELSEIF ( ibc_pt_t == 2 )  THEN
-        pt_p(nzt+1,:,:) = pt_p(nzt,:,:) + bc_pt_t_val * dzu(nzt+1)
+       !$acc parallel present( pt_p, dzu )
+       !$acc loop collapse(2)
+       DO  i = nxlg, nxrg
+          DO  j = nysg, nyng
+             pt_p(nzt+1,j,i) = pt_p(nzt,j,i) + bc_pt_t_val * dzu(nzt+1)
+          ENDDO
+       ENDDO
+       !$acc end parallel
     ENDIF
 
 !
 !-- Boundary conditions for TKE.
 !-- Generally Neumann conditions with de/dz=0 are assumed.
 
-          DO  l = 0, 1
+    DO  l = 0, 1
 !
-!--         Set kb, for upward-facing surfaces value at topography top (k-1) is set,
-!--         for downward-facing surfaces at topography bottom (k+1). 
-             kb = MERGE( -1, 1, l == 0 )
-             !$OMP PARALLEL DO PRIVATE( i, j, k )
-             DO  m = 1, bc_h(l)%ns
-                i = bc_h(l)%i(m)            
-                j = bc_h(l)%j(m)
-                k = bc_h(l)%k(m)
-                e_p(k+kb,j,i) = e_p(k,j,i)
-             ENDDO
-          ENDDO
+!--   Set kb, for upward-facing surfaces value at topography top (k-1) is set,
+!--   for downward-facing surfaces at topography bottom (k+1).
+       kb = MERGE( -1, 1, l == 0 )
+       !$OMP PARALLEL DO PRIVATE( i, j, k )
+       !$acc parallel present( e_p, bc_h )
+       !$acc loop
+       DO  m = 1, bc_h(l)%ns
+          i = bc_h(l)%i(m)
+          j = bc_h(l)%j(m)
+          k = bc_h(l)%k(m)
+          e_p(k+kb,j,i) = e_p(k,j,i)
+       ENDDO
+       !$acc end parallel
+    ENDDO
 
-          e_p(nzt+1,:,:) = e_p(nzt,:,:)
+    !$acc parallel present( e_p )
+    !$acc loop collapse(2)
+    DO  i = nxlg, nxrg
+       DO  j = nysg, nyng
+          e_p(nzt+1,j,i) = e_p(nzt,j,i)
+       ENDDO
+    ENDDO
+    !$acc end parallel
 !
-!--    Nesting case: if parent operates in RANS mode and child in LES mode,
-!--    no TKE is transfered. This case, set Neumann conditions at lateral and 
-!--    top child boundaries. 
-!--    If not ( both either in RANS or in LES mode ), TKE boundary condition
-!--    is treated in the nesting. 
+!-- Nesting case: if parent operates in RANS mode and child in LES mode,
+!-- no TKE is transfered. This case, set Neumann conditions at lateral and
+!-- top child boundaries.
+!-- If not ( both either in RANS or in LES mode ), TKE boundary condition
+!-- is treated in the nesting.
 
 !
 !-- Bottom boundary: Dirichlet condition.
@@ -352,15 +436,18 @@
           DO  l = 0, 1
 !
 !--          Set kb, for upward-facing surfaces value at topography top (k-1) is set,
-!--          for downward-facing surfaces at topography bottom (k+1). 
+!--          for downward-facing surfaces at topography bottom (k+1).
              kb = MERGE( -1, 1, l == 0 )
              !$OMP PARALLEL DO PRIVATE( i, j, k )
+             !$acc parallel present( sa_p, sa, bc_h )
+             !$acc loop
              DO  m = 1, bc_h(l)%ns
-                i = bc_h(l)%i(m)            
+                i = bc_h(l)%i(m)
                 j = bc_h(l)%j(m)
                 k = bc_h(l)%k(m)
                 sa_p(k+kb,j,i) = sa(k+kb,j,i)
              ENDDO
+             !$acc end parallel
           ENDDO
 
 !
@@ -369,23 +456,40 @@
           DO  l = 0, 1
 !
 !--          Set kb, for upward-facing surfaces value at topography top (k-1) is set,
-!--          for downward-facing surfaces at topography bottom (k+1). 
+!--          for downward-facing surfaces at topography bottom (k+1).
              kb = MERGE( -1, 1, l == 0 )
              !$OMP PARALLEL DO PRIVATE( i, j, k )
+             !$acc parallel present( sa_p, bc_h )
+             !$acc loop
              DO  m = 1, bc_h(l)%ns
-                i = bc_h(l)%i(m)            
+                i = bc_h(l)%i(m)
                 j = bc_h(l)%j(m)
                 k = bc_h(l)%k(m)
                 sa_p(k+kb,j,i) = sa_p(k,j,i)
              ENDDO
+             !$acc end parallel
           ENDDO
        ENDIF
 !
 !--    Top boundary: Dirichlet or Neumann
        IF ( ibc_sa_t == 0 )  THEN
-           sa_p(nzt+1,:,:) = sa(nzt+1,:,:)
+          !$acc parallel present( sa_p, sa )
+          !$acc loop collapse(2)
+          DO  i = nxlg, nxrg
+             DO  j = nysg, nyng
+                sa_p(nzt+1,j,i) = sa(nzt+1,j,i)
+             ENDDO
+          ENDDO
+          !$acc end parallel
        ELSEIF ( ibc_sa_t == 1 )  THEN
-           sa_p(nzt+1,:,:) = sa_p(nzt,:,:)
+          !$acc parallel present( sa_p )
+          !$acc loop collapse(2)
+          DO  i = nxlg, nxrg
+             DO  j = nysg, nyng
+                sa_p(nzt+1,j,i) = sa_p(nzt,j,i)
+             ENDDO
+          ENDDO
+          !$acc end parallel
        ENDIF
 
 

@@ -216,11 +216,15 @@
 
     PRIVATE
     PUBLIC   advec_s_ws, advec_u_ws, advec_v_ws, advec_w_ws, ws_init,          &
-             ws_finalize, ws_init_flags, ws_statistics
+             ws_finalize, ws_init_flags, ws_statistics, ws_init2
 
     INTERFACE ws_init
        MODULE PROCEDURE ws_init
     END INTERFACE ws_init
+
+    INTERFACE ws_init2
+       MODULE PROCEDURE ws_init2
+    END INTERFACE ws_init2
 
     INTERFACE ws_finalize
        MODULE PROCEDURE ws_finalize
@@ -251,6 +255,63 @@
     END INTERFACE advec_w_ws
 
  CONTAINS
+
+!------------------------------------------------------------------------------!
+! Description:
+! ------------
+!> Initialization of WS-scheme
+!------------------------------------------------------------------------------!
+    SUBROUTINE ws_init2
+
+       USE constants,                                                          &
+           ONLY:  adv_mom_1, adv_mom_3, adv_mom_5, adv_sca_1, adv_sca_3,       &
+                  adv_sca_5
+
+       USE control_parameters,                                                 &
+           ONLY:  ws_scheme_mom, ws_scheme_sca
+
+       USE indices,                                                            &
+           ONLY:  nyn, nys, nzb, nzt
+
+       USE kinds
+       
+       USE pegrid
+
+       USE statistics,                                                         &
+           ONLY:  sums_us2_ws_l, sums_vs2_ws_l, sums_ws2_ws_l,                 &
+                  sums_wspts_ws_l, sums_wssas_ws_l,                            &
+                  sums_wsus_ws_l, sums_wsvs_ws_l
+  
+
+!
+!--    Set the appropriate factors for scalar and momentum advection.
+       adv_sca_5 = 1.0_wp /  60.0_wp
+       adv_sca_3 = 1.0_wp /  12.0_wp
+       adv_sca_1 = 1.0_wp /   2.0_wp
+       adv_mom_5 = 1.0_wp / 120.0_wp
+       adv_mom_3 = 1.0_wp /  24.0_wp
+       adv_mom_1 = 1.0_wp /   4.0_wp
+!         
+!--    Arrays needed for statical evaluation of fluxes.
+       IF ( ws_scheme_mom )  THEN
+
+          sums_wsus_ws_l = 0.0_wp
+          sums_wsvs_ws_l = 0.0_wp
+          sums_us2_ws_l  = 0.0_wp
+          sums_vs2_ws_l  = 0.0_wp
+          sums_ws2_ws_l  = 0.0_wp
+
+       ENDIF
+
+       IF ( ws_scheme_sca )  THEN
+
+          sums_wspts_ws_l = 0.0_wp
+
+             sums_wssas_ws_l = 0.0_wp
+
+       ENDIF
+
+    END SUBROUTINE ws_init2
 
 
 !------------------------------------------------------------------------------!

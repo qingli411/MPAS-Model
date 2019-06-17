@@ -115,12 +115,13 @@
     USE arrays_3d,                                                             &
         ONLY:  dd2zu, diss, diss_p, dzu, e, e_p, kh, km,                       &
                mean_inflow_profiles, prho, te_m, tend, u, v, w,   &
-               u_stk, v_stk
+               u_stk, v_stk, kh_restart, km_restart, e_restart
 #else
     USE arrays_3d,                                                             &
         ONLY:  dd2zu, diss, diss_p, dzu, e, e_1, e_2, e_3,    &
                e_p, kh, km, mean_inflow_profiles, prho,            &
-               te_m, tend, u, v, w, u_stk, v_stk
+               te_m, tend, u, v, w, u_stk, v_stk, kh_restart, km_restart,      &
+               e_restart
 #endif
 
     USE control_parameters,                                                    &
@@ -811,11 +812,20 @@
 ! ------------
 !> Allocate arrays and assign pointers.
 !------------------------------------------------------------------------------!
- SUBROUTINE tcm_init_arrays
+ SUBROUTINE tcm_init_arrays(nCells)
+
     IMPLICIT NONE
 
+    integer(iwp) :: nCells
     ALLOCATE( kh(nzb:nzt+1,nysg:nyng,nxlg:nxrg) )
     ALLOCATE( km(nzb:nzt+1,nysg:nyng,nxlg:nxrg) )
+
+    ALLOCATE( kh_restart(nzb:nzt+1,nysg:nyng,nxlg:nxrg,nCells) )
+    ALLOCATE( km_restart(nzb:nzt+1,nysg:nyng,nxlg:nxrg,nCells) )
+    ALLOCATE( e_restart(nzb:nzt+1,nysg:nyng,nxlg:nxrg,nCells) )
+
+    ALLOCATE( l_grid(1:nzt) )
+    ALLOCATE( l_wall(nzb:nzt+1,nysg:nyng,nxlg:nxrg) )
 
 #if defined( __nopointer )
     ALLOCATE( e(nzb:nzt+1,nysg:nyng,nxlg:nxrg)    )
@@ -863,7 +873,10 @@
     INTEGER(iwp) :: nz_s_shift   !< lower shift index for scalars
     INTEGER(iwp) :: nz_s_shift_l !< local lower shift index in case of turbulent inflow
 
-!
+#if ! defined( __nopointer )
+    e  => e_1;   e_p  => e_2;   te_m  => e_3
+#endif
+    !
 !-- Initialize mixing length
     CALL tcm_init_mixing_length
 
@@ -898,17 +911,13 @@
           ENDIF
 
        ENDIF
-!
-!--    Store initial profiles for output purposes etc.
-       hom(:,1,23,:) = SPREAD( km(:,nys,nxl), 2, statistic_regions+1 )
-       hom(:,1,24,:) = SPREAD( kh(:,nys,nxl), 2, statistic_regions+1 )
-!
 !--    Initialize old and new time levels.
        te_m = 0.0_wp
        e_p = e
 
     ELSEIF ( TRIM( initializing_actions ) == 'read_restart_data'  .OR.         &
-             TRIM( initializing_actions ) == 'cyclic_fill' )                   &
+             TRIM( initializing_actions ) == 'cyclic_fill' .OR.                &
+             TRIM( initializing_actions ) == 'SP_run_continue' )               &
     THEN
 
 !
@@ -928,59 +937,6 @@
           ENDDO
        ENDIF
 
-!
-!--    Initialization of the turbulence recycling method
-       IF ( TRIM( initializing_actions ) == 'cyclic_fill'  .AND.               &
-            turbulent_inflow )  THEN
-          mean_inflow_profiles(:,5) = hom_sum(:,8,0)   ! e
-!
-!--       In case of complex terrain, determine vertical displacement at inflow
-!--       boundary and adjust mean inflow profiles
-          IF ( complex_terrain )  THEN
-             IF ( nxlg <= 0 .AND. nxrg >= 0 .AND.  &
-                  nysg <= 0 .AND. nyng >= 0        )  THEN
-                nz_s_shift_l = get_topography_top_index_ji( 0, 0, 's' )
-             ELSE
-                nz_s_shift_l = 0
-             ENDIF
-#if defined( __parallel )
-             CALL MPI_ALLREDUCE(nz_s_shift_l, nz_s_shift, 1, MPI_INTEGER,      &
-                                MPI_MAX, comm2d, ierr)
-#else
-             nz_s_shift = nz_s_shift_l
-#endif
-             mean_inflow_profiles(nz_s_shift:nzt+1,5) =  &
-                hom_sum(0:nzt+1-nz_s_shift,8,0)  ! e
-          ENDIF
-!
-!--       Use these mean profiles at the inflow (provided that Dirichlet
-!--       conditions are used)
-          IF ( inflow_l )  THEN
-             DO  j = nysg, nyng
-                DO  k = nzb, nzt+1
-                   e(k,j,nxlg:-1)  = mean_inflow_profiles(k,5)
-                ENDDO
-             ENDDO
-          ENDIF
-       ENDIF
-!
-!--    Inside buildings set TKE back to zero
-       IF ( TRIM( initializing_actions ) == 'cyclic_fill' .AND.                &
-            topography /= 'flat' )  THEN
-!
-!--       Inside buildings set TKE back to zero.
-!--       Other scalars (km, kh,...) are ignored at present,
-!--       maybe revise later.
-          DO  i = nxlg, nxrg
-             DO  j = nysg, nyng
-                DO  k = nzb, nzt
-                   e(k,j,i)     = MERGE( e(k,j,i), 0.0_wp,                     &
-                                         BTEST( wall_flags_0(k,j,i), 0 ) )
-                ENDDO
-             ENDDO
-          ENDDO
-
-       ENDIF
 !
 !--    Initialize new time levels (only done in order to set boundary values
 !--    including ghost points)
@@ -1048,9 +1004,6 @@
 
     REAL(wp) :: radius           !< search radius in meter
 
-    ALLOCATE( l_grid(1:nzt) )
-    ALLOCATE( l_wall(nzb:nzt+1,nysg:nyng,nxlg:nxrg) )
-!
 !-- Initialize the mixing length in case of an LES-simulation
 !
 !--    Compute the grid-dependent mixing length.
@@ -1171,8 +1124,9 @@
 
 !
 !-- Set lateral boundary conditions for l_wall
+    !$acc data copy( l_wall )
     CALL exchange_horiz( l_wall, nbgp )
-
+    !$acc end data
     CONTAINS
 !------------------------------------------------------------------------------!
 ! Description:
@@ -1384,11 +1338,12 @@
  SUBROUTINE tcm_prognostic
 
     USE arrays_3d,                                                             &
-        ONLY:  ddzu, ddzw, drho_air, drho_air_zw, rho_air_zw
+        ONLY:  ddzu, ddzw, drho_air, drho_air_zw, rho_air_zw, alpha_T, beta_S
 
     USE control_parameters,                                                    &
         ONLY:  f, scalar_advec, tsc, atmos_ocean_sign, g,                      &
-               wall_adjustment, wall_adjustment_factor
+               wall_adjustment, wall_adjustment_factor, top_heatflux,          &
+               top_salinityflux
 
     USE grid_variables,                                                        &
         ONLY:  ddx, ddy, ddx2, ddy2
@@ -1411,7 +1366,7 @@
     REAL(wp)     ::  l              !< mixing length
     REAL(wp)     ::  ll             !< adjusted l
     REAL(wp)     ::  l_stable       !< mixing length according to stratification
-    REAL(wp)     ::  def
+    REAL(wp)     ::  def, sfc_buoy
 
     REAL(wp), DIMENSION(nzb+1:nzt,nys:nyn,nxl:nxr) ::  dudx, dudy, dudz
     REAL(wp), DIMENSION(nzb+1:nzt,nys:nyn,nxl:nxr) ::  dvdx, dvdy, dvdz
@@ -1517,20 +1472,23 @@
     !$acc parallel present( g, drho_air_zw ) &
     !$acc present( tend ) &
     !$acc present( dd2zu ) &
-    !$acc present( surf_def_h ) &
+!    !$acc present( surf_def_h ) &
     !$acc present( prho )
     !$acc loop collapse(2)
     DO  i = nxl, nxr
        DO  j = nys, nyn
-          surf_s = surf_def_h(2)%start_index(j,i)
-          surf_e = surf_def_h(2)%end_index(j,i)
-          !$acc loop seq
-          DO  m = surf_s, surf_e
-             k = surf_def_h(2)%k(m)
-             tend(k,j,i) = tend(k,j,i) + g / prho(k,j,i) *         &
-                          drho_air_zw(k) *                         &
-                          surf_def_h(2)%shf(m)
-          ENDDO
+         ! remove surf_def stuff and just apply constant flux
+         sfc_buoy = g * alpha_T(k,j,i) * top_heatflux - g * beta_S(k,j,i) * top_salinityflux
+         tend(k,j,i) = tend(k,j,i) + drho_air_zw(k) * sfc_buoy
+!          surf_s = surf_def_h(2)%start_index(j,i)
+!          surf_e = surf_def_h(2)%end_index(j,i)
+!          !$acc loop seq
+!          DO  m = surf_s, surf_e
+!             k = surf_def_h(2)%k(m)
+!             tend(k,j,i) = tend(k,j,i) + g / prho(k,j,i) *         &
+!                          drho_air_zw(k) *                         &
+!                          surf_def_h(2)%shf(m)
+!          ENDDO
        ENDDO
     ENDDO
     !$acc end parallel
@@ -1561,7 +1519,7 @@
        DO  j = nys, nyn
           !$acc loop
           DO  k = nzb+1, nzt
-    !
+            !
     !-- Determine the mixing length for LES closure
     !   Inline subroutine mixing_length_les()
              dvar_dz = atmos_ocean_sign * (prho(k+1,j,i) - prho(k-1,j,i) ) * dd2zu(k)
@@ -1744,7 +1702,7 @@
           !$acc loop
              DO  k = nzb+1, nzt
 
-!
+
 !--             Determine the mixing length for LES closure
 ! inline subroutine mixing_length_les()
 

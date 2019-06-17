@@ -17,149 +17,7 @@
 ! Copyright 1997-2018 Leibniz Universitaet Hannover
 !
 !------------------------------------------------------------------------------!
-!
-! Current revisions:
-! ------------------
-! 
-! 
-! Former revisions:
-! -----------------
-! $Id: surface_mod.f90 3055 2018-06-01 17:15:08Z suehring $
-! Initialize Obukhov length, friction velocity and momentum fluxes also 
-! in case of restarts and cyclic fill
-! 
-! 3026 2018-05-22 10:30:53Z schwenkel
-! Changed the name specific humidity to mixing ratio, since we are computing
-! mixing ratios.
-! 
-! 2977 2018-04-17 10:27:57Z kanani
-! Implement changes from branch radiation (r2948-2971) with minor modifications,
-! plus some formatting.
-! (moh.hefny)
-! Added flag to check the existence of vertical urban/land surfaces, required
-! to activate RTM
-! 
-! 2970 2018-04-13 15:09:23Z suehring
-! Remove un-necessary initialization of surface elements in old large-scale 
-! forcing mode
-! 
-! 2963 2018-04-12 14:47:44Z suehring
-! Introduce index for vegetation/wall, pavement/green-wall and water/window 
-! surfaces, for clearer access of surface fraction, albedo, emissivity, etc. .
-! 
-! 2942 2018-04-03 13:51:09Z suehring
-! Bugfix in assigning surface element data after restart
-! 
-! 2940 2018-04-03 11:22:42Z suehring
-! Bugfix in reading restart data of vertical surface elements
-! 
-! 2920 2018-03-22 11:22:01Z kanani
-! Correct comment for surface directions
-! 
-! 2894 2018-03-15 09:17:58Z Giersch
-! Calculations of the index range of the subdomain on file which overlaps with
-! the current subdomain are already done in read_restart_data_mod,
-! surface_read/write_restart_data was renamed to surface_r/wrd_local, variable 
-! named found has been introduced for checking if restart data was found, 
-! reading of restart strings has been moved completely to 
-! read_restart_data_mod, surface_rrd_local is already inside the overlap loop 
-! programmed in read_restart_data_mod, SAVE attribute added where necessary, 
-! deallocation and allocation of some arrays have been changed to take care of 
-! different restart files that can be opened (index i), the marker *** end 
-! surf *** is not necessary anymore, strings and their respective lengths are 
-! written out and read now in case of restart runs to get rid of prescribed 
-! character lengths (Giersch)
-! 
-! 2813 2018-02-16 16:28:14Z suehring
-! Some more bugfixes concerning restart runs 
-! 
-! 2812 2018-02-16 13:40:25Z hellstea
-! Entries 'u_out', 'v_out' and 'w_out' removed from the functions
-! get_topography_top_index and get_topography_top_index_ji  
-! 
-! 2805 2018-02-14 17:00:09Z suehring
-! Bugfix in re-mapping surface elements in case of restart runs 
-! 
-! 2766 2018-01-22 17:17:47Z kanani
-! Removed preprocessor directive __chem
-! 
-! 2759 2018-01-17 16:24:59Z suehring
-! Bugfix, consider density in vertical fluxes of passive scalar as well as 
-! chemical species.
-! 
-! 2753 2018-01-16 14:16:49Z suehring
-! +r_a_green, r_a_window
-! 
-! 2718 2018-01-02 08:49:38Z maronga
-! Changes from last commit documented
-! 
-! 2706 2017-12-18 18:33:49Z suehring
-! In case of restarts read and write pt_surface
-!
-! 2698 2017-12-14 18:46:24Z suehring
-!
-! 2696 2017-12-14 17:12:51Z kanani
-! - Change in file header (GPL part)
-! - Missing code for css added to surf_*, handling of surface_csflux updated (FK)
-! - Bugfixes in reading/writing restart data in case several surface types are 
-!   present at the same time (MS)
-! - Implementation of chemistry module (FK)
-! - Allocation of pt1 and qv1 now done for all surface types (MS)
-! - Revised classification of surface types
-! - Introduce offset values to simplify index determination of surface elements
-! - Dimensions of function get_topo_top_index (MS)
-! - added variables for USM 
-! - adapted to changes in USM (RvT)
-! 
-! 2688 2017-12-12 17:27:04Z Giersch
-! Allocation and initialization of the latent heat flux (qsws) at the top of 
-! the ocean domain in case of coupled runs. In addtion, a double if-query has 
-! been removed.  
-! 
-! 2638 2017-11-23 12:44:23Z raasch
-! bugfix for constant top momentumflux
-! 
-! 2575 2017-10-24 09:57:58Z maronga
-! Pavement parameterization revised
-! 
-! 2547 2017-10-16 12:41:56Z schwenkel
-! extended by cloud_droplets option
-! 
-! 2508 2017-10-02 08:57:09Z suehring
-! Minor formatting adjustment
-! 
-! 2478 2017-09-18 13:37:24Z suehring
-! Bugfixes in initializing model top
-!
-! 2378 2017-08-31 13:57:27Z suehring
-! Bugfix in write restart data
-! 
-! 2339 2017-08-07 13:55:26Z gronemeier
-! corrected timestamp in header
-! 
-! 2338 2017-08-07 12:15:38Z gronemeier
-! Modularize 1D model
-! 
-! 2318 2017-07-20 17:27:44Z suehring
-! New function to obtain topography top index. 
-! 
-! 2317 2017-07-20 17:27:19Z suehring
-! Implementation of new microphysic scheme: cloud_scheme = 'morrison' 
-! includes two more prognostic equations for cloud drop concentration (nc)  
-! and cloud water content (qc). 
-! 
-! 2270 2017-06-09 12:18:47Z maronga
-! Parameters removed/added due to changes in the LSM
-! 
-! 2269 2017-06-09 11:57:32Z suehring
-! Formatting and description adjustments
-! 
-! 2256 2017-06-07 13:58:08Z suehring
-! Enable heating at downward-facing surfaces
-! 
-! 2233 2017-05-30 18:08:54Z suehring
-! Initial revision
-!
+
 !
 ! Description:
 ! ------------
@@ -1374,13 +1232,13 @@
              start_index_def_h(0)           = surf_def_h(0)%end_index(j,i) + 1
 !
 !--          Downward-facing surfaces, except model top
-             surf_def_h(1)%start_index(j,i) = start_index_def_h(1)                                                 
+             surf_def_h(1)%start_index(j,i) = start_index_def_h(1)
              surf_def_h(1)%end_index(j,i)   = surf_def_h(1)%start_index(j,i) + &
                                                  num_def_h_kji(1) - 1
              start_index_def_h(1)           = surf_def_h(1)%end_index(j,i) + 1
 !
 !--          Downward-facing surfaces -- model top fluxes
-             surf_def_h(2)%start_index(j,i) = start_index_def_h(2)                                                 
+             surf_def_h(2)%start_index(j,i) = start_index_def_h(2)
              surf_def_h(2)%end_index(j,i)   = surf_def_h(2)%start_index(j,i) + &
                                                  num_def_h_kji(2) - 1
              start_index_def_h(2)           = surf_def_h(2)%end_index(j,i) + 1
@@ -1565,7 +1423,6 @@
 !--          Increment surface indices
              num_h     = num_h + 1
              num_h_kji = num_h_kji + 1      
-
 
           END SUBROUTINE initialize_top
 

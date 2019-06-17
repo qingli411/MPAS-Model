@@ -219,6 +219,7 @@
 !
 !--       Compute the diffusion quantities
 
+#ifndef __GPU
 !
 !--          First the vertical (and horizontal) fluxes in the surface 
 !--          (constant flux) layer are computed
@@ -227,7 +228,7 @@
                 CALL surface_layer_fluxes
                 CALL cpu_log( log_point(19), 'surface_layer_fluxes', 'stop' )
              ENDIF
-
+             #endif
 !
        ENDDO   ! Intermediate step loop
 

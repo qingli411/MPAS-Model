@@ -121,8 +121,6 @@
 
     REAL(wp), DIMENSION(nzb:nzt+1) ::  rho_ocean_init !<
 
-    ALLOCATE( hyp(nzb:nzt+1) )
-
 !
 !-- Set water density near the ocean surface
     rho_surface = 1027.62_wp
@@ -201,10 +199,6 @@
     !$acc end data
 
 !
-!-- Store initial density profile
-    hom(:,1,77,:)  = SPREAD( rho_ocean_init(:), 2, statistic_regions+1 )
-
-!
 !-- Set the reference state to be used in the buoyancy terms
     IF ( use_single_reference_value )  THEN
        ref_state(:) = rho_reference
@@ -215,7 +209,7 @@
 !
 !-- Initialize Stokes drift, if required
     ! IF ( stokes_force ) THEN
-       CALL init_stokes_drift
+    !   CALL init_stokes_drift
     ! ENDIF
 
  END SUBROUTINE init_ocean

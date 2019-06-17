@@ -17,86 +17,7 @@
 ! Copyright 1997-2018 Leibniz Universitaet Hannover
 !------------------------------------------------------------------------------!
 !
-! Current revisions:
-! ------------------
-! 
-! 
-! Former revisions:
-! -----------------
-! $Id: diffusion_s.f90 2759 2018-01-17 16:24:59Z suehring $
-! Major bugfix, horizontal diffusion at vertical surfaces corrected.
-! 
-! 2718 2018-01-02 08:49:38Z maronga
-! Corrected "Former revisions" section
-! 
-! 2696 2017-12-14 17:12:51Z kanani
-! Change in file header (GPL part)
-!
-! 2233 2017-05-30 18:08:54Z suehring
-!
-! 2232 2017-05-30 17:47:52Z suehring
-! Adjustments to new topography and surface concept
-! 
-! 2118 2017-01-17 16:38:49Z raasch
-! OpenACC version of subroutine removed
-! 
-! 2037 2016-10-26 11:15:40Z knoop
-! Anelastic approximation implemented
-! 
-! 2000 2016-08-20 18:09:15Z knoop
-! Forced header and separation lines into 80 columns
-! 
-! 1873 2016-04-18 14:50:06Z maronga
-! Module renamed (removed _mod)
-!
-! 1850 2016-04-08 13:29:27Z maronga
-! Module renamed
-! 
-! 1691 2015-10-26 16:17:44Z maronga
-! Formatting corrections.
-! 
-! 1682 2015-10-07 23:56:08Z knoop
-! Code annotations made doxygen readable 
-! 
-! 1374 2014-04-25 12:55:07Z raasch
-! missing variables added to ONLY list
-! 
-! 1340 2014-03-25 19:45:13Z kanani
-! REAL constants defined as wp-kind
-!
-! 1320 2014-03-20 08:40:49Z raasch
-! ONLY-attribute added to USE-statements,
-! kind-parameters added to all INTEGER and REAL declaration statements,
-! kinds are defined in new module kinds,
-! revision history before 2012 removed,
-! comment fields (!:) to be used for variable explanations added to
-! all variable declaration statements
-! 
-! 1257 2013-11-08 15:18:40Z raasch
-! openacc loop and loop vector clauses removed
-!
-! 1128 2013-04-12 06:19:32Z raasch
-! loop index bounds in accelerator version replaced by i_left, i_right, j_south,
-! j_north
-!
-! 1092 2013-02-02 11:24:22Z raasch
-! unused variables removed
-!
-! 1036 2012-10-22 13:43:42Z raasch
-! code put under GPL (PALM 3.9)
-!
-! 1015 2012-09-27 09:23:24Z raasch
-! accelerator version (*_acc) added
-!
-! 1010 2012-09-20 07:59:54Z raasch
-! cpp switch __nopointer added for pointer free version
-!
-! 1001 2012-09-13 14:08:46Z raasch
-! some arrays comunicated by module instead of parameter list
-!
-! Revision 1.1  2000/04/13 14:54:02  schroeter
-! Initial revision
-!
+
 !
 ! Description:
 ! ------------
@@ -157,7 +78,7 @@
        REAL(wp) ::  mask_bottom       !< flag to mask vertical upward-facing surface     
        REAL(wp) ::  mask_top          !< flag to mask vertical downward-facing surface  
 
-       REAL(wp), DIMENSION(1:surf_def_h(2)%ns) ::  s_flux_t           !< flux at model top
+       REAL(wp) ::  s_flux_t           !< flux at model top
 
 #if defined( __nopointer )
        REAL(wp), DIMENSION(nzb:nzt+1,nysg:nyng,nxlg:nxrg) ::  s  !< 
@@ -165,12 +86,12 @@
        REAL(wp), DIMENSION(:,:,:), POINTER ::  s  !< 
 #endif
 
-       REAL(wp), DIMENSION(1:surf_def_h(2)%ns),INTENT(IN),OPTIONAL :: s_flux_solar_t  !<solar flux at sfc
+       REAL(wp),INTENT(IN),OPTIONAL :: s_flux_solar_t  !<solar flux at sfc
 
 !-- Compute horizontal diffusion
 
        !$acc data present( tend ) &
-       !$acc present( s, s_flux_t, s_flux_solar_t ) &
+       !$acc present( s ) &
        !$acc present( solar3d ) &
        !$acc present( kh, surf_def_h ) &
        !$acc present( ddzu, ddzw, dzw, rho_air_zw, drho_air, wall_flags_0 )
@@ -227,58 +148,62 @@
                 tend(k,j,i) = tend(k,j,i)                                      &
                                        + 0.5_wp * (                            &
                                       ( kh(k,j,i) + kh(k+1,j,i) ) *            &
-                                          ( s(k+1,j,i)-s(k,j,i) ) * ddzu(k+1)  &
+                                        ( s(k+1,j,i)-s(k,j,i) )  * ddzu(k+1)  &
                                                             * rho_air_zw(k)    &
                                                             * mask_top         &
                                     - ( kh(k,j,i) + kh(k-1,j,i) ) *            &
-                                          ( s(k,j,i)-s(k-1,j,i) ) * ddzu(k)    &
-                                                            * rho_air_zw(k-1)  &
+                                      ( s(k,j,i)-s(k-1,j,i) )  * ddzu(k)    &
+                                                           * rho_air_zw(k-1)  &
                                                             * mask_bottom      &
-                                                  ) * ddzw(k) * drho_air(k)    &
-                                                              * flag
+                                                  ) * ddzw(k) * drho_air(k)  !  &
+                                                            !  * flag
              ENDDO
-                ENDDO
-                ENDDO
+          ENDDO
+       ENDDO
        !$acc end parallel
+
+       IF ( PRESENT(s_flux_solar_t )) THEN
 
        !$acc parallel
        !$acc loop collapse(2)
        DO i=nxl,nxr
           DO j=nys,nyn
                 !LPV adding solar forcing with depth
-                IF ( PRESENT(s_flux_solar_t )) THEN
-                  m = surf_def_h(2)%start_index(j,i)
-                  zval = 0.0_wp
+!                IF ( PRESENT(s_flux_solar_t )) THEN
+              !    m = surf_def_h(2)%start_index(j,i)
+!                  zval = 0.0_wp
                 !$acc loop
                   DO k = nzt,nzb+1,-1
                       flux1 = (1.0_wp - ideal_solar_division)*exp(ideal_solar_efolding2*zval) + &
                                 ideal_solar_division*exp(ideal_solar_efolding1*zval)
-                      zval = zval - dzw(k)
+                     zval = zval - dzw(k)
                       flux2 = (1.0_wp - ideal_solar_division)*exp(ideal_solar_efolding2*zval) + &
                       ideal_solar_division*exp(ideal_solar_efolding1*zval)
 
-                      tend(k,j,i) = tend(k,j,i) - s_flux_solar_t(m)*(flux1 - flux2) / dzw(k)
+                      tend(k,j,i) = tend(k,j,i) - s_flux_solar_t*(flux1 - flux2) / dzw(k)
                     
-                      solar3d(k,j,i) = -s_flux_solar_t(m)*(flux1 - flux2) / dzw(k)
+                      solar3d(k,j,i) = -s_flux_solar_t*(flux1 - flux2) / dzw(k)
                   ENDDO
-                ENDIF
+          enddo
+      enddo
+      !$acc end parallel
+      ENDIF
 
-!
+
+      if ( use_top_fluxes ) then
+       !$acc parallel
+       !$acc loop collapse(2)
+       DO i=nxl,nxr
+          DO j=nys,nyn
+
 !--          Vertical diffusion at the last computational gridpoint along z-direction
-             IF ( use_top_fluxes )  THEN
-                surf_s = surf_def_h(2)%start_index(j,i)
-                surf_e = surf_def_h(2)%end_index(j,i)
-                !$acc loop
-                DO  m = surf_s, surf_e
-
-                   k   = surf_def_h(2)%k(m)
+                  k = nzt
                    tend(k,j,i) = tend(k,j,i)                                   &
-                           + ( - s_flux_t(m) ) * ddzw(k) * drho_air(k)
-                ENDDO
-             ENDIF
+                           + ( - s_flux_t ) * ddzw(k) * drho_air(k)
           ENDDO
        ENDDO
        !$acc end parallel
+     endif
        !$acc end data
 
     END SUBROUTINE diffusion_s

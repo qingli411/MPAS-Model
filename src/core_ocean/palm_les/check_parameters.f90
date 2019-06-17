@@ -715,7 +715,7 @@
     REAL(wp)    ::  time_to_be_simulated_from_reference_point  !< time to be simulated from reference point
 
 
-    CALL location_message( 'checking parameters', .FALSE. )
+!    CALL location_message( 'checking parameters', .FALSE. )
 
 #if defined(__fullPalm)
 !
@@ -723,12 +723,12 @@
     CALL netcdf_data_input_check_dynamic
     CALL netcdf_data_input_check_static
 #else
-    ALLOCATE( pt_init(0:nz+1), q_init(0:nz+1), s_init(0:nz+1),        &        
-                       ref_state(0:nz+1), sa_init(0:nz+1), ug(0:nz+1),  &       
-                       u_init(0:nz+1), v_init(0:nz+1), vg(0:nz+1),       &       
-                       hom(0:nz+1,2,pr_palm+max_pr_user,0:statistic_regions), &       
-                       hom_sum(0:nz+1,pr_palm+max_pr_user,0:statistic_regions), &
-                       meanFields_avg(0:nz+1,4))
+!    ALLOCATE( pt_init(0:nz+1), q_init(0:nz+1), s_init(0:nz+1),        &        
+!                       ref_state(0:nz+1), sa_init(0:nz+1), ug(0:nz+1),  &       
+!                       u_init(0:nz+1), v_init(0:nz+1), vg(0:nz+1),       &       
+!                       hom(0:nz+1,2,14,0:statistic_regions), &       
+!                       hom_sum(0:nz+1,14,0:statistic_regions), &
+!                       meanFields_avg(0:nz+1,4))
 #endif
     !
 !-- Check for overlap combinations, which are not realized yet
@@ -899,7 +899,7 @@
 !-- Initializing actions must have been set by the user
 
     WRITE(message_string,*) 'initializing_actions = ',initializing_actions
-    CALL location_message(adjustl(trim(message_string)),.TRUE.)
+!    CALL location_message(adjustl(trim(message_string)),.TRUE.)
 
     IF ( TRIM( initializing_actions ) == '' )  THEN
        message_string = 'no value specified for initializing_actions'
@@ -1394,10 +1394,10 @@
 
        IF ( bc_sa_b == 'dirichlet' )  THEN
           ibc_sa_b = 0
-          CALL location_message('ib_sa_b assigned for dirichlet conditions',.TRUE.) !CB
+!          CALL location_message('ib_sa_b assigned for dirichlet conditions',.TRUE.) !CB
        ELSEIF ( bc_sa_b == 'neumann' )  THEN
           ibc_sa_b = 1
-          CALL location_message('ib_sa_b assigned for neumann conditions',.TRUE.) !CB
+!          CALL location_message('ib_sa_b assigned for neumann conditions',.TRUE.) !CB
        ELSE
           message_string = 'unknown boundary condition: bc_sa_b = "' //        &
                            TRIM( bc_sa_b ) // '"'
@@ -1599,303 +1599,65 @@
 !--    and store height levels
        SELECT CASE ( TRIM( data_output_pr(i) ) )
 
-          CASE ( 'u', '#u' )
+          CASE ( 'u' )
              dopr_index(i) = 1
              dopr_unit(i)  = 'm/s'
              hom(:,2,1,:)  = SPREAD( zu, 2, statistic_regions+1 )
-             IF ( data_output_pr(i)(1:1) == '#' )  THEN
-                dopr_initial_index(i) = 5
-                hom(:,2,5,:)          = SPREAD( zu, 2, statistic_regions+1 )
-                data_output_pr(i)     = data_output_pr(i)(2:)
-             ENDIF
-
-          CASE ( 'v', '#v' )
+          CASE ( 'v' )
              dopr_index(i) = 2
              dopr_unit(i)  = 'm/s'
              hom(:,2,2,:)  = SPREAD( zu, 2, statistic_regions+1 )
-             IF ( data_output_pr(i)(1:1) == '#' )  THEN
-                dopr_initial_index(i) = 6
-                hom(:,2,6,:)          = SPREAD( zu, 2, statistic_regions+1 )
-                data_output_pr(i)     = data_output_pr(i)(2:)
-             ENDIF
-
           CASE ( 'w' )
              dopr_index(i) = 3
              dopr_unit(i)  = 'm/s'
              hom(:,2,3,:)  = SPREAD( zw, 2, statistic_regions+1 )
 
-          CASE ( 'pt', '#pt' )
+          CASE ( 'pt' )
                 dopr_index(i) = 4
                 dopr_unit(i)  = 'K'
                 hom(:,2,4,:)  = SPREAD( zu, 2, statistic_regions+1 )
-                IF ( data_output_pr(i)(1:1) == '#' )  THEN
-                   dopr_initial_index(i) = 7
-                   hom(:,2,7,:)          = SPREAD( zu, 2, statistic_regions+1 )
-                   hom(nzb,2,7,:)        = 0.0_wp    ! because zu(nzb) is negative
-                   data_output_pr(i)     = data_output_pr(i)(2:)
-                ENDIF
-          CASE ( 'e', '#e' )
-             dopr_index(i)  = 8
-             dopr_unit(i)   = 'm2/s2'
-             hom(:,2,8,:)   = SPREAD( zu, 2, statistic_regions+1 )
-             hom(nzb,2,8,:) = 0.0_wp
-             IF ( data_output_pr(i)(1:1) == '#' )  THEN
-                dopr_initial_index(i) = 8
-                hom(:,2,8,:)          = SPREAD( zu, 2, statistic_regions+1 )
-                data_output_pr(i)     = data_output_pr(i)(2:)
-             ENDIF
-
-          CASE ( 'km', '#km' )
-             dopr_index(i)  = 9
-             dopr_unit(i)   = 'm2/s'
-             hom(:,2,9,:)   = SPREAD( zu, 2, statistic_regions+1 )
-             hom(nzb,2,9,:) = 0.0_wp
-             IF ( data_output_pr(i)(1:1) == '#' )  THEN
-                dopr_initial_index(i) = 23
-                hom(:,2,23,:)         = hom(:,2,9,:)
-                data_output_pr(i)     = data_output_pr(i)(2:)
-             ENDIF
-
-          CASE ( 'kh', '#kh' )
-             dopr_index(i)   = 10
-             dopr_unit(i)    = 'm2/s'
-             hom(:,2,10,:)   = SPREAD( zu, 2, statistic_regions+1 )
-             hom(nzb,2,10,:) = 0.0_wp
-             IF ( data_output_pr(i)(1:1) == '#' )  THEN
-                dopr_initial_index(i) = 24
-                hom(:,2,24,:)         = hom(:,2,10,:)
-                data_output_pr(i)     = data_output_pr(i)(2:)
-             ENDIF
-
-          CASE ( 'l', '#l' )
-             dopr_index(i)   = 11
-             dopr_unit(i)    = 'm'
-             hom(:,2,11,:)   = SPREAD( zu, 2, statistic_regions+1 )
-             hom(nzb,2,11,:) = 0.0_wp
-             IF ( data_output_pr(i)(1:1) == '#' )  THEN
-                dopr_initial_index(i) = 25
-                hom(:,2,25,:)         = hom(:,2,11,:)
-                data_output_pr(i)     = data_output_pr(i)(2:)
-             ENDIF
-
           CASE ( 'w"u"' )
-             dopr_index(i) = 12
+             dopr_index(i) = 6
              dopr_unit(i)  = TRIM ( momentumflux_output_unit )
-             hom(:,2,12,:) = SPREAD( zw, 2, statistic_regions+1 )
-             IF ( constant_flux_layer )  hom(nzb,2,12,:) = zu(1)
+             hom(:,2,6,:) = SPREAD( zw, 2, statistic_regions+1 )
+             IF ( constant_flux_layer )  hom(nzb,2,6,:) = zu(1)
 
           CASE ( 'w*u*' )
-             dopr_index(i) = 13
+             dopr_index(i) = 10
              dopr_unit(i)  = TRIM ( momentumflux_output_unit )
-             hom(:,2,13,:) = SPREAD( zw, 2, statistic_regions+1 )
+             hom(:,2,10,:) = SPREAD( zw, 2, statistic_regions+1 )
 
           CASE ( 'w"v"' )
-             dopr_index(i) = 14
+             dopr_index(i) = 7
              dopr_unit(i)  = TRIM ( momentumflux_output_unit )
-             hom(:,2,14,:) = SPREAD( zw, 2, statistic_regions+1 )
-             IF ( constant_flux_layer )  hom(nzb,2,14,:) = zu(1)
+             hom(:,2,7,:) = SPREAD( zw, 2, statistic_regions+1 )
+             IF ( constant_flux_layer )  hom(nzb,2,7,:) = zu(1)
 
           CASE ( 'w*v*' )
-             dopr_index(i) = 15
+             dopr_index(i) = 11
              dopr_unit(i)  = TRIM ( momentumflux_output_unit )
-             hom(:,2,15,:) = SPREAD( zw, 2, statistic_regions+1 )
+             hom(:,2,11,:) = SPREAD( zw, 2, statistic_regions+1 )
 
           CASE ( 'w"pt"' )
-             dopr_index(i) = 16
+             dopr_index(i) = 8
              dopr_unit(i)  = TRIM ( heatflux_output_unit )
-             hom(:,2,16,:) = SPREAD( zw, 2, statistic_regions+1 )
+             hom(:,2,8,:) = SPREAD( zw, 2, statistic_regions+1 )
 
           CASE ( 'w*pt*' )
-             dopr_index(i) = 17
+             dopr_index(i) = 12
              dopr_unit(i)  = TRIM ( heatflux_output_unit )
-             hom(:,2,17,:) = SPREAD( zw, 2, statistic_regions+1 )
-
-          CASE ( 'wpt' )
-             dopr_index(i) = 18
-             dopr_unit(i)  = TRIM ( heatflux_output_unit )
-             hom(:,2,18,:) = SPREAD( zw, 2, statistic_regions+1 )
-
-          CASE ( 'wu' )
-             dopr_index(i) = 19
-             dopr_unit(i)  = TRIM ( momentumflux_output_unit )
-             hom(:,2,19,:) = SPREAD( zw, 2, statistic_regions+1 )
-             IF ( constant_flux_layer )  hom(nzb,2,19,:) = zu(1)
-
-          CASE ( 'wv' )
-             dopr_index(i) = 20
-             dopr_unit(i)  = TRIM ( momentumflux_output_unit )
-             hom(:,2,20,:) = SPREAD( zw, 2, statistic_regions+1 )
-             IF ( constant_flux_layer )  hom(nzb,2,20,:) = zu(1)
-
-          CASE ( 'w*pt*BC' )
-             dopr_index(i) = 21
-             dopr_unit(i)  = TRIM ( heatflux_output_unit )
-             hom(:,2,21,:) = SPREAD( zw, 2, statistic_regions+1 )
-
-          CASE ( 'wptBC' )
-             dopr_index(i) = 22
-             dopr_unit(i)  = TRIM ( heatflux_output_unit )
-             hom(:,2,22,:) = SPREAD( zw, 2, statistic_regions+1 )
-
-          CASE ( 'sa', '#sa' )
+             hom(:,2,12,:) = SPREAD( zw, 2, statistic_regions+1 )
+          CASE ( 'sa' )
              IF ( .NOT. ocean )  THEN
                 message_string = 'data_output_pr = ' //                        &
                                  TRIM( data_output_pr(i) ) // ' is not imp' // &
                                  'lemented for ocean = .FALSE.'
                 CALL message( 'check_parameters', 'PA0091', 1, 2, 0, 6, 0 )
              ELSE
-                dopr_index(i) = 23
+                dopr_index(i) = 5
                 dopr_unit(i)  = 'psu'
-                hom(:,2,23,:) = SPREAD( zu, 2, statistic_regions+1 )
-                IF ( data_output_pr(i)(1:1) == '#' )  THEN
-                   dopr_initial_index(i) = 26
-                   hom(:,2,26,:)         = SPREAD( zu, 2, statistic_regions+1 )
-                   hom(nzb,2,26,:)       = 0.0_wp    ! because zu(nzb) is negative
-                   data_output_pr(i)     = data_output_pr(i)(2:)
-                ENDIF
+                hom(:,2,5,:) = SPREAD( zu, 2, statistic_regions+1 )
              ENDIF
-
-          CASE ( 'u*2' )
-             dopr_index(i) = 30
-             dopr_unit(i)  = 'm2/s2'
-             hom(:,2,30,:) = SPREAD( zu, 2, statistic_regions+1 )
-
-          CASE ( 'v*2' )
-             dopr_index(i) = 31
-             dopr_unit(i)  = 'm2/s2'
-             hom(:,2,31,:) = SPREAD( zu, 2, statistic_regions+1 )
-
-          CASE ( 'w*2' )
-             dopr_index(i) = 32
-             dopr_unit(i)  = 'm2/s2'
-             hom(:,2,32,:) = SPREAD( zw, 2, statistic_regions+1 )
-
-          CASE ( 'pt*2' )
-             dopr_index(i) = 33
-             dopr_unit(i)  = 'K2'
-             hom(:,2,33,:) = SPREAD( zu, 2, statistic_regions+1 )
-
-
-          CASE ( 'sa*2' )
-             dopr_index(i) = 153
-             dopr_unit(i)  = 'PSU^2'
-             hom(:,2,153,:) = SPREAD( zu, 2, statistic_regions+1 )
-
-          CASE ( 'e*' )
-             dopr_index(i) = 34
-             dopr_unit(i)  = 'm2/s2'
-             hom(:,2,34,:) = SPREAD( zu, 2, statistic_regions+1 )
-
-          CASE ( 'w*2pt*' )
-             dopr_index(i) = 35
-             dopr_unit(i)  = 'K m2/s2'
-             hom(:,2,35,:) = SPREAD( zw, 2, statistic_regions+1 )
-
-          CASE ( 'w*pt*2' )
-             dopr_index(i) = 36
-             dopr_unit(i)  = 'K2 m/s'
-             hom(:,2,36,:) = SPREAD( zw, 2, statistic_regions+1 )
-          CASE ( 'w*2sa*' )
-             dopr_index(i) = 154
-             dopr_unit(i)  = 'PSU m2/s2'
-             hom(:,2,154,:) = SPREAD( zw, 2, statistic_regions+1 )
-
-          CASE ( 'w*sa*2' )
-             dopr_index(i) = 155
-             dopr_unit(i)  = 'sa2 m/s'
-             hom(:,2,155,:) = SPREAD( zw, 2, statistic_regions+1 )
-
-
-          CASE ( 'w*e*' )
-             dopr_index(i) = 37
-             dopr_unit(i)  = 'm3/s3'
-             hom(:,2,37,:) = SPREAD( zw, 2, statistic_regions+1 )
-
-          CASE ( 'w*3' )
-             dopr_index(i) = 38
-             dopr_unit(i)  = 'm3/s3'
-             hom(:,2,38,:) = SPREAD( zw, 2, statistic_regions+1 )
-
-          CASE ( 'Sw' )
-             dopr_index(i) = 39
-             dopr_unit(i)  = 'none'
-             hom(:,2,39,:) = SPREAD( zw, 2, statistic_regions+1 )
-
-          CASE ( 'p' )
-             dopr_index(i) = 40
-             dopr_unit(i)  = 'Pa'
-             hom(:,2,40,:) = SPREAD( zu, 2, statistic_regions+1 )
-          CASE ( 'vpt', '#vpt' )
-             dopr_index(i) = 44
-             dopr_unit(i)  = 'K'
-             hom(:,2,44,:) = SPREAD( zu, 2, statistic_regions+1 )
-             IF ( data_output_pr(i)(1:1) == '#' )  THEN
-                dopr_initial_index(i) = 29
-                hom(:,2,29,:)         = SPREAD( zu, 2, statistic_regions+1 )
-                hom(nzb,2,29,:)       = 0.0_wp    ! because zu(nzb) is negative
-                data_output_pr(i)     = data_output_pr(i)(2:)
-             ENDIF
-
-          CASE ( 'w"vpt"' )
-             dopr_index(i) = 45
-             dopr_unit(i)  = TRIM ( heatflux_output_unit )
-             hom(:,2,45,:) = SPREAD( zw, 2, statistic_regions+1 )
-
-          CASE ( 'w*vpt*' )
-             dopr_index(i) = 46
-             dopr_unit(i)  = TRIM ( heatflux_output_unit )
-             hom(:,2,46,:) = SPREAD( zw, 2, statistic_regions+1 )
-
-          CASE ( 'wvpt' )
-             dopr_index(i) = 47
-             dopr_unit(i)  = TRIM ( heatflux_output_unit )
-             hom(:,2,47,:) = SPREAD( zw, 2, statistic_regions+1 )
-          CASE ( 'w*u*u*:dz' )
-             dopr_index(i) = 55
-             dopr_unit(i)  = 'm2/s3'
-             hom(:,2,55,:) = SPREAD( zu, 2, statistic_regions+1 )
-
-          CASE ( 'w*p*:dz' )
-             dopr_index(i) = 56
-             dopr_unit(i)  = 'm2/s3'
-             hom(:,2,56,:) = SPREAD( zw, 2, statistic_regions+1 )
-
-          CASE ( 'w"e:dz' )
-             dopr_index(i) = 57
-             dopr_unit(i)  = 'm2/s3'
-             hom(:,2,57,:) = SPREAD( zu, 2, statistic_regions+1 )
-
-
-          CASE ( 'u"pt"' )
-             dopr_index(i) = 58
-             dopr_unit(i)  = TRIM ( heatflux_output_unit )
-             hom(:,2,58,:) = SPREAD( zu, 2, statistic_regions+1 )
-
-          CASE ( 'u*pt*' )
-             dopr_index(i) = 59
-             dopr_unit(i)  = TRIM ( heatflux_output_unit )
-             hom(:,2,59,:) = SPREAD( zu, 2, statistic_regions+1 )
-
-          CASE ( 'upt_t' )
-             dopr_index(i) = 60
-             dopr_unit(i)  = TRIM ( heatflux_output_unit )
-             hom(:,2,60,:) = SPREAD( zu, 2, statistic_regions+1 )
-
-          CASE ( 'v"pt"' )
-             dopr_index(i) = 61
-             dopr_unit(i)  = TRIM ( heatflux_output_unit )
-             hom(:,2,61,:) = SPREAD( zu, 2, statistic_regions+1 )
-
-          CASE ( 'v*pt*' )
-             dopr_index(i) = 62
-             dopr_unit(i)  = TRIM ( heatflux_output_unit )
-             hom(:,2,62,:) = SPREAD( zu, 2, statistic_regions+1 )
-
-          CASE ( 'vpt_t' )
-             dopr_index(i) = 63
-             dopr_unit(i)  = TRIM ( heatflux_output_unit )
-             hom(:,2,63,:) = SPREAD( zu, 2, statistic_regions+1 )
-
           CASE ( 'rho_ocean' )
              IF (  .NOT.  ocean ) THEN
                 message_string = 'data_output_pr = ' //                        &
@@ -1903,53 +1665,10 @@
                                  'lemented for ocean = .FALSE.'
                 CALL message( 'check_parameters', 'PA0091', 1, 2, 0, 6, 0 )
              ELSE
-                dopr_index(i) = 64
+                dopr_index(i) = 14
                 dopr_unit(i)  = 'kg/m3'
-                hom(:,2,64,:) = SPREAD( zu, 2, statistic_regions+1 )
-                IF ( data_output_pr(i)(1:1) == '#' )  THEN
-                   dopr_initial_index(i) = 77
-                   hom(:,2,77,:)         = SPREAD( zu, 2, statistic_regions+1 )
-                   hom(nzb,2,77,:)       = 0.0_wp    ! because zu(nzb) is negative
-                   data_output_pr(i)     = data_output_pr(i)(2:)
-                ENDIF
+                hom(:,2,14,:) = SPREAD( zu, 2, statistic_regions+1 )
              ENDIF
-
-           CASE ( 'solar3d' )
-             IF (  .NOT.  ocean ) THEN
-                message_string = 'data_output_pr = ' //                        &
-                                 TRIM( data_output_pr(i) ) // ' is not imp' // &
-                                 'lemented for ocean = .FALSE.'
-                CALL message( 'check_parameters', 'PA0091', 1, 2, 0, 6, 0 )
-             ELSE
-                dopr_index(i) = 152
-                dopr_unit(i)  = '^oC^{-1}/s'
-                hom(:,2,152,:) = SPREAD( zu, 2, statistic_regions+1 )
-             ENDIF
-
-           CASE ( 'alpha_T' )
-             IF (  .NOT.  ocean ) THEN
-                message_string = 'data_output_pr = ' //                        &
-                                 TRIM( data_output_pr(i) ) // ' is not imp' // &
-                                 'lemented for ocean = .FALSE.'
-                CALL message( 'check_parameters', 'PA0091', 1, 2, 0, 6, 0 )
-             ELSE
-                dopr_index(i) = 150
-                dopr_unit(i)  = '^oC^{-1}'
-                hom(:,2,150,:) = SPREAD( zu, 2, statistic_regions+1 )
-             ENDIF
-
-          CASE ( 'beta_S' )
-             IF (  .NOT.  ocean ) THEN
-                message_string = 'data_output_pr = ' //                        &
-                    TRIM( data_output_pr(i) ) // ' is not imp' // &
-                    'lemented for ocean = .FALSE.'
-                CALL message( 'check_parameters', 'PA0091', 1, 2, 0, 6, 0 )
-             ELSE
-                dopr_index(i) = 151
-                dopr_unit(i)  = 'PSU^{-1}'
-                hom(:,2,151,:) = SPREAD( zu, 2, statistic_regions+1 )
-             ENDIF
-
           CASE ( 'w"sa"' )
              IF (  .NOT.  ocean ) THEN
                 message_string = 'data_output_pr = ' //                        &
@@ -1957,9 +1676,9 @@
                                  'lemented for ocean = .FALSE.'
                 CALL message( 'check_parameters', 'PA0091', 1, 2, 0, 6, 0 )
              ELSE
-                dopr_index(i) = 65
+                dopr_index(i) = 9 
                 dopr_unit(i)  = 'psu m/s'
-                hom(:,2,65,:) = SPREAD( zw, 2, statistic_regions+1 )
+                hom(:,2,9,:) = SPREAD( zw, 2, statistic_regions+1 )
              ENDIF
 
           CASE ( 'w*sa*' )
@@ -1969,149 +1688,10 @@
                                  'lemented for ocean = .FALSE.'
                 CALL message( 'check_parameters', 'PA0091', 1, 2, 0, 6, 0 )
              ELSE
-                dopr_index(i) = 66
+                dopr_index(i) = 13
                 dopr_unit(i)  = 'psu m/s'
-                hom(:,2,66,:) = SPREAD( zw, 2, statistic_regions+1 )
+                hom(:,2,13,:) = SPREAD( zw, 2, statistic_regions+1 )
              ENDIF
-
-          CASE ( 'wsa' )
-             IF (  .NOT.  ocean ) THEN
-                message_string = 'data_output_pr = ' //                        &
-                                 TRIM( data_output_pr(i) ) // ' is not imp' // &
-                                 'lemented for ocean = .FALSE.'
-                CALL message( 'check_parameters', 'PA0091', 1, 2, 0, 6, 0 )
-             ELSE
-                dopr_index(i) = 67
-                dopr_unit(i)  = 'psu m/s'
-                hom(:,2,67,:) = SPREAD( zw, 2, statistic_regions+1 )
-             ENDIF
-
-          CASE ( 'u_stk' )
-             IF (  .NOT.  ocean ) THEN
-                message_string = 'data_output_pr = ' //                        &
-                                 TRIM( data_output_pr(i) ) // ' is not imp' // &
-                                 'lemented for ocean = .FALSE.'
-                CALL message( 'check_parameters', 'PA0091', 1, 2, 0, 6, 0 )
-             ELSEIF (  .NOT.  stokes_force ) THEN
-                message_string = 'data_output_pr = ' //                        &
-                                 TRIM( data_output_pr(i) ) // ' is not imp' // &
-                                 'lemented for stokes_force = .FALSE.'
-                CALL message( 'check_parameters', 'PA0091', 1, 2, 0, 6, 0 )
-             ELSE
-                dopr_index(i) = 161
-                dopr_unit(i)  = 'm/s'
-                hom(:,2,161,:) = SPREAD( zu, 2, statistic_regions+1 )
-             ENDIF
-
-          CASE ( 'v_stk' )
-             IF (  .NOT.  ocean ) THEN
-                message_string = 'data_output_pr = ' //                        &
-                                 TRIM( data_output_pr(i) ) // ' is not imp' // &
-                                 'lemented for ocean = .FALSE.'
-                CALL message( 'check_parameters', 'PA0091', 1, 2, 0, 6, 0 )
-             ELSEIF (  .NOT.  stokes_force ) THEN
-                message_string = 'data_output_pr = ' //                        &
-                                 TRIM( data_output_pr(i) ) // ' is not imp' // &
-                                 'lemented for stokes_force = .FALSE.'
-                CALL message( 'check_parameters', 'PA0091', 1, 2, 0, 6, 0 )
-             ELSE
-                dopr_index(i) = 162
-                dopr_unit(i)  = 'm/s'
-                hom(:,2,162,:) = SPREAD( zu, 2, statistic_regions+1 )
-             ENDIF
-
-          CASE ( 'u_stk_zw' )
-             IF (  .NOT.  ocean ) THEN
-                message_string = 'data_output_pr = ' //                        &
-                                 TRIM( data_output_pr(i) ) // ' is not imp' // &
-                                 'lemented for ocean = .FALSE.'
-                CALL message( 'check_parameters', 'PA0091', 1, 2, 0, 6, 0 )
-             ELSEIF (  .NOT.  stokes_force ) THEN
-                message_string = 'data_output_pr = ' //                        &
-                                 TRIM( data_output_pr(i) ) // ' is not imp' // &
-                                 'lemented for stokes_force = .FALSE.'
-                CALL message( 'check_parameters', 'PA0091', 1, 2, 0, 6, 0 )
-             ELSE
-                dopr_index(i) = 163
-                dopr_unit(i)  = 'm/s'
-                hom(:,2,163,:) = SPREAD( zw, 2, statistic_regions+1 )
-             ENDIF
-
-          CASE ( 'v_stk_zw' )
-             IF (  .NOT.  ocean ) THEN
-                message_string = 'data_output_pr = ' //                        &
-                                 TRIM( data_output_pr(i) ) // ' is not imp' // &
-                                 'lemented for ocean = .FALSE.'
-                CALL message( 'check_parameters', 'PA0091', 1, 2, 0, 6, 0 )
-             ELSEIF (  .NOT.  stokes_force ) THEN
-                message_string = 'data_output_pr = ' //                        &
-                                 TRIM( data_output_pr(i) ) // ' is not imp' // &
-                                 'lemented for stokes_force = .FALSE.'
-                CALL message( 'check_parameters', 'PA0091', 1, 2, 0, 6, 0 )
-             ELSE
-                dopr_index(i) = 164
-                dopr_unit(i)  = 'm/s'
-                hom(:,2,164,:) = SPREAD( zw, 2, statistic_regions+1 )
-             ENDIF
-
-          CASE ( 'w*p*' )
-             dopr_index(i) = 68
-             dopr_unit(i)  = 'm3/s3'
-             hom(:,2,68,:) = SPREAD( zu, 2, statistic_regions+1 )
-
-          CASE ( 'w"e' )
-             dopr_index(i) = 69
-             dopr_unit(i)  = 'm3/s3'
-             hom(:,2,69,:) = SPREAD( zu, 2, statistic_regions+1 )
-          CASE ( 'prho' )
-             IF (  .NOT.  ocean ) THEN
-                message_string = 'data_output_pr = ' //                        &
-                                 TRIM( data_output_pr(i) ) // ' is not imp' // &
-                                 'lemented for ocean = .FALSE.'
-                CALL message( 'check_parameters', 'PA0091', 1, 2, 0, 6, 0 )
-             ELSE
-                dopr_index(i) = 71
-                dopr_unit(i)  = 'kg/m3'
-                hom(:,2,71,:) = SPREAD( zu, 2, statistic_regions+1 )
-             ENDIF
-
-          CASE ( 'hyp' )
-             dopr_index(i) = 72
-             dopr_unit(i)  = 'hPa'
-             hom(:,2,72,:) = SPREAD( zu, 2, statistic_regions+1 )
-
-          CASE ( 'rho_air' )
-             dopr_index(i)  = 119
-             dopr_unit(i)   = 'kg/m3'
-             hom(:,2,119,:) = SPREAD( zu, 2, statistic_regions+1 )
-
-          CASE ( 'rho_air_zw' )
-             dopr_index(i)  = 120
-             dopr_unit(i)   = 'kg/m3'
-             hom(:,2,120,:) = SPREAD( zw, 2, statistic_regions+1 )
-
-          CASE ( 'ug' )
-             dopr_index(i) = 78
-             dopr_unit(i)  = 'm/s'
-             hom(:,2,78,:) = SPREAD( zu, 2, statistic_regions+1 )
-
-          CASE ( 'vg' )
-             dopr_index(i) = 79
-             dopr_unit(i)  = 'm/s'
-             hom(:,2,79,:) = SPREAD( zu, 2, statistic_regions+1 )
-
-          CASE ( 's*2' )
-             IF (  .NOT.  passive_scalar )  THEN
-                message_string = 'data_output_pr = ' //                        &
-                                 TRIM( data_output_pr(i) ) // ' is not imp' // &
-                                 'lemented for passive_scalar = .FALSE.'
-                CALL message( 'check_parameters', 'PA0185', 1, 2, 0, 6, 0 )
-             ELSE
-                dopr_index(i) = 116
-                dopr_unit(i)  = 'kg2/m6'
-                hom(:,2,116,:) = SPREAD( zu, 2, statistic_regions+1 )
-             ENDIF
-
 
 
           CASE DEFAULT
@@ -2659,7 +2239,7 @@
        CALL message( 'check_parameters', 'PA0424', 1, 2, 0, 6, 0 )
     ENDIF
 
-    CALL location_message( 'finished', .TRUE. )
+!    CALL location_message( 'finished', .TRUE. )
 !
 
  CONTAINS
