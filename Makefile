@@ -68,6 +68,38 @@ titan-cray:
 	"OPENMP = $(OPENMP)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
+pgi-p9:
+	( $(MAKE) all \
+  "FC_PARALLEL = mpif90" \
+  "CC_PARALLEL = mpicc" \
+  "CXX_PARALLEL = mpicxx" \
+  "FC_SERIAL = pgf90" \
+  "CC_SERIAL = pgcc" \
+  "CXX_SERIAL = pgc++" \
+  "FFLAGS_PROMOTION = -r8" \
+  "FFLAGS_OPT = -g -O3 -byteswapio -Mfree " \
+	"LES_FFLAGS_OPT = -acc -ta=tesla:cc70,deepcopy -Minfo=accel -Mcuda" \
+	"LDFLAGS_OPT = -O3 -ta=tesla:cc70,deepcopy -Minfo=accel -Mcuda -lcufft" \
+	"LES_LDFLAGS_OPT = -O3 -ta=tesla:cc70,deepcopy -Minfo=accel -Mcuda -lcufft" \
+	"LES_COPT = -Mpreprocess -D__netcdf -D__lc -D__cudaProfiler -D__GPU -D__nopointers" \
+	"FFLAGS_ACC = -acc -Mcuda -ta=tesla:cc70 -I/usr/projects/icapt/libs-mpas/ompi-pg18/include" \
+  "CFLAGS_ACC = -acc -Mcuda -ta=tesla:cc70 -I/usr/projects/icapt/libs-mpas/ompi-pg18/include"  \
+  "OPENACC = $(OPENACC)" \
+  "CFLAGS_OPT = -g -O3 " \
+  "CXXFLAGS_OPT =  -g -O3 " \
+  "LDFLAGS_OPT = -g -O3 -L/usr/projects/icapt/libs-mpas/ompi-pg18/lib" \
+  "FFLAGS_DEBUG =  -O0 -g -Mbounds -Mchkptr -byteswapio -Mfree -Ktrap=divz,fp,inv,ovf " \
+  "CFLAGS_DEBUG =  -O0 -g " \
+  "CXXFLAGS_DEBUG =  -O0 -g " \
+  "LDFLAGS_DEBUG = -O0 -Mbounds -Mchkptr -Ktrap=divz,fp,inv,ovf  -L/usr/projects/icapt/libs-mpas/ompi-pg18/lib" \
+  "FFLAGS_OMP =  -mp" \
+  "CFLAGS_OMP =  -mp" \
+  "CORE = $(CORE)" \
+  "DEBUG = $(DEBUG)" \
+  "USE_PAPI = $(USE_PAPI)" \
+  "OPENMP = $(OPENMP)" \
+  "CPPFLAGS = -DpgiFortran -D_MPI -DUNDERSCORE" )
+
 pgi:
 	( $(MAKE) all \
 	"FC_PARALLEL = mpif90" \
@@ -104,13 +136,14 @@ pgi-titan-openacc:
 	"CXX_SERIAL = CC" \
 	"FFLAGS_PROMOTION = -r8" \
 	"FFLAGS_OPT = -O3 -byteswapio -Mfree" \
-	"LES_FFLAGS_OPT = -acc -ta=tesla:cc35,deepcopy -Minfo=accel -Mcuda" \
 	"CFLAGS_OPT = -O3" \
 	"CXXFLAGS_OPT = -O3" \
-	"LDFLAGS_OPT = -O3 -ta=tesla:cc35,deepcopy -Minfo=accel -Mcuda -lcufft" \
-	"LES_LDFLAGS_OPT = -acc -ta=tesla:cc35,deepcopy -Minfo=accel -Mcuda -lcufft" \
+	"LDFLAGS_OPT = -O3" \
+	"FFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -byteswapio -Mfree -Ktrap=divz,fp,inv,ovf" \
+	"CFLAGS_DEBUG = -O0 -g" \
+	"CXXFLAGS_DEBUG = -O0 -g" \
+	"LDFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -Ktrap=divz,fp,inv,ovf" \
 	"FFLAGS_OMP = -mp" \
-	"LES_COPT = -Mpreprocess -D__netcdf -D__lc -D__cudaProfiler -D__GPU -D__nopointers" \
 	"CFLAGS_OMP = -mp" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
@@ -118,7 +151,7 @@ pgi-titan-openacc:
 	"OPENMP = $(OPENMP)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DUNDERSCORE" )
 
-pgi-titan:
+titan-intel:
 	( $(MAKE) all \
 	"FC_PARALLEL = ftn" \
 	"CC_PARALLEL = cc" \
@@ -126,16 +159,17 @@ pgi-titan:
 	"FC_SERIAL = ftn" \
 	"CC_SERIAL = cc" \
 	"CXX_SERIAL = CC" \
-	"FFLAGS_PROMOTION = -r8" \
-	"FFLAGS_OPT = -O3 -byteswapio -Mfree" \
-	"LES_FFLAGS_OPT = " \
-	"CFLAGS_OPT = -O3" \
-	"CXXFLAGS_OPT = -O3" \
-	"LDFLAGS_OPT = -O3" \
-	"LES_LDFLAGS_OPT = "\
-	"FFLAGS_OMP = -mp" \
-	"LES_COPT = -Mpreprocess -D__netcdf" \
-	"CFLAGS_OMP = -mp" \
+	"FFLAGS_PROMOTION = -fdefault-real-8 -fdefault-double-8" \
+	"FFLAGS_OPT = -O3 -m64 -ffree-line-length-none -fconvert=big-endian -ffree-form" \
+	"CFLAGS_OPT = -O3 -m64" \
+	"CXXFLAGS_OPT = -O3 -m64" \
+	"LDFLAGS_OPT = -O3 -m64" \
+	"FFLAGS_DEBUG = -g -m64 -ffree-line-length-none -fconvert=big-endian -ffree-form -fbounds-check -fbacktrace -ffpe-trap=invalid,zero,overflow" \
+	"CFLAGS_DEBUG = -g -m64" \
+	"CXXFLAGS_DEBUG = -g -m64" \
+	"LDFLAGS_DEBUG = -g -m64" \
+	"FFLAGS_OMP = -fopenmp" \
+	"CFLAGS_OMP = -fopenmp" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
@@ -156,7 +190,6 @@ pgi-nersc:
 	"CXXFLAGS_OPT = -O3" \
 	"LDFLAGS_OPT = -O3" \
 	"FFLAGS_OMP = -mp" \
-	"LES_COPT = -Mpreprocess -D__netcdf" \
 	"CFLAGS_OMP = -mp" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
@@ -200,11 +233,10 @@ ifort:
 	"LDFLAGS_OPT = -O3" \
 	"FFLAGS_DEBUG = -g -convert big_endian -free -CU -CB -check all -fpe0 -traceback" \
 	"CFLAGS_DEBUG = -g -traceback" \
-	"CXXFLAGS_DEBUG = -g -traceback" \
-	"LDFLAGS_DEBUG = -g -fpe0 -traceback" \
+	"CXXFLAGS_DEBUG = -g -Wall -traceback" \
+	"LDFLAGS_DEBUG = -g -Wall -fpe0 -traceback" \
 	"FFLAGS_OMP = -qopenmp" \
 	"CFLAGS_OMP = -qopenmp" \
-	"LES_COPT = -cpp -D__netcdf" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
@@ -276,13 +308,13 @@ gfortran:
 	"LDFLAGS_OPT = -O3 -m64" \
 	"FFLAGS_DEBUG = -g -m64 -ffree-line-length-none -fconvert=big-endian -ffree-form -fbounds-check -fbacktrace -ffpe-trap=invalid,zero,overflow" \
 	"CFLAGS_DEBUG = -g -m64" \
-	"CXXFLAGS_DEBUG = -O3 -m64" \
+	"CXXFLAGS_DEBUG = -g -m64" \
 	"LDFLAGS_DEBUG = -g -m64" \
 	"FFLAGS_OMP = -fopenmp" \
 	"CFLAGS_OMP = -fopenmp" \
-	"LES_COPT = -cpp -D__netcdf" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
+	"KOKKOS = $(KOKKOS)" \
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
@@ -611,6 +643,23 @@ ifeq "$(OPENMP)" "true"
 	LDFLAGS += $(FFLAGS_OMP)
 endif #OPENMP IF
 
+ifeq "$(KOKKOS)" "true"
+	KOKKOS_DEVICES=Cuda
+
+	KOKKOS_CXX=kokkos/bin/nvcc_wrapper -ccbin 
+	KOKKOS_CXX += $(CXX)
+	KOKKOS_CUDA_OPTIONS = enable_lambda
+	KOKKOS_CPP_FLAGS = "-DGPU -lineinfo"
+	LIBS += -L$(CUDA)/lib64 -lcudart -lcufft
+else
+	KOKKOS_DEVICES=Serial
+	KOKKOS_CXX = $(CXX_SERIAL) 
+endif
+
+ifneq "$(KOKKOSARCH)" ""
+	KOKKOS_ARCH = $(KOKKOSARCH)
+endif
+
 ifeq "$(PRECISION)" "single"
 	CFLAGS += "-DSINGLE_PRECISION"
 	CXXFLAGS += "-DSINGLE_PRECISION"
@@ -650,8 +699,8 @@ ifeq "$(TIMER_LIB)" "gptl"
 endif
 
 ifeq "$(LES_GPU)" "true"
-	FFLAGS += -acc -ta=tesla:cc35,deepcopy -Minfo=accel -Mcuda
-	LDFLAGS += -acc -ta=tesla:cc35 -Minfo=accel -Mcuda -lcufft
+	FFLAGS += -acc -ta=tesla:cc70,deepcopy -Minfo=accel -Mcuda
+	LDFLAGS += -acc -ta=tesla:cc70 -Minfo=accel -Mcuda -lcufft
 	LES_COPT += -D__lc -D__cudaProfiler -D__fftw -D__GPU
 endif
 
@@ -659,7 +708,7 @@ ifeq "$(TIMER_LIB)" ""
 	override CPPFLAGS += -DMPAS_NATIVE_TIMERS
 	TIMER_MESSAGE="The native timer interface is being used"
 endif
-      
+
 else # else ifdef $(TIMER_LIB)
 
 	override CPPFLAGS += -DMPAS_NATIVE_TIMERS
@@ -688,6 +737,20 @@ ifeq "$(OPENMP)" "true"
 	OPENMP_MESSAGE="MPAS was built with OpenMP enabled."
 else
 	OPENMP_MESSAGE="MPAS was built without OpenMP support."
+endif
+
+ifeq "$(OPENACC)" "true"
+        FFLAGS += $(FFLAGS_ACC)
+        CFLAGS += $(CFLAGS_ACC)
+        CXXFLAGS += $(CFLAGS_ACC)
+        override CPPFLAGS += "-DMPAS_OPENACC"
+        LDFLAGS += $(FFLAGS_ACC)
+				LIBS += -L$(CUDA)/lib64 -lcufft
+endif #OPENMP IF
+
+ifeq "$(CVMIX2)" "true"
+	LIBS += -lpgatm -L/autofs/nccs-svm1_sw/summit/gcc/8.1.1/lib64 -lstdc++ -ldl
+
 endif
 
 ifneq ($(wildcard .mpas_core_*), ) # CHECK FOR BUILT CORE
@@ -802,8 +865,8 @@ pio_test:
 	@# See whether either of the test programs can be compiled
 	@#
 	@echo "Checking for a usable PIO library..."
-	@($(FC) pio1.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) -o pio1.out &> /dev/null && echo "=> PIO 1 detected") || \
-	 ($(FC) pio2.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) -o pio2.out &> /dev/null && echo "=> PIO 2 detected") || \
+	@($(FC) $(FCINCLUDES) $(LDFLAGS) $(LIBS) -o pio1.out pio1.f90 && echo "=> PIO 1 detected") || \
+	 ($(FC) $(FCINCLUDES) $(LDFLAGS) $(LIBS) -o pio2.out pio2.f90 && echo "=> PIO 2 detected") || \
 	 (echo "************ ERROR ************"; \
 	  echo "Failed to compile a PIO test program"; \
 	  echo "Please ensure the PIO environment variable is set to the PIO installation directory"; \
@@ -854,7 +917,12 @@ endif
                  CORE="$(CORE)"\
                  AUTOCLEAN="$(AUTOCLEAN)" \
                  GEN_F90="$(GEN_F90)" \
-                 NAMELIST_SUFFIX="$(NAMELIST_SUFFIX)" \
+		 KOKKOS_CXX="$(KOKKOS_CXX)" \
+                 KOKKOS_DEVICES="$(KOKKOS_DEVICES)" \
+		 KOKKOS_CUDA_OPTIONS="$(KOKKOS_CUDA_OPTIONS)" \
+		 KOKKOS_ARCH="$(KOKKOS_ARCH)" \
+		 KOKKOS_CPP_FLAGS="$(KOKKOS_CPP_FLAGS)" \
+		 NAMELIST_SUFFIX="$(NAMELIST_SUFFIX)" \
                  EXE_NAME="$(EXE_NAME)"
 
 	@echo "$(EXE_NAME)" > .mpas_core_$(CORE)
@@ -873,6 +941,7 @@ endif
 	@echo $(GEN_F90_MESSAGE)
 	@echo $(TIMER_MESSAGE)
 	@echo $(PIO_MESSAGE)
+	@echo $(KOKKOS)
 	@echo "*******************************************************************************"
 clean:
 	cd src; $(MAKE) clean RM="$(RM)" CORE="$(CORE)"
