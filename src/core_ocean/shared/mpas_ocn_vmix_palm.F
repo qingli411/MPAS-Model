@@ -2,7 +2,7 @@
 !
 !  ocn_vmix_LES
 !
-!> \brief MPAS ocean vertical mixing interface to PALM les 
+!> \brief MPAS ocean vertical mixing interface to PALM les
 !> \author Luke Van Roekel
 !> \date   09 January 2019
 !> \details
@@ -20,7 +20,7 @@ module ocn_vmix_LES
    use mpas_log
    use mpas_vector_reconstruction
 
-!   use palm_mod
+   use palm_mod
    use ocn_constants
    use ocn_surface_bulk_forcing
    use ocn_surface_land_ice_fluxes
@@ -33,7 +33,7 @@ module ocn_vmix_LES
    !
    ! Public parameters
    !
-   !-------------------------------------------------------------------   
+   !-------------------------------------------------------------------
 
    logical :: first = .true.
    integer, parameter :: num_water_types = 5
@@ -59,7 +59,7 @@ contains
 !
 !  routine ocn_vmix_LES_interface
 !
-!> \brief   Compute mixing tendency due to LES 
+!> \brief   Compute mixing tendency due to LES
 !> \author  Luke Van Roekel
 !> \date    09 January 2019
 !> \details
@@ -171,7 +171,7 @@ contains
       if (present(timeLevelIn)) then
          timeLevel = timeLevelIn
       else
-         timeLevel = 2 
+         timeLevel = 2
       end if
 
       call mpas_pool_get_config(ocnConfigs, 'config_dt', config_dt)
@@ -293,7 +293,7 @@ contains
 
       call ocn_surface_land_ice_fluxes_tracers(meshPool, "activeTracers", forcingPool, tracerGroupSurfaceFlux, err)
 
-      call ocn_surface_bulk_forcing_thick(meshPool, forcingPool, surfaceThicknessFlux, surfaceThicknessFluxRunoff, err) 
+      call ocn_surface_bulk_forcing_thick(meshPool, forcingPool, surfaceThicknessFlux, surfaceThicknessFluxRunoff, err)
 
       !need surface thickness flux too
 
@@ -343,7 +343,7 @@ contains
 
       if(first) then
 
-        call palm_mod_palm_init(nCells, nVertLevels, activeTracers(1,:,:), activeTracers(2,:,:),              &
+        call palm_init(nCells, nVertLevels, activeTracers(1,:,:), activeTracers(2,:,:),              &
              velocityZonal, velocityMeridional, layerThickness, latVal,                       &
              maxLevelCell, -wt_sfc, penetrativeTemperatureFlux, ws_sfc,                       &
              -uw_sfc, -vw_sfc, fac, dep1, dep2, config_les_dz, config_les_nz,                 &
@@ -357,7 +357,7 @@ contains
 
       etime = dt
 
-!      call palm_mod_palm_main(nCells, nVertLevels, activeTracers(1,:,:), activeTracers(2,:,:),              &
+!      call palm_main(nCells, nVertLevels, activeTracers(1,:,:), activeTracers(2,:,:),              &
 !             velocityZonal, velocityMeridional, layerThickness, latVal,                       &
 !             maxLevelCell, -wt_sfc, penetrativeTemperatureFlux, ws_sfc,                       &
 !             -uw_sfc, -vw_sfc, fac, dep1, dep2, config_les_dz, config_les_nz,                 &
@@ -366,7 +366,6 @@ contains
 !             velocityMeridionalLES, dt, zLES, config_les_disturb_energy_limit,                &
 !             config_les_disturb_amplitude, les_disturb_bottom, config_les_disturb_top,        &
 !             config_les_disturb_nblocks, les_bottom, config_les_time_avg)
-
 
       normalVelocityIncrementLES(:,:) = 0.0_RKIND
       !$omp do schedule(runtime)
@@ -382,7 +381,7 @@ contains
 
       end do
       !$omp end do
-     
+
       if(first) first = .false.
 
       deallocate(uw_sfc, vw_sfc, ws_sfc, wt_sfc)
@@ -482,7 +481,7 @@ contains
 
       nEdges = nEdgesArray(1)
       nCells = nCellsArray(1)
-     
+
       !$omp do schedule(runtime)
       do iCell=1,nCells
          do k=1,maxLevelCell(iCell)
@@ -504,8 +503,8 @@ contains
       !$omp end do
 
    end subroutine ocn_vmix_LES_apply_tend!}}}
-   
+
 end module ocn_vmix_LES
- 
+
 !|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 ! vim: foldmethod=marker

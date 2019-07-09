@@ -50,9 +50,9 @@
 !------------------------------------------------------------------------------!
  MODULE arrays_3d
 
- #if defined(__GPU)
+#if defined(__GPU)
     USE cudafor
- #endif
+#endif
 
     USE kinds
 
@@ -169,7 +169,7 @@
     REAL(wp), MANAGED, ALLOCATABLE, DIMENSION(:,:,:,:) :: kh_restart
 #else
     REAL(wp), ALLOCATABLE, DIMENSION(:,:,:,:) :: kh_restart
-#ENDIF
+#endif
 
     REAL(wp), DIMENSION(:,:,:), ALLOCATABLE ::  km          !< eddy diffusivity for momentum
 #ifdef __GPU
@@ -367,7 +367,7 @@
     REAL(wp), DIMENSION(:,:,:), POINTER, CONTIGUOUS ::  solar3d    !< pointer: 3d solar tendency
     REAL(wp), DIMENSION(:,:,:), POINTER, CONTIGUOUS ::  s          !< pointer: passive scalar
     REAL(wp), DIMENSION(:,:,:), POINTER, CONTIGUOUS ::  s_p        !< pointer: prognostic value of passive scalar
- #ifdef __GPU
+#ifdef __GPU
     REAL(wp), MANAGED, ALLOCATABLE, DIMENSION(:,:,:,:) :: sa_restart
 #else
     REAL(wp), ALLOCATABLE, DIMENSION(:,:,:,:) :: sa_restart
@@ -408,7 +408,7 @@
 #else
     REAL(wp), ALLOCATABLE, DIMENSION(:,:,:,:) :: w_restart
 #endif
-   REAL(wp), DIMENSION(:,:,:), POINTER, CONTIGUOUS ::  w_p        !< pointer: prognostic value of w
+    REAL(wp), DIMENSION(:,:,:), POINTER, CONTIGUOUS ::  w_p        !< pointer: prognostic value of w
 #endif
 
     REAL(wp), DIMENSION(:,:,:,:), ALLOCATABLE ::  tri    !<  array to hold the tridiagonal matrix for solution of the Poisson equation in Fourier space (4th dimension for threads)
@@ -624,7 +624,7 @@
     CHARACTER (LEN=210)  ::  run_description_header                       !< string containing diverse run informations as run identifier, coupling mode, host, ensemble number, run date and time
     CHARACTER (LEN=1000) ::  message_string = ' '                         !< dynamic string for error message output
 
-    CHARACTER (LEN=varnamelength), DIMENSION(500) ::  data_output = ' ' 
+    CHARACTER (LEN=varnamelength), DIMENSION(500) ::  data_output = ' '
     CHARACTER (LEN=varnamelength), DIMENSION(500) ::  data_output_user = ' '  !< namelist parameter
     CHARACTER (LEN=varnamelength), DIMENSION(500) ::  doav = ' '              !< label array for multi-dimensional,
                                                                               !< averaged output quantities
@@ -632,7 +632,7 @@
     CHARACTER (LEN=varnamelength), DIMENSION(max_masks,100) ::  data_output_masks = ' '       !< namelist parameter
     CHARACTER (LEN=varnamelength), DIMENSION(max_masks,100) ::  data_output_masks_user = ' '  !< namelist parameter
 
-    CHARACTER (LEN=varnamelength), DIMENSION(300) ::  data_output_pr = ' ' 
+    CHARACTER (LEN=varnamelength), DIMENSION(300) ::  data_output_pr = ' '
 
     CHARACTER (LEN=varnamelength), DIMENSION(200) ::  data_output_pr_user = ' '  !< namelist parameter
 
@@ -1584,7 +1584,7 @@
     INTEGER(iwp) ::  dopr_initial_index(300) = 0        !< index number of initial profiles to be output
 
 !    SAVE
-                 
+
 
  END MODULE profil_parameter
 

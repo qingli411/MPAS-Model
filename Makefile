@@ -1,4 +1,4 @@
-MODEL_FORMULATION = 
+MODEL_FORMULATION =
 
 
 dummy:
@@ -28,7 +28,7 @@ xlf:
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
- 
+
 ftn:
 	( $(MAKE) all \
 	"FC_PARALLEL = ftn" \
@@ -125,6 +125,32 @@ pgi:
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
+
+pgi-lanl:
+	( $(MAKE) all \
+	"FC_PARALLEL = mpif90" \
+	"CC_PARALLEL = mpicc" \
+	"CXX_PARALLEL = mpicxx" \
+	"FC_SERIAL = pgf90" \
+	"CC_SERIAL = pgcc" \
+	"CXX_SERIAL = pgc++" \
+	"FFLAGS_PROMOTION = -r8" \
+	"FFLAGS_OPT = -fpic -O3 -byteswapio -Mfree" \
+	"CFLAGS_OPT = -O3" \
+	"CXXFLAGS_OPT = -O3" \
+	"LDFLAGS_OPT = -O3" \
+	"FFLAGS_DEBUG = -fpic -O0 -g -Mbounds -Mchkptr -byteswapio -Mfree -Ktrap=divz,fp,inv,ovf -traceback" \
+	"CFLAGS_DEBUG = -O0 -g -traceback" \
+	"CXXFLAGS_DEBUG = -O0 -g -traceback" \
+	"LDFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -Ktrap=divz,fp,inv,ovf -traceback" \
+	"FFLAGS_OMP = -mp" \
+	"CFLAGS_OMP = -mp" \
+	"LES_COPT = -Mpreprocess -D__netcdf -D__nopointers -D__lc" \
+	"CORE = $(CORE)" \
+	"DEBUG = $(DEBUG)" \
+	"USE_PAPI = $(USE_PAPI)" \
+	"OPENMP = $(OPENMP)" \
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DUNDERSCORE" )
 
 pgi-titan-openacc:
 	( $(MAKE) all \
@@ -312,6 +338,7 @@ gfortran:
 	"LDFLAGS_DEBUG = -g -m64" \
 	"FFLAGS_OMP = -fopenmp" \
 	"CFLAGS_OMP = -fopenmp" \
+	"LES_COPT = -cpp -D__netcdf -D__nopointers -D__lc" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"KOKKOS = $(KOKKOS)" \
@@ -505,9 +532,9 @@ llvm:
 	"OPENMP = $(OPENMP)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
-CPPINCLUDES = 
-FCINCLUDES = 
-LIBS = 
+CPPINCLUDES =
+FCINCLUDES =
+LIBS =
 
 #
 # If user has indicated a PIO2 library, define USE_PIO2 pre-processor macro
@@ -572,11 +599,16 @@ ifneq "$(NETCDF)" ""
 	LIBS += $(NCLIB)
 endif
 
-
 ifneq "$(PNETCDF)" ""
 	CPPINCLUDES += -I$(PNETCDF)/include
 	FCINCLUDES += -I$(PNETCDF)/include
 	LIBS += -L$(PNETCDF)/lib -lpnetcdf
+endif
+
+ifneq "$(FFTW)" ""
+	CPPINCLUDES += -I$(FFTW)/include
+	FCINCLUDES += -I$(FFTW)/include
+	LIBS += -L$(FFTW)/lib -lfftw3
 endif
 
 RM = rm -f
@@ -646,14 +678,14 @@ endif #OPENMP IF
 ifeq "$(KOKKOS)" "true"
 	KOKKOS_DEVICES=Cuda
 
-	KOKKOS_CXX=kokkos/bin/nvcc_wrapper -ccbin 
+	KOKKOS_CXX=kokkos/bin/nvcc_wrapper -ccbin
 	KOKKOS_CXX += $(CXX)
 	KOKKOS_CUDA_OPTIONS = enable_lambda
 	KOKKOS_CPP_FLAGS = "-DGPU -lineinfo"
 	LIBS += -L$(CUDA)/lib64 -lcudart -lcufft
 else
 	KOKKOS_DEVICES=Serial
-	KOKKOS_CXX = $(CXX_SERIAL) 
+	KOKKOS_CXX = $(CXX_SERIAL)
 endif
 
 ifneq "$(KOKKOSARCH)" ""

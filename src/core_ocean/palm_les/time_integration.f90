@@ -57,7 +57,7 @@
                dt_dopr_listing, dt_dots, dt_run_control, end_time,    &
                forcing, timestep_count,g,dp_smooth_factor,       &
                intermediate_timestep_count, intermediate_timestep_count_max,   &
-               masks, time_avg,                   &
+               masks,                   &
                mid, average_count_meanpr,  &
                neutral, nr_timesteps_this_run, nudging,                        &
                passive_scalar, pt_reference,            &
@@ -126,7 +126,7 @@
     INTEGER(iwp)      ::  lsp
     INTEGER(iwp)      ::  n
 
-    #define MY_DEBUG print *,"DEBUG",__LINE__,__FILE__
+!    #define MY_DEBUG print *,"DEBUG",__LINE__,__FILE__
 
     REAL(wp) ::  dt_3d_old  !< temporary storage of timestep to be used for
                             !< steering of run control output interval
@@ -273,7 +273,7 @@
           THEN
   time_disturb = time_disturb + dt_3d
 
-             IF ( time_disturb < dt_disturb ) then 
+             IF ( time_disturb < dt_disturb ) then
       !       if (dt_3d_old == dt_3d .and. first) then
                   CALL disturb_field( 'u', tend, u)
               CALL disturb_field( 'v', tend, v)
@@ -353,7 +353,7 @@
          average_count_meanpr = average_count_meanpr + 1
          firstav = .false.
        else
-        
+
          meanFields_avg(:,1) = meanFields_avg(:,1) / average_count_meanpr
          meanFields_avg(:,2) = meanFields_avg(:,2) / average_count_meanpr
          meanFields_avg(:,3) = meanFields_avg(:,3) / average_count_meanpr
@@ -377,7 +377,7 @@
           vProfileInit(:) =  hom(nzb:nzt,1,2,0)
           tProfileInit(:) =  hom(nzb:nzt,1,4,0)
           sProfileInit(:) =  hom(nzb:nzt,1,5,0)
-          end_time = simulated_time + dt_LS 
+          end_time = simulated_time + dt_LS
        endif
 
 !--    Computation and output of run control parameters.

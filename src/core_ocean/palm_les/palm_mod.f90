@@ -70,9 +70,9 @@ module palm_mod
 
     use statistics
 
-    #if defined( __cudaProfiler )
-        USE cudafor
-    #endif
+#if defined( __cudaProfiler )
+    USE cudafor
+#endif
 
     IMPLICIT NONE
 
@@ -100,7 +100,7 @@ module palm_mod
 
     public :: palm_init, palm_main, palm_finalize
 
-    contains 
+    contains
 
     subroutine palm_init(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
                 lat_mpas,maxLevels,wtflux,wtflux_solar, wsflux,uwflux, &
@@ -143,7 +143,7 @@ module palm_mod
    call init_control_parameters
 
    dt_disturb = dtDisturb
-   end_time = 3600.0_wp 
+   end_time = 3600.0_wp
    ideal_solar_division = fac
    ideal_solar_efolding1 = dep1
    ideal_solar_efolding2 = dep2
@@ -220,7 +220,7 @@ module palm_mod
 
     nzt = nzLES
      ! construct a stretched stretched grid
-    z_cntr = zedge(zeMPASspot) 
+    z_cntr = zedge(zeMPASspot)
     z_frst = -dzLES
     z_fac1 = z_cntr / z_frst
     z_fac2 = 1.0_wp / REAL(nzt,kind=wp)
@@ -277,24 +277,25 @@ module palm_mod
 ! interpolate mpas data to les and send to init variable
     CALL allocate_3d_arrays(nCells)
 !-- Initialize all necessary variables
-    CALL init_3d_model  ! need a pass through for restarts 
+    CALL init_3d_model  ! need a pass through for restarts
+
     do iCell=1,nCells
 
-     #if ! defined( __nopointer )
+#if ! defined( __nopointer )
 !
 !-- Initial assignment of the pointers
-    IF ( .NOT. neutral )  THEN 
-       pt => pt_1;  pt_p => pt_2;  tpt_m => pt_3 
-    ELSE 
-       pt => pt_1;  pt_p => pt_1;  tpt_m => pt_3 
+    IF ( .NOT. neutral )  THEN
+       pt => pt_1;  pt_p => pt_2;  tpt_m => pt_3
+    ELSE
+       pt => pt_1;  pt_p => pt_1;  tpt_m => pt_3
     ENDIF
     u  => u_1;   u_p  => u_2;   tu_m  => u_3
     v  => v_1;   v_p  => v_2;   tv_m  => v_3
-    w  => w_1;   w_p  => w_2;   tw_m  => w_3                                                                                                                               
-    sa => sa_1;  sa_p => sa_2;  tsa_m => sa_3 
+    w  => w_1;   w_p  => w_2;   tw_m  => w_3
+    sa => sa_1;  sa_p => sa_2;  tsa_m => sa_3
 #endif
- 
-      
+
+
       zmid(1) = -0.5_wp*lt_mpas(1,iCell)
    zedge(1) = 0
 
@@ -320,7 +321,7 @@ module palm_mod
      endif
    enddo
     ! construct a stretched stretched grid
-    z_cntr = zedge(zeMPASspot) 
+    z_cntr = zedge(zeMPASspot)
     z_frst = -dzLES
     z_fac1 = z_cntr / z_frst
     z_fac2 = 1.0_wp / REAL(nzt,kind=wp)
@@ -368,7 +369,7 @@ module palm_mod
 !
 !--    In case of dirichlet bc for u and v the first u- and w-level are defined
 !--    at same height.
-       IF ( ibc_uv_b == 0 ) THEN 
+       IF ( ibc_uv_b == 0 ) THEN
           zu(0) = zw(0)
        ENDIF
 !
@@ -469,7 +470,7 @@ v_p = v
 !    CALL cpu_statistics
 
     if(average_count_meanpr /= 0) then
- 
+
        meanFields_avg(:,1) = meanFields_avg(:,1) / average_count_meanpr
        meanFields_avg(:,2) = meanFields_avg(:,2) / average_count_meanpr
        meanFields_avg(:,3) = meanFields_avg(:,3) / average_count_meanpr
@@ -570,7 +571,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
    call init_control_parameters
 
    create_disturbances=.false.
-   dt_disturb = 0.0_wp 
+   dt_disturb = 0.0_wp
    end_time = endTime
    ideal_solar_division = fac
    ideal_solar_efolding1 = dep1
@@ -612,7 +613,7 @@ print *, '7'
    enddo
     nzt = nzLES
     ! construct a stretched stretched grid
-    z_cntr = zedge(zeMPASspot) 
+    z_cntr = zedge(zeMPASspot)
     z_frst = -dzLES
     z_fac1 = z_cntr / z_frst
     z_fac2 = 1.0_wp / REAL(nzt,kind=wp)
@@ -658,7 +659,7 @@ print *, '8'
 !
 !--    In case of dirichlet bc for u and v the first u- and w-level are defined
 !--    at same height.
-       IF ( ibc_uv_b == 0 ) THEN 
+       IF ( ibc_uv_b == 0 ) THEN
           zu(0) = zw(0)
        ENDIF
 !
@@ -757,7 +758,7 @@ print *, '11'
 !    CALL cpu_statistics
 
     if(average_count_meanpr /= 0) then
- 
+
        meanFields_avg(:,1) = meanFields_avg(:,1) / average_count_meanpr
        meanFields_avg(:,2) = meanFields_avg(:,2) / average_count_meanpr
        meanFields_avg(:,3) = meanFields_avg(:,3) / average_count_meanpr
@@ -858,7 +859,6 @@ subroutine init_control_parameters
     USE statistics, only: flow_statistics_called
     USE kinds
 
-
     openfile = file_status(.FALSE.,.FALSE.)
 
     rayleigh_damping_factor = -1.0_wp
@@ -891,7 +891,7 @@ subroutine init_control_parameters
         data_output = ' '
         data_output_user = ' '
         doav = ' '
-        data_output_masks = ' ' 
+        data_output_masks = ' '
         data_output_pr = ' '
         domask = ' '
         do2d = ' '
@@ -913,7 +913,7 @@ subroutine init_control_parameters
         dopr_time_count = 0
         dopts_time_count = 0
         dots_time_count = 0
-        dp_level_ind_b = 0 
+        dp_level_ind_b = 0
         dvrp_filecount = 0
         ensemble_member_nr = 0
 
@@ -942,9 +942,9 @@ subroutine init_control_parameters
         sa_vertical_gradient_level_ind(10) = -9999
  !       stokes_drift_method = -9999
 
- !       dz(10) = -1.0_wp 
+ !       dz(10) = -1.0_wp
  !       dzconst = 2.5_wp
-!        dt_disturb = 20.0_wp 
+!        dt_disturb = 20.0_wp
 !        dt_do3d = 9999999.9_wp
 !        dt_3d = 0.01_wp
 
@@ -965,7 +965,7 @@ subroutine init_control_parameters
 end subroutine init_control_parameters
 
 subroutine deallocate_memory
-        
+
         use pegrid
 
         deallocate(hor_index_bounds)

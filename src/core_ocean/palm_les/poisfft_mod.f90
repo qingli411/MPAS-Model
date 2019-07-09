@@ -19,36 +19,36 @@
 !
 ! Current revisions:
 ! -----------------
-! 
-! 
+!
+!
 ! Former revisions:
 ! -----------------
 ! $Id: poisfft_mod.f90 2718 2018-01-02 08:49:38Z maronga $
 ! Corrected "Former revisions" section
-! 
+!
 ! 2696 2017-12-14 17:12:51Z kanani
 ! Change in file header (GPL part)
 !
 ! 2300 2017-06-29 13:31:14Z raasch
 ! settings depending on host variable removed or replaced by loop_optimization
-! 
+!
 ! 2119 2017-01-17 16:51:50Z raasch
 !
 ! 2118 2017-01-17 16:38:49Z raasch
 ! OpenACC directives and related code removed
-! 
+!
 ! 2000 2016-08-20 18:09:15Z knoop
 ! Forced header and separation lines into 80 columns
-! 
+!
 ! 1850 2016-04-08 13:29:27Z maronga
 ! Module renamed
-! 
-! 
+!
+!
 ! 1804 2016-04-05 16:30:18Z maronga
 ! Removed code for parameter file check (__check)
-! 
+!
 ! 1682 2015-10-07 23:56:08Z knoop
-! Code annotations made doxygen readable 
+! Code annotations made doxygen readable
 !
 ! 1482 2014-10-18 12:34:45Z raasch
 ! use 2d-decomposition, if accelerator boards are used
@@ -151,7 +151,7 @@
 !> real    ar   contains the solution for perturbation pressure p
 !------------------------------------------------------------------------------!
  MODULE poisfft_mod
- 
+
 
     USE fft_xy,                                                                &
         ONLY:  fft_init, fft_y, fft_x
@@ -170,7 +170,7 @@
     USE cudafor
 #endif
 
-#define MY_DEBUG print *,"DEBUG",__LINE__,__FILE__
+!#define MY_DEBUG print *,"DEBUG",__LINE__,__FILE__
 
     IMPLICIT NONE
 
