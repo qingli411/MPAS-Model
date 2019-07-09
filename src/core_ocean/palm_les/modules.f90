@@ -1025,7 +1025,7 @@
     REAL(wp) ::  s_surface_initial_change = 0.0_wp             !< namelist parameter
     REAL(wp) ::  termination_time_needed = 35.0_wp             !< namelist parameter
     REAL(wp) ::  time_coupling = 0.0_wp                        !< time since last coupling (surface_coupler)
-    REAL(wp) ::  time_disturb = 0.0_wp                         !< time since last flow disturbance\
+    REAL(wp) ::  time_disturb = 0.0_wp                         !< time since last flow disturbance
     REAL(wp) ::  time_avg = 0.0_wp
     REAL(wp) ::  time_dopr = 0.0_wp                            !< time since last profile output
     REAL(wp) ::  time_dopr_av = 0.0_wp                         !< time since last averaged profile output

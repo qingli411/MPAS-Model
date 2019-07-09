@@ -722,13 +722,6 @@
 !-- At first, check static and dynamic input for consistency
     CALL netcdf_data_input_check_dynamic
     CALL netcdf_data_input_check_static
-#else
-!    ALLOCATE( pt_init(0:nz+1), q_init(0:nz+1), s_init(0:nz+1),        &        
-!                       ref_state(0:nz+1), sa_init(0:nz+1), ug(0:nz+1),  &       
-!                       u_init(0:nz+1), v_init(0:nz+1), vg(0:nz+1),       &       
-!                       hom(0:nz+1,2,14,0:statistic_regions), &       
-!                       hom_sum(0:nz+1,14,0:statistic_regions), &
-!                       meanFields_avg(0:nz+1,4))
 #endif
     !
 !-- Check for overlap combinations, which are not realized yet

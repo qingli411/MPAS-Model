@@ -181,6 +181,7 @@ contains
       call mpas_pool_get_config(ocnConfigs, 'config_AM_mixedLayerDepths_enable', config_AM_mixedLayerDepths_enable)
 
       if ( .not. config_use_les_for_vmix ) return
+
       if (config_use_ecosysTracers) then
          call mpas_log_write('Error, superparameterization is not configured for use with BGC',MPAS_LOG_CRIT)
       endif
@@ -356,15 +357,15 @@ contains
 
       etime = dt
 
-      call palm_mod_palm_main(nCells, nVertLevels, activeTracers(1,:,:), activeTracers(2,:,:),              &
-             velocityZonal, velocityMeridional, layerThickness, latVal,                       &
-             maxLevelCell, -wt_sfc, penetrativeTemperatureFlux, ws_sfc,                       &
-             -uw_sfc, -vw_sfc, fac, dep1, dep2, config_les_dz, config_les_nz,                 &
-             etime, config_les_dt_disturb, tIncrementLES, sIncrementLES, uIncrementLES,       &
-             vIncrementLES, temperatureLES, salinityLES, velocityZonalLES,                    &
-             velocityMeridionalLES, dt, zLES, config_les_disturb_energy_limit,                &
-             config_les_disturb_amplitude, les_disturb_bottom, config_les_disturb_top,        &
-             config_les_disturb_nblocks, les_bottom, config_les_time_avg)
+!      call palm_mod_palm_main(nCells, nVertLevels, activeTracers(1,:,:), activeTracers(2,:,:),              &
+!             velocityZonal, velocityMeridional, layerThickness, latVal,                       &
+!             maxLevelCell, -wt_sfc, penetrativeTemperatureFlux, ws_sfc,                       &
+!             -uw_sfc, -vw_sfc, fac, dep1, dep2, config_les_dz, config_les_nz,                 &
+!             etime, config_les_dt_disturb, tIncrementLES, sIncrementLES, uIncrementLES,       &
+!             vIncrementLES, temperatureLES, salinityLES, velocityZonalLES,                    &
+!             velocityMeridionalLES, dt, zLES, config_les_disturb_energy_limit,                &
+!             config_les_disturb_amplitude, les_disturb_bottom, config_les_disturb_top,        &
+!             config_les_disturb_nblocks, les_bottom, config_les_time_avg)
 
 
       normalVelocityIncrementLES(:,:) = 0.0_RKIND
@@ -383,6 +384,9 @@ contains
       !$omp end do
      
       if(first) first = .false.
+
+      deallocate(uw_sfc, vw_sfc, ws_sfc, wt_sfc)
+      deallocate(les_disturb_bottom, les_bottom,latVal)
 
       deallocate(zonalAverage)
       deallocate(meridionalAverage)

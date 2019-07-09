@@ -388,7 +388,6 @@ contains
                  surfaceStress, kineticEnergyCell, layerThicknessEdge, &
                                    tend_normalVelocity, err)
       end if
->>>>>>> cc4853c1... first commit that successfully compiles
 
       !
       ! velocity tendency: vertical mixing d/dz( nu_v du/dz))

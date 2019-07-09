@@ -159,7 +159,6 @@ module palm_mod
    allocate(zmid(nVertLevels),zedge(nVertLevels+1))
    allocate(T_mpas2(nVertLevels),S_mpas2(nVertLevels),U_mpas2(nVertLevels))
    allocate(V_mpas2(nVertLevels))
-
    iCell = 1
 
    zmid(1) = -0.5_wp*lt_mpas(1,iCell)
@@ -214,7 +213,6 @@ module palm_mod
 
 !-- Determine processor topology and local array indices
     CALL init_pegrid
-
     allocate(zu(nzb:nzt+1),zeLES(nzb-1:nzt+1),Tles(0:nzLES+1),Sles(0:nzLES+1))
     allocate(zw(nzb:nzt+1),Ules(0:nzLES+1),Vles(0:nzLES+1))
     allocate(zeLESinv(nzb-1:nzt+1))
@@ -269,15 +267,17 @@ module palm_mod
                        ref_state(0:nz+1), sa_init(0:nz+1), ug(0:nz+1),  &
                        u_init(0:nz+1), v_init(0:nz+1), vg(0:nz+1),       &
                        hom(0:nz+1,2,14,0:statistic_regions), &
-                       hom_sum(0:nz+1,14,0:statistic_regions), &
-                       meanFields_avg(0:nz+1,4))
+                       hom_sum(0:nz+1,14,0:statistic_regions))!, &
+    if( .not. ALLOCATED(meanFields_avg)) then
+       allocate(meanFields_avg(0:nz+1,4))
+    endif
+
 !-- Check control parameters and deduce further quantities
     CALL check_parameters
 ! interpolate mpas data to les and send to init variable
     CALL allocate_3d_arrays(nCells)
 !-- Initialize all necessary variables
-!    CALL init_3d_model  ! need a pass through for restarts 
-
+    CALL init_3d_model  ! need a pass through for restarts 
     do iCell=1,nCells
 
      #if ! defined( __nopointer )
@@ -397,7 +397,6 @@ module palm_mod
     fMPAS(1,2,:nzMPAS) = S_mpas(1:nzMPAS,iCell)
     fMPAS(1,3,:nzMPAS) = U_mpas(1:nzMPAS,iCell)
     fMPAS(1,4,:nzMPAS) = V_mpas(1:nzMPAS,iCell)
-
     jl=1
     do il = nzt,nzb-1,-1
       zeLESinv(jl) = zeLES(il)
@@ -447,7 +446,6 @@ pt_p = pt
 sa_p = sa
 u_p = u
 v_p = v
-
     CALL cpu_log( log_point(2), 'initialisation', 'stop' )
 !
 !-- Set start time in format hh:mm:ss
@@ -523,7 +521,6 @@ v_p = v
     e_restart(:,:,:,iCell) = e(:,:,:)
     km_restart(:,:,:,iCell) = km(:,:,:)
     kh_restart(:,:,:,iCell) = kh(:,:,:)
-
     call init_control_parameters
   enddo !ends icell loop
 
@@ -535,7 +532,7 @@ end subroutine palm_init
 
 subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
              lat_mpas,maxLevels,wtflux,wtflux_solar, wsflux,uwflux, &
-             vwflux,fac,dep1,dep2,dzLES,nzLES,        &
+              vwflux,fac,dep1,dep2,dzLES,nzLES,        &
              endTime, dtDisturb, tIncrementLES,sIncrementLES,             &
              uIncrementLES,vIncrementLES,tempLES,    &
              salinityLES, uLESout, vLESout, dtLS, zLES, &
@@ -591,7 +588,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
       initializing_actions  = 'SP_run_continue'
     zmid(1) = -0.5_wp*lt_mpas(1,iCell)
    zedge(1) = 0
-
+print *, '7'
    do il=2,maxLevels(iCell)
       zmid(il) = zmid(il-1) - 0.5*(lt_mpas(il-1,iCell) + lt_mpas(il,iCell))
       zedge(il) = zedge(il-1) - lt_mpas(il-1,iCell)
@@ -623,7 +620,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
     tol = 1.0E-10_wp
     test = 10.00_wp
     knt = 0
-
+print *, '8'
     do while (test > tol)
       knt = knt + 1
       z_facn = (z_fac1*(z_fac - 1.0_wp) + 1.0_wp)**z_fac2
@@ -665,7 +662,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
           zu(0) = zw(0)
        ENDIF
 !
-
+print *, '9'
 !-- Compute grid lengths.
     DO  k = 1, nzt+1
        dzu(k)  = zu(k) - zu(k-1)
@@ -721,7 +718,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
        tProfileInit(jl) = tLSforcing(jl)
        sProfileInit(jl) = sLSforcing(jl)
     enddo
-
+print *, '9'
 !need to cudify this super easy collapse 3 herrel
     u(:,:,:) = u_restart(:,:,:,iCell)
     v(:,:,:) = v_restart(:,:,:,iCell)
@@ -754,6 +751,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
     CALL cudaProfilerStop()
 #endif
 !
+print *, '11'
 !-- Take final CPU-time for CPU-time analysis
     CALL cpu_log( log_point(1), 'total', 'stop' )
 !    CALL cpu_statistics
@@ -811,7 +809,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
     e_restart(:,:,:,iCell) = e(:,:,:)
     km_restart(:,:,:,iCell) = km(:,:,:)
     kh_restart(:,:,:,iCell) = kh(:,:,:)
-
+print *, '12'
     call init_control_parameters
   enddo !ends icell loop
 

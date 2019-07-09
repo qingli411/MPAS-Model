@@ -17,6 +17,4 @@ program mpas
 
    call mpas_finalize()
 
-   stop
-
 end program mpas
