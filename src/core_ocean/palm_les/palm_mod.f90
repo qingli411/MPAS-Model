@@ -143,7 +143,7 @@ module palm_mod
    call init_control_parameters
 
    dt_disturb = dtDisturb
-   end_time = 3600.0_wp 
+   end_time = 60.0_wp 
    ideal_solar_division = fac
    ideal_solar_efolding1 = dep1
    ideal_solar_efolding2 = dep2
@@ -215,7 +215,7 @@ module palm_mod
     CALL init_pegrid
     allocate(zu(nzb:nzt+1),zeLES(nzb-1:nzt+1),Tles(0:nzLES+1),Sles(0:nzLES+1))
     allocate(zw(nzb:nzt+1),Ules(0:nzLES+1),Vles(0:nzLES+1))
-    allocate(zeLESinv(nzb-1:nzt+1))
+    allocate(zeLESinv(1:nzt-nzb+2))
     ALLOCATE( hyp(nzb:nzt+1) )
 
     nzt = nzLES
@@ -268,9 +268,11 @@ module palm_mod
                        u_init(0:nz+1), v_init(0:nz+1), vg(0:nz+1),       &
                        hom(0:nz+1,2,14,0:statistic_regions), &
                        hom_sum(0:nz+1,14,0:statistic_regions))!, &
-    if( .not. ALLOCATED(meanFields_avg)) then
+
+    if( ALLOCATED(meanFields_avg)) then
+       deallocate(meanFields_avg)
+     endif
        allocate(meanFields_avg(0:nz+1,4))
-    endif
 
 !-- Check control parameters and deduce further quantities
     CALL check_parameters
@@ -507,9 +509,9 @@ v_p = v
     vIncrementLES(:,iCell) = 0.0_wp
     do jl=1,nzMPAS
       tIncrementLES(jl,iCell) = fMPAS(1,1,jl)
-      sIncrementLES(jl,iCell) = fMPAS(2,1,jl)
-      uIncrementLES(jl,iCell) = fMPAS(3,1,jl)
-      vIncrementLES(jl,iCell) = fMPAS(4,1,jl)
+      sIncrementLES(jl,iCell) = fMPAS(1,2,jl)
+      uIncrementLES(jl,iCell) = fMPAS(1,3,jl)
+      vIncrementLES(jl,iCell) = fMPAS(1,4,jl)
     enddo
 
     !put variables in arrays to continue
@@ -588,7 +590,6 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
       initializing_actions  = 'SP_run_continue'
     zmid(1) = -0.5_wp*lt_mpas(1,iCell)
    zedge(1) = 0
-print *, '7'
    do il=2,maxLevels(iCell)
       zmid(il) = zmid(il-1) - 0.5*(lt_mpas(il-1,iCell) + lt_mpas(il,iCell))
       zedge(il) = zedge(il-1) - lt_mpas(il-1,iCell)
@@ -620,7 +621,6 @@ print *, '7'
     tol = 1.0E-10_wp
     test = 10.00_wp
     knt = 0
-print *, '8'
     do while (test > tol)
       knt = knt + 1
       z_facn = (z_fac1*(z_fac - 1.0_wp) + 1.0_wp)**z_fac2
@@ -662,7 +662,6 @@ print *, '8'
           zu(0) = zw(0)
        ENDIF
 !
-print *, '9'
 !-- Compute grid lengths.
     DO  k = 1, nzt+1
        dzu(k)  = zu(k) - zu(k-1)
@@ -718,7 +717,6 @@ print *, '9'
        tProfileInit(jl) = tLSforcing(jl)
        sProfileInit(jl) = sLSforcing(jl)
     enddo
-print *, '9'
 !need to cudify this super easy collapse 3 herrel
     u(:,:,:) = u_restart(:,:,:,iCell)
     v(:,:,:) = v_restart(:,:,:,iCell)
@@ -751,7 +749,6 @@ print *, '9'
     CALL cudaProfilerStop()
 #endif
 !
-print *, '11'
 !-- Take final CPU-time for CPU-time analysis
     CALL cpu_log( log_point(1), 'total', 'stop' )
 !    CALL cpu_statistics
@@ -795,9 +792,9 @@ print *, '11'
     vIncrementLES(:,iCell) = 0.0_wp
     do jl=1,nzMPAS
       tIncrementLES(jl,iCell) = fMPAS(1,1,jl)
-      sIncrementLES(jl,iCell) = fMPAS(2,1,jl)
-      uIncrementLES(jl,iCell) = fMPAS(3,1,jl)
-      vIncrementLES(jl,iCell) = fMPAS(4,1,jl)
+      sIncrementLES(jl,iCell) = fMPAS(1,2,jl)
+      uIncrementLES(jl,iCell) = fMPAS(1,3,jl)
+      vIncrementLES(jl,iCell) = fMPAS(1,4,jl)
     enddo
 
    !put variables in arrays to continue
@@ -809,7 +806,6 @@ print *, '11'
     e_restart(:,:,:,iCell) = e(:,:,:)
     km_restart(:,:,:,iCell) = km(:,:,:)
     kh_restart(:,:,:,iCell) = kh(:,:,:)
-print *, '12'
     call init_control_parameters
   enddo !ends icell loop
 

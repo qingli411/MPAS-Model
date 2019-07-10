@@ -1477,6 +1477,7 @@
     !$acc loop collapse(2)
     DO  i = nxl, nxr
        DO  j = nys, nyn
+         k = nzt
          ! remove surf_def stuff and just apply constant flux
          sfc_buoy = g * alpha_T(k,j,i) * top_heatflux - g * beta_S(k,j,i) * top_salinityflux
          tend(k,j,i) = tend(k,j,i) + drho_air_zw(k) * sfc_buoy

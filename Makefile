@@ -77,18 +77,21 @@ pgi-p9:
   "CC_SERIAL = pgcc" \
   "CXX_SERIAL = pgc++" \
   "FFLAGS_PROMOTION = -r8" \
-  "FFLAGS_OPT = -g -O3 -byteswapio -Mfree " \
-	"LES_FFLAGS_OPT = -acc -ta=tesla:cc70,deepcopy -Minfo=accel -Mcuda" \
-	"LDFLAGS_OPT = -O3 -ta=tesla:cc70,deepcopy -Minfo=accel -Mcuda -lcufft" \
-	"LES_LDFLAGS_OPT = -O3 -ta=tesla:cc70,deepcopy -Minfo=accel -Mcuda -lcufft" \
-	"LES_COPT = -Mpreprocess -D__netcdf -D__lc -D__cudaProfiler -D__GPU -D__nopointers" \
-	"FFLAGS_ACC = -acc -Mcuda -ta=tesla:cc70 -I/usr/projects/icapt/libs-mpas/ompi-pg18/include" \
-  "CFLAGS_ACC = -acc -Mcuda -ta=tesla:cc70 -I/usr/projects/icapt/libs-mpas/ompi-pg18/include"  \
+  "FFLAGS_OPT = -O3 -byteswapio -Mfree -I${OLCF_FFTW_ROOT}/include" \
+	"LES_FFLAGS_OPT = -O3 -byteswapio -Mfree" \
+	"LDFLAGS_OPT = -O3 -L${OLCF_FFTW_ROOT}/lib -lfftw3" \
+	"LES_LDFLAGS_OPT = -O3 -L${OLCF_FFTW_ROOT}/lib -lfftw3" \
+	"LES_COPT = -Mpreprocess -D__netcdf -D__lc -D__nopointers "  \
+	"FFLAGS_ACC = -acc -Mcuda -ta=tesla:cc70" \
+  "CFLAGS_ACC = -acc -Mcuda -ta=tesla:cc70" \
+  "LES_LDFLAGS_ACC = -ta=tesla:cc70,deepcopy -Minfo=accel -Mcuda -lcufft" \
+	"LES_FFLAGS_ACC = -ta=tesla:cc70,deepcopy -Minfo=accel -Mcuda -lcufft" \
+	"LDFLAGS_ACC = -ta=tesla:cc70,deepcopy -Minfo=accel -Mcuda -lcufft" \
   "OPENACC = $(OPENACC)" \
-  "CFLAGS_OPT = -g -O3 " \
-  "CXXFLAGS_OPT =  -g -O3 " \
-  "LDFLAGS_OPT = -g -O3 -L/usr/projects/icapt/libs-mpas/ompi-pg18/lib" \
-  "FFLAGS_DEBUG =  -O0 -g -Mbounds -Mchkptr -byteswapio -Mfree -Ktrap=divz,fp,inv,ovf " \
+  "CFLAGS_OPT = -O3" \
+  "CXXFLAGS_OPT =  -O3" \
+  "LDFLAGS_OPT = -O3" \
+  "FFLAGS_DEBUG =  -O0 -g -Mbounds -Mchkptr -byteswapio -Mfree -Ktrap=divz,fp,inv,ovf -I${OLCF_FFTW_ROOT}/include" \
   "CFLAGS_DEBUG =  -O0 -g " \
   "CXXFLAGS_DEBUG =  -O0 -g " \
   "LDFLAGS_DEBUG = -O0 -Mbounds -Mchkptr -Ktrap=divz,fp,inv,ovf  -L/usr/projects/icapt/libs-mpas/ompi-pg18/lib" \
@@ -698,12 +701,6 @@ ifeq "$(TIMER_LIB)" "gptl"
 	TIMER_MESSAGE="GPTL is being used for the timer interface"
 endif
 
-ifeq "$(LES_GPU)" "true"
-	FFLAGS += -acc -ta=tesla:cc70,deepcopy -Minfo=accel -Mcuda
-	LDFLAGS += -acc -ta=tesla:cc70 -Minfo=accel -Mcuda -lcufft
-	LES_COPT += -D__lc -D__cudaProfiler -D__fftw -D__GPU
-endif
-
 ifeq "$(TIMER_LIB)" ""
 	override CPPFLAGS += -DMPAS_NATIVE_TIMERS
 	TIMER_MESSAGE="The native timer interface is being used"
@@ -732,6 +729,14 @@ else
 	override GEN_F90=false
 	GEN_F90_MESSAGE="MPAS was built with .F files."
 endif
+
+ifeq "$(LES_GPU)" "true"
+override LES_COPT += -D__lc -D__cudaProfiler -D__GPU
+else
+	override LES_COPT += -D__fftw
+	LIBS += -L${OLCF_FFTW_ROOT}/lib -lfftw3
+endif
+
 
 ifeq "$(OPENMP)" "true"
 	OPENMP_MESSAGE="MPAS was built with OpenMP enabled."
@@ -922,6 +927,7 @@ endif
 		 KOKKOS_CUDA_OPTIONS="$(KOKKOS_CUDA_OPTIONS)" \
 		 KOKKOS_ARCH="$(KOKKOS_ARCH)" \
 		 KOKKOS_CPP_FLAGS="$(KOKKOS_CPP_FLAGS)" \
+		 LES_COPT="$(LES_COPT)" \
 		 NAMELIST_SUFFIX="$(NAMELIST_SUFFIX)" \
                  EXE_NAME="$(EXE_NAME)"
 

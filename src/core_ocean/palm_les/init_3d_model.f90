@@ -141,11 +141,8 @@
     DEALLOCATE( d )
     deallocate(p)
     deallocate(tend)
-    print *, '12214123'
 !    deallocate(sums_l)
-    print *, '90029098'
 !    deallocate(sums_l_l )
-print *, '33'
 #if defined( __nopointer )
     DEALLOCATE( pt, pt_p, u, u_p, v, v_p, w, w_p, tpt_m, tu_m, tv_m, tw_m)
 #else
@@ -210,9 +207,9 @@ print *, '33'
               ngp_2dh_s_inner(nzb:nzt+1,0:statistic_regions),                  &
               ngp_2dh_s_inner_l(nzb:nzt+1,0:statistic_regions),                &
               rmask(nysg:nyng,nxlg:nxrg,0:statistic_regions),                  &
-              sums(nzb:nzt+1,pr_palm+max_pr_user),                             &
+              sums(nzb:nzt+1,14),                             &
 !              sums_l(nzb:nzt+1,pr_palm+max_pr_user,0:threads_per_task-1),      &
-              sums_l(nzb:nzt+1,13,0:threads_per_task-1),      &
+              sums_l(nzb:nzt+1,14,0:threads_per_task-1),      &
               sums_l_l(nzb:nzt+1,0:statistic_regions,0:threads_per_task-1),    &
               sums_wsts_bc_l(nzb:nzt+1,0:statistic_regions),                   &
               ts_value(dots_max,0:statistic_regions) )
