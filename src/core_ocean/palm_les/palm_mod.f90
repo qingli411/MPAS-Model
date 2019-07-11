@@ -140,7 +140,7 @@ module palm_mod
    bc_l(:)%bcopt = bcon_loose
    bc_r(:)%bcopt = bcon_loose
 
-   call init_control_parameters
+   ! call init_control_parameters
 
    dt_disturb = dtDisturb
    end_time = 3600.0_wp
@@ -215,7 +215,7 @@ module palm_mod
     CALL init_pegrid
     allocate(zu(nzb:nzt+1),zeLES(nzb-1:nzt+1),Tles(0:nzLES+1),Sles(0:nzLES+1))
     allocate(zw(nzb:nzt+1),Ules(0:nzLES+1),Vles(0:nzLES+1))
-    allocate(zeLESinv(nzb-1:nzt+1))
+    allocate(zeLESinv(nzb-1:nzt+2))
     ALLOCATE( hyp(nzb:nzt+1) )
 
     nzt = nzLES
@@ -268,9 +268,10 @@ module palm_mod
                        u_init(0:nz+1), v_init(0:nz+1), vg(0:nz+1),       &
                        hom(0:nz+1,2,14,0:statistic_regions), &
                        hom_sum(0:nz+1,14,0:statistic_regions))!, &
-    if( .not. ALLOCATED(meanFields_avg)) then
-       allocate(meanFields_avg(0:nz+1,4))
+    if( ALLOCATED(meanFields_avg)) then
+       deallocate(meanFields_avg)
     endif
+    allocate(meanFields_avg(0:nz+1,4))
 
 !-- Check control parameters and deduce further quantities
     CALL check_parameters
@@ -508,9 +509,9 @@ v_p = v
     vIncrementLES(:,iCell) = 0.0_wp
     do jl=1,nzMPAS
       tIncrementLES(jl,iCell) = fMPAS(1,1,jl)
-      sIncrementLES(jl,iCell) = fMPAS(2,1,jl)
-      uIncrementLES(jl,iCell) = fMPAS(3,1,jl)
-      vIncrementLES(jl,iCell) = fMPAS(4,1,jl)
+      sIncrementLES(jl,iCell) = fMPAS(1,2,jl)
+      uIncrementLES(jl,iCell) = fMPAS(1,3,jl)
+      vIncrementLES(jl,iCell) = fMPAS(1,4,jl)
     enddo
 
     !put variables in arrays to continue
@@ -796,9 +797,9 @@ print *, '11'
     vIncrementLES(:,iCell) = 0.0_wp
     do jl=1,nzMPAS
       tIncrementLES(jl,iCell) = fMPAS(1,1,jl)
-      sIncrementLES(jl,iCell) = fMPAS(2,1,jl)
-      uIncrementLES(jl,iCell) = fMPAS(3,1,jl)
-      vIncrementLES(jl,iCell) = fMPAS(4,1,jl)
+      sIncrementLES(jl,iCell) = fMPAS(1,2,jl)
+      uIncrementLES(jl,iCell) = fMPAS(1,3,jl)
+      vIncrementLES(jl,iCell) = fMPAS(1,4,jl)
     enddo
 
    !put variables in arrays to continue

@@ -357,15 +357,15 @@ contains
 
       etime = dt
 
-!      call palm_main(nCells, nVertLevels, activeTracers(1,:,:), activeTracers(2,:,:),              &
-!             velocityZonal, velocityMeridional, layerThickness, latVal,                       &
-!             maxLevelCell, -wt_sfc, penetrativeTemperatureFlux, ws_sfc,                       &
-!             -uw_sfc, -vw_sfc, fac, dep1, dep2, config_les_dz, config_les_nz,                 &
-!             etime, config_les_dt_disturb, tIncrementLES, sIncrementLES, uIncrementLES,       &
-!             vIncrementLES, temperatureLES, salinityLES, velocityZonalLES,                    &
-!             velocityMeridionalLES, dt, zLES, config_les_disturb_energy_limit,                &
-!             config_les_disturb_amplitude, les_disturb_bottom, config_les_disturb_top,        &
-!             config_les_disturb_nblocks, les_bottom, config_les_time_avg)
+      call palm_main(nCells, nVertLevels, activeTracers(1,:,:), activeTracers(2,:,:),              &
+             velocityZonal, velocityMeridional, layerThickness, latVal,                       &
+             maxLevelCell, -wt_sfc, penetrativeTemperatureFlux, ws_sfc,                       &
+             -uw_sfc, -vw_sfc, fac, dep1, dep2, config_les_dz, config_les_nz,                 &
+             etime, config_les_dt_disturb, tIncrementLES, sIncrementLES, uIncrementLES,       &
+             vIncrementLES, temperatureLES, salinityLES, velocityZonalLES,                    &
+             velocityMeridionalLES, dt, zLES, config_les_disturb_energy_limit,                &
+             config_les_disturb_amplitude, les_disturb_bottom, config_les_disturb_top,        &
+             config_les_disturb_nblocks, les_bottom, config_les_time_avg)
 
       normalVelocityIncrementLES(:,:) = 0.0_RKIND
       !$omp do schedule(runtime)

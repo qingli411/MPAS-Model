@@ -188,7 +188,7 @@ contains
       call ocn_frazil_forcing_layer_thickness(meshPool, forcingPool, tend_layerThickness, err)
 
       !
-      ! tidal boundary condition flux 
+      ! tidal boundary condition flux
       !
       call ocn_tidal_forcing_layer_thickness(meshPool, forcingPool, tend_layerThickness, err)
 
@@ -254,6 +254,7 @@ contains
       call mpas_pool_get_config(ocnConfigs, 'config_pressure_gradient_type', config_pressure_gradient_type)
       call mpas_pool_get_config(ocnConfigs, 'config_use_wetting_drying', config_use_wetting_drying)
       call mpas_pool_get_config(ocnConfigs, 'config_prevent_drying', config_prevent_drying)
+      call mpas_pool_get_config(ocnConfigs, 'config_use_les_for_vmix', config_use_les_for_vmix)
 
       call mpas_pool_get_dimension(meshPool, 'nEdges', nEdges)
       call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
@@ -350,7 +351,7 @@ contains
       !
       call ocn_vel_hmix_tend(meshPool, scratchPool, divergence, relativeVorticity, normalVelocity, tangentialVelocity, viscosity, &
          tend_normalVelocity, err)
-    
+
 
       if (.not. config_use_les_for_vmix) then
          !If LES option is enabled, surface forcing is computed with LES

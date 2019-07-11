@@ -332,6 +332,7 @@ gfortran:
 	"CFLAGS_OPT = -O3 -m64" \
 	"CXXFLAGS_OPT = -O3 -m64" \
 	"LDFLAGS_OPT = -O3 -m64" \
+	"LES_LDFLAGS_OPT = -O3 -m64" \
 	"FFLAGS_DEBUG = -g -m64 -ffree-line-length-none -fconvert=big-endian -ffree-form -fbounds-check -fbacktrace -ffpe-trap=invalid,zero,overflow" \
 	"CFLAGS_DEBUG = -g -m64" \
 	"CXXFLAGS_DEBUG = -g -m64" \
@@ -949,12 +950,13 @@ endif
                  CORE="$(CORE)"\
                  AUTOCLEAN="$(AUTOCLEAN)" \
                  GEN_F90="$(GEN_F90)" \
-		 KOKKOS_CXX="$(KOKKOS_CXX)" \
+		 		 KOKKOS_CXX="$(KOKKOS_CXX)" \
                  KOKKOS_DEVICES="$(KOKKOS_DEVICES)" \
-		 KOKKOS_CUDA_OPTIONS="$(KOKKOS_CUDA_OPTIONS)" \
-		 KOKKOS_ARCH="$(KOKKOS_ARCH)" \
-		 KOKKOS_CPP_FLAGS="$(KOKKOS_CPP_FLAGS)" \
-		 NAMELIST_SUFFIX="$(NAMELIST_SUFFIX)" \
+		 		 KOKKOS_CUDA_OPTIONS="$(KOKKOS_CUDA_OPTIONS)" \
+		 		 KOKKOS_ARCH="$(KOKKOS_ARCH)" \
+		 		 KOKKOS_CPP_FLAGS="$(KOKKOS_CPP_FLAGS)" \
+				 LES_COPT="$(LES_COPT)" \
+				 NAMELIST_SUFFIX="$(NAMELIST_SUFFIX)" \
                  EXE_NAME="$(EXE_NAME)"
 
 	@echo "$(EXE_NAME)" > .mpas_core_$(CORE)
