@@ -24,7 +24,7 @@
 !> Diffusion term of scalar quantities (temperature and water content)
 !------------------------------------------------------------------------------!
  MODULE diffusion_s_mod
- 
+
 
     PRIVATE
     PUBLIC diffusion_s
@@ -45,18 +45,18 @@
 
        USE arrays_3d,                                                          &
            ONLY:  dzw, ddzu, ddzw, kh, tend, drho_air, rho_air_zw, solar3d
-       
-       USE control_parameters,                                                 & 
+
+       USE control_parameters,                                                 &
            ONLY: use_top_fluxes, ideal_solar_division,     &
                  ideal_solar_efolding1, ideal_solar_efolding2
- 
+
        USE grid_variables,                                                     &
            ONLY:  ddx, ddx2, ddy, ddy2
-       
+
        USE indices,                                                            &
            ONLY:  nxl, nxlg, nxr, nxrg, nyn, nyng, nys, nysg, nzb,             &
                   nzt, wall_flags_0
-       
+
        USE kinds
 
        USE surface_mod,                                                        &
@@ -74,16 +74,15 @@
        REAL(wp) ::  zval              !< depth_variable for solar penetration
        REAL(wp) ::  flux1             !< solar flux temp variable
        REAL(wp) ::  flux2             !< solar flux temp variable
-       REAL(wp) ::  flag
-       REAL(wp) ::  mask_bottom       !< flag to mask vertical upward-facing surface     
-       REAL(wp) ::  mask_top          !< flag to mask vertical downward-facing surface  
+       REAL(wp) ::  mask_bottom       !< flag to mask vertical upward-facing surface
+       REAL(wp) ::  mask_top          !< flag to mask vertical downward-facing surface
 
        REAL(wp) ::  s_flux_t           !< flux at model top
 
 #if defined( __nopointer )
-       REAL(wp), DIMENSION(nzb:nzt+1,nysg:nyng,nxlg:nxrg) ::  s  !< 
+       REAL(wp), DIMENSION(nzb:nzt+1,nysg:nyng,nxlg:nxrg) ::  s  !<
 #else
-       REAL(wp), DIMENSION(:,:,:), POINTER ::  s  !< 
+       REAL(wp), DIMENSION(:,:,:), POINTER ::  s  !<
 #endif
 
        REAL(wp),INTENT(IN),OPTIONAL :: s_flux_solar_t  !<solar flux at sfc
@@ -132,18 +131,16 @@
              !$acc loop
              DO  k = nzb+1, nzt
 !
-!--             Determine flags to mask topography below and above. Flag 0 is 
-!--             used to mask topography in general, and flag 8 implies 
-!--             information about use_surface_fluxes. Flag 9 is used to control 
-!--             flux at model top. 
+!--             Determine flags to mask topography below and above. Flag 0 is
+!--             used to mask topography in general, and flag 8 implies
+!--             information about use_surface_fluxes. Flag 9 is used to control
+!--             flux at model top.
                 mask_bottom = MERGE( 1.0_wp, 0.0_wp,                           &
-                                     BTEST( wall_flags_0(k-1,j,i), 8 ) ) 
+                                     BTEST( wall_flags_0(k-1,j,i), 8 ) )
                 mask_top    = MERGE( 1.0_wp, 0.0_wp,                           &
                                      BTEST( wall_flags_0(k+1,j,i), 8 ) ) *     &
                               MERGE( 1.0_wp, 0.0_wp,                           &
-                                     BTEST( wall_flags_0(k+1,j,i), 9 ) ) 
-                flag        = MERGE( 1.0_wp, 0.0_wp,                           &
-                                     BTEST( wall_flags_0(k,j,i), 0 ) )
+                                     BTEST( wall_flags_0(k+1,j,i), 9 ) )
 
                 tend(k,j,i) = tend(k,j,i)                                      &
                                        + 0.5_wp * (                            &
@@ -155,55 +152,52 @@
                                       ( s(k,j,i)-s(k-1,j,i) )  * ddzu(k)    &
                                                            * rho_air_zw(k-1)  &
                                                             * mask_bottom      &
-                                                  ) * ddzw(k) * drho_air(k)  !  &
-                                                            !  * flag
+                                                  ) * ddzw(k) * drho_air(k)
              ENDDO
           ENDDO
        ENDDO
        !$acc end parallel
 
        IF ( PRESENT(s_flux_solar_t )) THEN
+       !LPV adding solar forcing with depth
 
        !$acc parallel
        !$acc loop collapse(2)
        DO i=nxl,nxr
           DO j=nys,nyn
-                !LPV adding solar forcing with depth
-!                IF ( PRESENT(s_flux_solar_t )) THEN
-              !    m = surf_def_h(2)%start_index(j,i)
-!                  zval = 0.0_wp
-                !$acc loop
-                  DO k = nzt,nzb+1,-1
-                      flux1 = (1.0_wp - ideal_solar_division)*exp(ideal_solar_efolding2*zval) + &
-                                ideal_solar_division*exp(ideal_solar_efolding1*zval)
-                     zval = zval - dzw(k)
-                      flux2 = (1.0_wp - ideal_solar_division)*exp(ideal_solar_efolding2*zval) + &
-                      ideal_solar_division*exp(ideal_solar_efolding1*zval)
+             zval = 0.0_wp
+             !$acc loop
+             DO k = nzt,nzb+1,-1
+                flux1 = (1.0_wp - ideal_solar_division)*exp(ideal_solar_efolding2*zval) + &
+                         ideal_solar_division*exp(ideal_solar_efolding1*zval)
+                zval = zval - dzw(k)
+                flux2 = (1.0_wp - ideal_solar_division)*exp(ideal_solar_efolding2*zval) + &
+                ideal_solar_division*exp(ideal_solar_efolding1*zval)
 
-                      tend(k,j,i) = tend(k,j,i) - s_flux_solar_t*(flux1 - flux2) / dzw(k)
-                    
-                      solar3d(k,j,i) = -s_flux_solar_t*(flux1 - flux2) / dzw(k)
-                  ENDDO
-          enddo
-      enddo
-      !$acc end parallel
-      ENDIF
+                tend(k,j,i) = tend(k,j,i) - s_flux_solar_t*(flux1 - flux2) / dzw(k)
 
-
-      if ( use_top_fluxes ) then
-       !$acc parallel
-       !$acc loop collapse(2)
-       DO i=nxl,nxr
-          DO j=nys,nyn
-
-!--          Vertical diffusion at the last computational gridpoint along z-direction
-                  k = nzt
-                   tend(k,j,i) = tend(k,j,i)                                   &
-                           + ( - s_flux_t ) * ddzw(k) * drho_air(k)
+                solar3d(k,j,i) = -s_flux_solar_t*(flux1 - flux2) / dzw(k)
+             ENDDO
           ENDDO
        ENDDO
        !$acc end parallel
-     endif
+       ENDIF
+
+
+       IF ( use_top_fluxes ) THEN
+          !$acc parallel
+          !$acc loop collapse(2)
+          DO i=nxl,nxr
+             DO j=nys,nyn
+
+!--             Vertical diffusion at the last computational gridpoint along z-direction
+                k = nzt
+                tend(k,j,i) = tend(k,j,i)                                   &
+                            + ( - s_flux_t ) * ddzw(k) * drho_air(k)
+             ENDDO
+          ENDDO
+          !$acc end parallel
+       ENDIF
        !$acc end data
 
     END SUBROUTINE diffusion_s
