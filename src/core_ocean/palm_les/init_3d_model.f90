@@ -222,6 +222,11 @@ print *, '33'
               p(nzb:nzt+1,nysg:nyng,nxlg:nxrg),                                &
               tend(nzb:nzt+1,nysg:nyng,nxlg:nxrg) )
 
+    ALLOCATE( u_mean_restart(nzb:nzt+1,nCells),                                &
+              v_mean_restart(nzb:nzt+1,nCells),                                &
+              t_mean_restart(nzb:nzt+1,nCells),                                &
+              s_mean_restart(nzb:nzt+1,nCells))
+
     ALLOCATE( u_restart(nzb:nzt+1,nysg:nyng,nxlg:nxrg,nCells),                 &
               v_restart(nzb:nzt+1,nysg:nyng,nxlg:nxrg,nCells),                 &
               w_restart(nzb:nzt+1,nysg:nyng,nxlg:nxrg,nCells),                 &

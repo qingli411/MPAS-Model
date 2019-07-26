@@ -149,6 +149,8 @@ module palm_mod
    ideal_solar_efolding2 = dep2
    nz = nzLES
    disturb_nblocks = disturbNblocks
+   ! dt_ls is the total run time for each MPAS time step, used in time_integration()
+   ! simulated_time need to be reset to 0 for each iCell loop
    dt_ls = dtLS
    dt_avg = timeAv
 
@@ -209,7 +211,8 @@ module palm_mod
 
     !
 !-- Read control parameters from NAMELIST files and read environment-variables
-    CALL parin
+    ! CALL parin
+    call init_control_parameters
 
 !-- Determine processor topology and local array indices
     CALL init_pegrid
@@ -268,10 +271,11 @@ module palm_mod
                        u_init(0:nz+1), v_init(0:nz+1), vg(0:nz+1),       &
                        hom(0:nz+1,2,14,0:statistic_regions), &
                        hom_sum(0:nz+1,14,0:statistic_regions))!, &
-    if( ALLOCATED(meanFields_avg)) then
-       deallocate(meanFields_avg)
-    endif
+    ! if( ALLOCATED(meanFields_avg)) then
+    !    deallocate(meanFields_avg)
+    ! endif
     allocate(meanFields_avg(0:nz+1,4))
+    meanFields_avg = 0.0_wp
 
 !-- Check control parameters and deduce further quantities
     CALL check_parameters
@@ -423,6 +427,7 @@ module palm_mod
        sa(jl,:,:) = sLSforcing(jl)
        u(jl,:,:) = uLSforcing(jl)
        v(jl,:,:) = vLSforcing(jl)
+       zLES(jl,iCell) = zeLES(jl)
        tempLES(jl,iCell) = tLSforcing(jl)
        salinityLES(jl,iCell) = sLSforcing(jl)
        uLESout(jl,iCell) = uLSforcing(jl)
@@ -453,6 +458,9 @@ v_p = v
 !-- Set start time in format hh:mm:ss
 !    simulated_time_chr = time_to_string( time_since_reference_point )
 
+! TODO: for testing in single column mode <20190724, Qing Li> !
+    if (iCell == 1) then
+
 #if defined( __cudaProfiler )
 !-- Only profile time_integration
     CALL cudaProfilerStart()
@@ -470,6 +478,7 @@ v_p = v
     CALL cpu_log( log_point(1), 'total', 'stop' )
 !    CALL cpu_statistics
 
+   ! TODO: is there a way to merge this with the code in time_integration? <20190724, Qing Li> !
     if(average_count_meanpr /= 0) then
 
        meanFields_avg(:,1) = meanFields_avg(:,1) / average_count_meanpr
@@ -478,6 +487,8 @@ v_p = v
        meanFields_avg(:,4) = meanFields_avg(:,4) / average_count_meanpr
 
     endif
+
+    endif ! iCell
 
     Tles = meanFields_avg(:,3)
     Sles = meanFields_avg(:,4)
@@ -523,6 +534,10 @@ v_p = v
     e_restart(:,:,:,iCell) = e(:,:,:)
     km_restart(:,:,:,iCell) = km(:,:,:)
     kh_restart(:,:,:,iCell) = kh(:,:,:)
+    u_mean_restart(:,iCell) = Ules
+    v_mean_restart(:,iCell) = Vles
+    t_mean_restart(:,iCell) = Tles
+    s_mean_restart(:,iCell) = Sles
     call init_control_parameters
   enddo !ends icell loop
 
@@ -590,7 +605,6 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
       initializing_actions  = 'SP_run_continue'
     zmid(1) = -0.5_wp*lt_mpas(1,iCell)
    zedge(1) = 0
-print *, '7'
    do il=2,maxLevels(iCell)
       zmid(il) = zmid(il-1) - 0.5*(lt_mpas(il-1,iCell) + lt_mpas(il,iCell))
       zedge(il) = zedge(il-1) - lt_mpas(il-1,iCell)
@@ -622,7 +636,6 @@ print *, '7'
     tol = 1.0E-10_wp
     test = 10.00_wp
     knt = 0
-print *, '8'
     do while (test > tol)
       knt = knt + 1
       z_facn = (z_fac1*(z_fac - 1.0_wp) + 1.0_wp)**z_fac2
@@ -664,7 +677,6 @@ print *, '8'
           zu(0) = zw(0)
        ENDIF
 !
-print *, '9'
 !-- Compute grid lengths.
     DO  k = 1, nzt+1
        dzu(k)  = zu(k) - zu(k-1)
@@ -720,7 +732,6 @@ print *, '9'
        tProfileInit(jl) = tLSforcing(jl)
        sProfileInit(jl) = sLSforcing(jl)
     enddo
-print *, '9'
 !need to cudify this super easy collapse 3 herrel
     u(:,:,:) = u_restart(:,:,:,iCell)
     v(:,:,:) = v_restart(:,:,:,iCell)
@@ -740,6 +751,9 @@ print *, '9'
 
     CALL init_3d_model
 
+! TODO: for testing in single column mode <20190724, Qing Li> !
+    if (iCell == 1) then
+
 #if defined( __cudaProfiler )
 !-- Only profile time_integration
     CALL cudaProfilerStart()
@@ -753,7 +767,6 @@ print *, '9'
     CALL cudaProfilerStop()
 #endif
 !
-print *, '11'
 !-- Take final CPU-time for CPU-time analysis
     CALL cpu_log( log_point(1), 'total', 'stop' )
 !    CALL cpu_statistics
@@ -767,6 +780,8 @@ print *, '11'
 
     endif
 
+    endif ! iCell
+
     Tles = meanFields_avg(:,3)
     Sles = meanFields_avg(:,4)
     Ules = meanFields_avg(:,1)
@@ -774,10 +789,18 @@ print *, '11'
  ! need to integrate over layers in mpas to get increments
 
  if(minval(tempLES(:,iCell)) < 100.0_wp) tempLES(:,iCell) = tempLES(:,iCell) + 273.15_wp
-    tProfileInit(1:) = tempLES(:,iCell)
-    sProfileInit(1:) = salinityLES(:,iCell)
-    uProfileInit(1:) = uLESout(:,iCell)
-    vProfileInit(1:) = vLESout(:,iCell)
+    ! tProfileInit(1:) = tempLES(:,iCell)
+    ! sProfileInit(1:) = salinityLES(:,iCell)
+    ! uProfileInit(1:) = uLESout(:,iCell)
+    ! vProfileInit(1:) = vLESout(:,iCell)
+    tProfileInit(1:) = t_mean_restart(1:nzt,iCell)
+    sProfileInit(1:) = s_mean_restart(1:nzt,iCell)
+    uProfileInit(1:) = u_mean_restart(1:nzt,iCell)
+    vProfileInit(1:) = v_mean_restart(1:nzt,iCell)
+    tempLES(:,iCell) = Tles(1:nzt)
+    salinityLES(:,iCell) = Sles(1:nzt)
+    uLESout(:,iCell) = Ules(1:nzt)
+    vLESout(:,iCell) = Vles(1:nzt)
 
     jl=1
     do il=nzt,nzb+1,-1
@@ -811,7 +834,10 @@ print *, '11'
     e_restart(:,:,:,iCell) = e(:,:,:)
     km_restart(:,:,:,iCell) = km(:,:,:)
     kh_restart(:,:,:,iCell) = kh(:,:,:)
-print *, '12'
+    u_mean_restart(:,iCell) = Ules
+    v_mean_restart(:,iCell) = Vles
+    t_mean_restart(:,iCell) = Tles
+    s_mean_restart(:,iCell) = Sles
     call init_control_parameters
   enddo !ends icell loop
 
@@ -899,7 +925,7 @@ subroutine init_control_parameters
         do3d = ' '
 
         do3d_no(0:1) = 0
-        meanFields_avg = 0.0_wp
+        ! meanFields_avg = 0.0_wp
 
         abort_mode = 1
         time_avg = 0.0_wp

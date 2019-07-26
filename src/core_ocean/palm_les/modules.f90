@@ -93,6 +93,18 @@
     REAL(wp), DIMENSION(:), ALLOCATABLE ::  zu                     !< vertical grid coordinate of u-grid (in m)
     REAL(wp), DIMENSION(:), ALLOCATABLE ::  zw                     !< vertical grid coordinate of w-grid (in m)
 
+#ifdef __GPU
+    REAL(wp), MANAGED, DIMENSION(:,:), ALLOCATABLE ::  u_mean_restart
+    REAL(wp), MANAGED, DIMENSION(:,:), ALLOCATABLE ::  v_mean_restart
+    REAL(wp), MANAGED, DIMENSION(:,:), ALLOCATABLE ::  t_mean_restart
+    REAL(wp), MANAGED, DIMENSION(:,:), ALLOCATABLE ::  s_mean_restart
+#else
+    REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  u_mean_restart
+    REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  v_mean_restart
+    REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  t_mean_restart
+    REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  s_mean_restart
+#endif
+
     REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  c_u                   !< phase speed of u-velocity component
     REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  c_v                   !< phase speed of v-velocity component
     REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  c_w                   !< phase speed of w-velocity component
@@ -202,7 +214,7 @@
 #ifdef __GPU
     REAL(wp), MANAGED, ALLOCATABLE, DIMENSION(:,:,:,:) :: e_restart
 #else
-    REAL(wp), MANAGED, ALLOCATABLE, DIMENSION(:,:,:,:) :: e_restart
+    REAL(wp), ALLOCATABLE, DIMENSION(:,:,:,:) :: e_restart
 #endif
     REAL(wp), DIMENSION(:,:,:), ALLOCATABLE, TARGET ::  e_p        !< prognostic value of sgs tke
     REAL(wp), DIMENSION(:,:,:), ALLOCATABLE, TARGET ::  nc         !< cloud drop number density
