@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+/?xml version="1.0"?>
 <registry model="mpas" core="ocean" core_abbrev="ocn" version="6.3">
 
 	<dims>
@@ -473,11 +473,27 @@
 					description="If true, a large eddy simulation model will be used for mixing tendencies."
 					possible_values=".true. or .false."
 		/>
-		<nml_option name="config_les_dz" type="real" default_value="1.0" units="m"
+		<nml_option name="config_les_dx" type="real" default_value="1.0" units="m"
+					description="x grid spacing in the LES"
+					possible_values="positive real numbers"
+		/>
+	  <nml_option name="config_les_dy" type="real" default_value="1.0" units="m"
+					description="y grid spacing in the LES"
+					possible_values="positive real numbers"
+		/>
+	  <nml_option name="config_les_dz" type="real" default_value="1.0" units="m"
 					description="thickness of first layer in LES"
 					possible_values="positive real numbers"
 		/>
-		<nml_option name="config_les_nz" type="integer" default_value="128" units="NA"
+		<nml_option name="config_les_nx" type="integer" default_value="128" units="NA"
+					description="number of gridpoints in x-direction for LES"
+					possible_values="positive integers"
+		/>
+    <nml_option name="config_les_ny" type="integer" default_value="128" units="NA"
+					description="number of gridpoints in y-direction for LES"
+					possible_values="positive integers"
+		/>
+    <nml_option name="config_les_nz" type="integer" default_value="128" units="NA"
 					description="number of gridpoints in vertical for LES"
 					possible_values="positive integers"
 		/>

@@ -308,7 +308,7 @@
                                                        rmask(j,i,sr) * flag
              ENDDO
 
-             #ifndef __GPU
+#ifndef __GPU
 !
 !--          Subgridscale fluxes in the Prandtl layer
              IF ( use_surface_fluxes )  THEN
@@ -337,7 +337,7 @@
                 ENDDO
              ENDIF
 
-             #endif
+#endif
 
 !--          Subgridscale fluxes at the top surface
              IF ( use_top_fluxes )  THEN
@@ -373,7 +373,7 @@
        sums(:,2) = sums(:,2) / ngp_2dh(sr)
        sums(:,4) = sums(:,4) / ngp_2dh_s_inner(:,sr)
        sums(:,5) = sums(:,5) / ngp_2dh_s_inner(:,sr)
- 
+
 !--    For speed optimization fluxes which have been computed in part directly
 !--    inside the WS advection routines are treated seperatly
 !--    Momentum fluxes first:

@@ -171,7 +171,7 @@
                 !LPV adding solar forcing with depth
 !                IF ( PRESENT(s_flux_solar_t )) THEN
               !    m = surf_def_h(2)%start_index(j,i)
-!                  zval = 0.0_wp
+                  zval = 0.0_wp
                 !$acc loop
                   DO k = nzt,nzb+1,-1
                       flux1 = (1.0_wp - ideal_solar_division)*exp(ideal_solar_efolding2*zval) + &

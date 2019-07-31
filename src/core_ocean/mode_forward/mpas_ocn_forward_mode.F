@@ -82,6 +82,8 @@ module ocn_forward_mode
 
    use ocn_constants
 
+   use palm_mod
+
    implicit none
    private
 
@@ -340,7 +342,7 @@ module ocn_forward_mode
          if (trim(simulationStartTime)=="no_date_available") then
             simulationStartTime = startTimeStamp
          end if
-  
+
          call mpas_pool_get_subpool(block % structs, 'forcing', forcingPool)
          call mpas_pool_get_subpool(block % structs, 'state', statePool)
 
@@ -602,7 +604,7 @@ module ocn_forward_mode
            call mpas_timer_stop("land_ice_build_arrays")
 
            call ocn_frazil_forcing_build_arrays(domain, meshPool, forcingPool, diagnosticsPool, statePool, err)
-           
+
            call ocn_tidal_forcing_build_array(domain, meshPool, forcingPool, diagnosticsPool, statePool, err)
 
            block_ptr => block_ptr % next
@@ -744,7 +746,7 @@ module ocn_forward_mode
 
       call mpas_decomp_destroy_decomp_list(domain % decompositions)
 
-      if (config_use_les_for_vmix) call palm_mod_palm_finalize()
+      if (config_use_les_for_vmix) call palm_finalize()
 
    end function ocn_forward_mode_finalize!}}}
 

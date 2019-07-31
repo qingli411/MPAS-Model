@@ -35,9 +35,9 @@
 
     USE constants,                                                             &
         ONLY:  pi
-    
+
     USE control_parameters
-    
+
     USE grid_variables,                                                        &
         ONLY:  dx, dy, ddx2_mg, ddy2_mg
 
@@ -50,24 +50,24 @@
 
     USE netcdf_data_input_mod,                                                 &
         ONLY:  init_3d, netcdf_data_input_interpolate, netcdf_data_input_init_3d
-    
+
     USE pegrid
-    
-    USE random_function_mod 
-    
+
+    USE random_function_mod
+
     USE random_generator_parallel,                                             &
         ONLY:  init_parallel_random_generator
 
     USE read_restart_data_mod,                                                 &
-        ONLY:  rrd_read_parts_of_global, rrd_local                                      
-    
+        ONLY:  rrd_read_parts_of_global, rrd_local
+
     USE statistics,                                                            &
         ONLY:  hom, hom_sum, mean_surface_level_height, pr_palm, rmask,        &
                statistic_regions, sums, sums_divnew_l, sums_divold_l, sums_l,  &
                sums_l_l, sums_wsts_bc_l, ts_value,                             &
                weight_pres, weight_substep
 
-    USE stokes_drift_mod,                                                      &   
+    USE stokes_drift_mod,                                                      &
             ONLY:  init_stokes_drift
 
     USE surface_layer_fluxes_mod,                                              &
@@ -76,7 +76,7 @@
     USE surface_mod,                                                           &
         ONLY :  init_surface_arrays, init_surfaces, surf_def_h,     &
                 get_topography_top_index_ji, vertical_surfaces_exist, bc_h
-   
+
     USE transpose_indices
 
     USE turbulence_closure_mod,                                                &
@@ -113,14 +113,14 @@
     REAL(wp), DIMENSION(:), ALLOCATABLE ::  ngp_3d_inner_l    !<
     REAL(wp), DIMENSION(:), ALLOCATABLE ::  ngp_3d_inner_tmp  !<
 
-    INTEGER(iwp) ::  nz_u_shift   !< 
+    INTEGER(iwp) ::  nz_u_shift   !<
     INTEGER(iwp) ::  nz_v_shift   !<
     INTEGER(iwp) ::  nz_w_shift   !<
     INTEGER(iwp) ::  nz_s_shift   !<
     INTEGER(iwp) ::  nz_u_shift_l !<
     INTEGER(iwp) ::  nz_v_shift_l !<
     INTEGER(iwp) ::  nz_w_shift_l !<
-    INTEGER(iwp) ::  nz_s_shift_l !< 
+    INTEGER(iwp) ::  nz_s_shift_l !<
 
     public allocate_3d_arrays, init_3d_model, deallocate_3d_variables
     contains
@@ -131,7 +131,7 @@
        DEALLOCATE(ngp_2dh_outer_l, ngp_2dh_s_inner_l)
        DEALLOCATE( mean_surface_level_height,         &
               ngp_2dh, ngp_3d, ngp_3d_inner,          &
-              ngp_3d_inner_tmp, sums_divold_l, sums_divnew_l) 
+              ngp_3d_inner_tmp, sums_divold_l, sums_divnew_l)
     DEALLOCATE( dp_smooth_factor, rdf, rdf_sc )
 
     DEALLOCATE( ngp_2dh_outer, ngp_2dh_s_inner,                 &
@@ -207,9 +207,9 @@
               ngp_2dh_s_inner(nzb:nzt+1,0:statistic_regions),                  &
               ngp_2dh_s_inner_l(nzb:nzt+1,0:statistic_regions),                &
               rmask(nysg:nyng,nxlg:nxrg,0:statistic_regions),                  &
-              sums(nzb:nzt+1,14),                             &
+              sums(nzb:nzt+1,14), &
 !              sums_l(nzb:nzt+1,pr_palm+max_pr_user,0:threads_per_task-1),      &
-              sums_l(nzb:nzt+1,14,0:threads_per_task-1),      &
+              sums_l(nzb:nzt+1,14,0:threads_per_task-1), &
               sums_l_l(nzb:nzt+1,0:statistic_regions,0:threads_per_task-1),    &
               sums_wsts_bc_l(nzb:nzt+1,0:statistic_regions),                   &
               ts_value(dots_max,0:statistic_regions) )
@@ -218,6 +218,11 @@
     ALLOCATE( d(nzb+1:nzt,nys:nyn,nxl:nxr),                                    &
               p(nzb:nzt+1,nysg:nyng,nxlg:nxrg),                                &
               tend(nzb:nzt+1,nysg:nyng,nxlg:nxrg) )
+
+    ALLOCATE( u_mean_restart(nzb:nzt+1,nCells),                                &
+              v_mean_restart(nzb:nzt+1,nCells),                                &
+              t_mean_restart(nzb:nzt+1,nCells),                                &
+              s_mean_restart(nzb:nzt+1,nCells))
 
     ALLOCATE( u_restart(nzb:nzt+1,nysg:nyng,nxlg:nxrg,nCells),                 &
               v_restart(nzb:nzt+1,nysg:nyng,nxlg:nxrg,nCells),                 &
@@ -368,7 +373,7 @@
 !-- Initialize surface arrays
     CALL init_surface_arrays
 !
-!-- Allocate arrays containing the RK coefficient for calculation of 
+!-- Allocate arrays containing the RK coefficient for calculation of
 !-- perturbation pressure and turbulent fluxes. At this point values are
 !-- set for pressure calculation during initialization (where no timestep
 !-- is done). Further below the values needed within the timestep scheme
@@ -378,7 +383,7 @@
     weight_substep = 1.0_wp
     weight_pres    = 1.0_wp
     intermediate_timestep_count = 0  ! needed when simulated_time = 0.0
-       
+
 !    CALL location_message( 'finished', .TRUE. )
 
 !
@@ -395,14 +400,14 @@
     sums_l_l           = 0.0_wp
     sums_wsts_bc_l     = 0.0_wp
 
-   IF ( ws_scheme_sca .OR. ws_scheme_mom )  CALL ws_init        
+   IF ( ws_scheme_sca .OR. ws_scheme_mom )  CALL ws_init
  !
 !--    Initialize the random number generators (from numerical recipes)
        CALL random_function_ini
 
        IF ( random_generator == 'random-parallel' )  THEN
           CALL init_parallel_random_generator(nx, ny, nys, nyn, nxl, nxr)
-       ENDIF  
+       ENDIF
 
        CALL init_stokes_drift
 end subroutine allocate_3d_arrays
@@ -448,14 +453,14 @@ subroutine init_3d_model
           u = MERGE( u, 0.0_wp, BTEST( wall_flags_0, 1 ) )
           v = MERGE( v, 0.0_wp, BTEST( wall_flags_0, 2 ) )
 !
-!--       Set initial horizontal velocities at the lowest computational grid 
-!--       levels to zero in order to avoid too small time steps caused by the 
+!--       Set initial horizontal velocities at the lowest computational grid
+!--       levels to zero in order to avoid too small time steps caused by the
 !--       diffusion limit in the initial phase of a run (at k=1, dz/2 occurs
-!--       in the limiting formula!). 
-!--       Please note, in case land- or urban-surface model is used and a 
-!--       spinup is applied, masking the lowest computational level is not 
-!--       possible as MOST as well as energy-balance parametrizations will not 
-!--       work with zero wind velocity. 
+!--       in the limiting formula!).
+!--       Please note, in case land- or urban-surface model is used and a
+!--       spinup is applied, masking the lowest computational level is not
+!--       possible as MOST as well as energy-balance parametrizations will not
+!--       work with zero wind velocity.
           IF ( ibc_uv_b /= 1  .AND.  .NOT.  spinup )  THEN
              DO  i = nxlg, nxrg
                 DO  j = nysg, nyng
@@ -478,8 +483,8 @@ subroutine init_3d_model
 !--       of a sloping surface
           IF ( sloping_surface )  CALL init_slope
 !
-!--       Initialize surface variables, e.g. friction velocity, momentum 
-!--       fluxes, etc. 
+!--       Initialize surface variables, e.g. friction velocity, momentum
+!--       fluxes, etc.
           CALL init_surfaces
        ENDIF
 
@@ -528,7 +533,7 @@ subroutine init_3d_model
        pt_p = pt; u_p = u; v_p = v; w_p = w
        tsa_m = 0.0_wp
        sa_p  = sa
-       
+
 !       CALL location_message( 'finished', .TRUE. )
 
     ELSEIF ( TRIM( initializing_actions ) == 'read_restart_data'  .OR.         &
@@ -538,11 +543,11 @@ subroutine init_3d_model
 !       CALL location_message( 'initializing in case of restart / cyclic_fill', &
 !                              .FALSE. )
 !
-!--    Initialize surface elements and its attributes, e.g. heat- and 
-!--    momentumfluxes, roughness, scaling parameters. As number of surface 
-!--    elements might be different between runs, e.g. in case of cyclic fill, 
-!--    and not all surface elements are read, surface elements need to be 
-!--    initialized before.     
+!--    Initialize surface elements and its attributes, e.g. heat- and
+!--    momentumfluxes, roughness, scaling parameters. As number of surface
+!--    elements might be different between runs, e.g. in case of cyclic fill,
+!--    and not all surface elements are read, surface elements need to be
+!--    initialized before.
        CALL init_surfaces
 !
 !--    Read processor specific binary data from restart file
@@ -569,7 +574,7 @@ subroutine init_3d_model
 !
 !--    Allthough tendency arrays are set in prognostic_equations, they have
 !--    have to be predefined here because they are used (but multiplied with 0)
-!--    there before they are set. 
+!--    there before they are set.
        tpt_m = 0.0_wp; tu_m = 0.0_wp; tv_m = 0.0_wp; tw_m = 0.0_wp
        tsa_m = 0.0_wp
 !
@@ -586,7 +591,7 @@ subroutine init_3d_model
     CALL tcm_init
 
 !
-!-- Before initializing further modules, compute total sum of active mask 
+!-- Before initializing further modules, compute total sum of active mask
 !-- grid points and the mean surface level height for each statistic region.
 !-- ngp_2dh: number of grid points of a horizontal cross section through the
 !--          total domain
@@ -624,7 +629,7 @@ subroutine init_3d_model
 !
 !--             Determine mean surface-level height. In case of downward-
 !--             facing walls are present, more than one surface level exist.
-!--             In this case, use the lowest surface-level height. 
+!--             In this case, use the lowest surface-level height.
                 IF ( surf_def_h(0)%start_index(j,i) <=                         &
                      surf_def_h(0)%end_index(j,i) )  THEN
                    m = surf_def_h(0)%start_index(j,i)
@@ -658,7 +663,7 @@ subroutine init_3d_model
 !-- Initialize arrays encompassing number of grid-points in inner and outer
 !-- domains, statistic regions, etc. Mainly used for horizontal averaging
 !-- of turbulence statistics. Please note, user_init must be called before
-!-- doing this.   
+!-- doing this.
     sr = statistic_regions + 1
 #if defined( __parallel )
     IF ( collective_wait )  CALL MPI_BARRIER( comm2d, ierr )
@@ -693,10 +698,10 @@ subroutine init_3d_model
 !-- Set a lower limit of 1 in order to avoid zero divisions in flow_statistics,
 !-- buoyancy, etc. A zero value will occur for cases where all grid points of
 !-- the respective subdomain lie below the surface topography
-    ngp_2dh_outer   = MAX( 1, ngp_2dh_outer(:,:)   ) 
+    ngp_2dh_outer   = MAX( 1, ngp_2dh_outer(:,:)   )
     ngp_3d_inner    = MAX( INT(1, KIND = SELECTED_INT_KIND( 18 )),             &
                            ngp_3d_inner(:) )
-    ngp_2dh_s_inner = MAX( 1, ngp_2dh_s_inner(:,:) ) 
+    ngp_2dh_s_inner = MAX( 1, ngp_2dh_s_inner(:,:) )
 
 !-- Initialize quantities for special advections schemes
 !    CALL init_advec
@@ -727,7 +732,7 @@ subroutine init_3d_model
        !$acc end data
        n_sor = nsor
 !       CALL location_message( 'finished', .TRUE. )
-      
+
     ENDIF
 
 !--    Initialize quantities needed for the ocean model
@@ -742,10 +747,10 @@ subroutine init_3d_model
     ENDIF
 #endif
     !
-!-- Initialize the ws-scheme.    
+!-- Initialize the ws-scheme.
 
 !
-!-- Setting weighting factors for calculation of perturbation pressure 
+!-- Setting weighting factors for calculation of perturbation pressure
 !-- and turbulent quantities from the RK substeps
     IF ( TRIM(timestep_scheme) == 'runge-kutta-3' )  THEN      ! for RK3-method
 
@@ -761,14 +766,14 @@ subroutine init_3d_model
 
        weight_substep(1) = 1._wp/2._wp
        weight_substep(2) = 1._wp/2._wp
-          
+
        weight_pres(1)    = 1._wp/2._wp
-       weight_pres(2)    = 1._wp/2._wp        
+       weight_pres(2)    = 1._wp/2._wp
 
     ELSE                                     ! for Euler-method
 
-       weight_substep(1) = 1.0_wp      
-       weight_pres(1)    = 1.0_wp                   
+       weight_substep(1) = 1.0_wp
+       weight_pres(1)    = 1.0_wp
 
     ENDIF
 
@@ -800,7 +805,7 @@ subroutine init_3d_model
     IF ( scalar_rayleigh_damping )  rdf_sc = rdf
 
 !
-!-- Initialize the starting level and the vertical smoothing factor used for 
+!-- Initialize the starting level and the vertical smoothing factor used for
 !-- the external pressure gradient
     dp_smooth_factor = 1.0_wp
     IF ( dp_external )  THEN
@@ -809,7 +814,7 @@ subroutine init_3d_model
 !--    (e.g. in init_grid).
        IF ( dp_level_ind_b == 0 )  THEN
           ind_array = MINLOC( ABS( dp_level_b - zu ) )
-          dp_level_ind_b = ind_array(1) - 1 + nzb 
+          dp_level_ind_b = ind_array(1) - 1 + nzb
                                         ! MINLOC uses lower array bound 1
        ENDIF
        IF ( dp_smooth )  THEN
@@ -824,7 +829,7 @@ subroutine init_3d_model
 
 !
 !-- Initialize damping zone for the potential temperature in case of
-!-- non-cyclic lateral boundaries. The damping zone has the maximum value 
+!-- non-cyclic lateral boundaries. The damping zone has the maximum value
 !-- at the inflow boundary and decreases to zero at pt_damping_width.
     ptdf_x = 0.0_wp
     ptdf_y = 0.0_wp
@@ -833,7 +838,7 @@ subroutine init_3d_model
           IF ( ( i * dx ) < pt_damping_width )  THEN
              ptdf_x(i) = pt_damping_factor * ( SIN( pi * 0.5_wp *              &
                             REAL( pt_damping_width - i * dx, KIND=wp ) / (     &
-                            REAL( pt_damping_width, KIND=wp ) ) ) )**2 
+                            REAL( pt_damping_width, KIND=wp ) ) ) )**2
           ENDIF
        ENDDO
     ELSEIF ( bc_lr_raddir )  THEN
@@ -844,7 +849,7 @@ subroutine init_3d_model
                                  ( ( i - nx ) * dx + pt_damping_width ) /      &
                                  REAL( pt_damping_width, KIND=wp ) )**2
           ENDIF
-       ENDDO 
+       ENDDO
     ELSEIF ( bc_ns_dirrad )  THEN
        DO  j = nys, nyn
           IF ( ( j * dy ) > ( ny * dy - pt_damping_width ) )  THEN
@@ -853,7 +858,7 @@ subroutine init_3d_model
                                  ( ( j - ny ) * dy + pt_damping_width ) /      &
                                  REAL( pt_damping_width, KIND=wp ) )**2
           ENDIF
-       ENDDO 
+       ENDDO
     ELSEIF ( bc_ns_raddir )  THEN
        DO  j = nys, nyn
           IF ( ( j * dy ) < pt_damping_width )  THEN
@@ -870,7 +875,7 @@ subroutine init_3d_model
        WRITE( message_string, * ) 'number of time series quantities exceeds',  &
                                   ' its maximum of dots_max = ', dots_max,     &
                                   '&Please increase dots_max in modules.f90.'
-       CALL message( 'init_3d_model', 'PA0194', 1, 2, 0, 6, 0 )    
+       CALL message( 'init_3d_model', 'PA0194', 1, 2, 0, 6, 0 )
     ENDIF
 
 !
@@ -878,8 +883,8 @@ subroutine init_3d_model
 !-- after call of user_init!
     CALL close_file( 13 )
 !
-!-- In case of nesting, put an barrier to assure that all parent and child 
-!-- domains finished initialization. 
+!-- In case of nesting, put an barrier to assure that all parent and child
+!-- domains finished initialization.
 
 !    CALL location_message( 'leaving init_3d_model', .TRUE. )
 

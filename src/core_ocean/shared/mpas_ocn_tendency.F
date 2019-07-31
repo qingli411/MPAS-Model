@@ -188,7 +188,7 @@ contains
       call ocn_frazil_forcing_layer_thickness(meshPool, forcingPool, tend_layerThickness, err)
 
       !
-      ! tidal boundary condition flux 
+      ! tidal boundary condition flux
       !
       call ocn_tidal_forcing_layer_thickness(meshPool, forcingPool, tend_layerThickness, err)
 
@@ -351,7 +351,7 @@ contains
       !
       call ocn_vel_hmix_tend(meshPool, scratchPool, divergence, relativeVorticity, normalVelocity, tangentialVelocity, viscosity, &
          tend_normalVelocity, err)
-    
+
 
       if (.not. config_use_les_for_vmix) then
          !If LES option is enabled, surface forcing is computed with LES

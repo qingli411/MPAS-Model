@@ -70,9 +70,9 @@ module palm_mod
 
     use statistics
 
-    #if defined( __cudaProfiler )
-        USE cudafor
-    #endif
+#if defined( __cudaProfiler )
+    USE cudafor
+#endif
 
     IMPLICIT NONE
 
@@ -100,11 +100,11 @@ module palm_mod
 
     public :: palm_init, palm_main, palm_finalize
 
-    contains 
+    contains
 
     subroutine palm_init(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
                 lat_mpas,maxLevels,wtflux,wtflux_solar, wsflux,uwflux, &
-             vwflux,fac,dep1,dep2,dzLES,nzLES,        &
+             vwflux,fac,dep1,dep2,dxLES, dyLES, dzLES,nxLES,nyLES,nzLES,        &
              endTime, dtDisturb, tIncrementLES,sIncrementLES,             &
              uIncrementLES,vIncrementLES,tempLES,    &
              salinityLES, uLESout, vLESout, dtLS, zLES, &
@@ -115,7 +115,7 @@ module palm_mod
 ! -- Variables from MPAS
    integer(iwp),dimension(nCells) :: maxLevels
    integer(iwp) :: iCell,nCells, nVertLevels, il, jl, jloc, kl, knt, nzLES, iz, disturbNblocks
-   integer(iwp) :: nzMPAS, zmMPASspot, zeMPASspot
+   integer(iwp) :: nzMPAS, zmMPASspot, zeMPASspot, nxLES, nyLES
    Real(wp),intent(in)                             :: dtLS
    Real(wp),dimension(nVertLevels,nCells),intent(inout)   :: T_mpas, S_mpas, U_mpas, V_mpas
    Real(wp),dimension(nVertLevels,nCells),intent(inout)   :: tIncrementLES, sIncrementLES, &
@@ -125,7 +125,7 @@ module palm_mod
    Real(wp),dimension(nVertLevels,nCells),intent(in)      :: lt_mpas
    Real(wp),dimension(nCells) :: wtflux, wsflux, uwflux, vwflux, disturbBot
    Real(wp),dimension(nCells) :: botDepth,wtflux_solar, lat_mpas
-   Real(wp) :: dzLES, z_fac, z_frst, z_cntr
+   Real(wp) :: dxLES, dyLES, dzLES, z_fac, z_frst, z_cntr
    real(wp) :: z_fac1, z_fac2, z_facn, tol, test, fac, dep1, dep2
    real(wp) :: dtDisturb, endTime, thickDiff, disturbMax, disturbAmp
    real(wp) :: disturbTop, timeAv
@@ -140,14 +140,18 @@ module palm_mod
    bc_l(:)%bcopt = bcon_loose
    bc_r(:)%bcopt = bcon_loose
 
-   call init_control_parameters
+   ! call init_control_parameters
 
    dt_disturb = dtDisturb
-   end_time = 60.0_wp 
+   end_time = 3600.0_wp
    ideal_solar_division = fac
    ideal_solar_efolding1 = dep1
    ideal_solar_efolding2 = dep2
    nz = nzLES
+   nx = nxLES
+   ny = nyLES
+   dx = dxLES
+   dy = dyLES
    disturb_nblocks = disturbNblocks
    dt_ls = dtLS
    dt_avg = timeAv
@@ -220,7 +224,7 @@ module palm_mod
 
     nzt = nzLES
      ! construct a stretched stretched grid
-    z_cntr = zedge(zeMPASspot) 
+    z_cntr = zedge(zeMPASspot)
     z_frst = -dzLES
     z_fac1 = z_cntr / z_frst
     z_fac2 = 1.0_wp / REAL(nzt,kind=wp)
@@ -268,35 +272,35 @@ module palm_mod
                        u_init(0:nz+1), v_init(0:nz+1), vg(0:nz+1),       &
                        hom(0:nz+1,2,14,0:statistic_regions), &
                        hom_sum(0:nz+1,14,0:statistic_regions))!, &
-
     if( ALLOCATED(meanFields_avg)) then
        deallocate(meanFields_avg)
-     endif
-       allocate(meanFields_avg(0:nz+1,4))
+    endif
+    allocate(meanFields_avg(0:nz+1,4))
 
 !-- Check control parameters and deduce further quantities
     CALL check_parameters
 ! interpolate mpas data to les and send to init variable
     CALL allocate_3d_arrays(nCells)
 !-- Initialize all necessary variables
-    CALL init_3d_model  ! need a pass through for restarts 
-    do iCell=1,nCells
+    CALL init_3d_model  ! need a pass through for restarts
 
-     #if ! defined( __nopointer )
+    do iCell=1,1
+
+#if ! defined( __nopointer )
 !
 !-- Initial assignment of the pointers
-    IF ( .NOT. neutral )  THEN 
-       pt => pt_1;  pt_p => pt_2;  tpt_m => pt_3 
-    ELSE 
-       pt => pt_1;  pt_p => pt_1;  tpt_m => pt_3 
+    IF ( .NOT. neutral )  THEN
+       pt => pt_1;  pt_p => pt_2;  tpt_m => pt_3
+    ELSE
+       pt => pt_1;  pt_p => pt_1;  tpt_m => pt_3
     ENDIF
     u  => u_1;   u_p  => u_2;   tu_m  => u_3
     v  => v_1;   v_p  => v_2;   tv_m  => v_3
-    w  => w_1;   w_p  => w_2;   tw_m  => w_3                                                                                                                               
-    sa => sa_1;  sa_p => sa_2;  tsa_m => sa_3 
+    w  => w_1;   w_p  => w_2;   tw_m  => w_3
+    sa => sa_1;  sa_p => sa_2;  tsa_m => sa_3
 #endif
- 
-      
+
+
       zmid(1) = -0.5_wp*lt_mpas(1,iCell)
    zedge(1) = 0
 
@@ -322,7 +326,7 @@ module palm_mod
      endif
    enddo
     ! construct a stretched stretched grid
-    z_cntr = zedge(zeMPASspot) 
+    z_cntr = zedge(zeMPASspot)
     z_frst = -dzLES
     z_fac1 = z_cntr / z_frst
     z_fac2 = 1.0_wp / REAL(nzt,kind=wp)
@@ -370,7 +374,7 @@ module palm_mod
 !
 !--    In case of dirichlet bc for u and v the first u- and w-level are defined
 !--    at same height.
-       IF ( ibc_uv_b == 0 ) THEN 
+       IF ( ibc_uv_b == 0 ) THEN
           zu(0) = zw(0)
        ENDIF
 !
@@ -457,6 +461,7 @@ v_p = v
 !-- Only profile time_integration
     CALL cudaProfilerStart()
 #endif
+
 !
 !-- Integration of the model equations using timestep-scheme
     CALL time_integration
@@ -471,7 +476,7 @@ v_p = v
 !    CALL cpu_statistics
 
     if(average_count_meanpr /= 0) then
- 
+
        meanFields_avg(:,1) = meanFields_avg(:,1) / average_count_meanpr
        meanFields_avg(:,2) = meanFields_avg(:,2) / average_count_meanpr
        meanFields_avg(:,3) = meanFields_avg(:,3) / average_count_meanpr
@@ -523,18 +528,41 @@ v_p = v
     e_restart(:,:,:,iCell) = e(:,:,:)
     km_restart(:,:,:,iCell) = km(:,:,:)
     kh_restart(:,:,:,iCell) = kh(:,:,:)
+    u_mean_restart(:,iCell) = Ules
+    v_mean_restart(:,iCell) = Vles
+    t_mean_restart(:,iCell) = Tles
+    s_mean_restart(:,iCell) = Sles
     call init_control_parameters
   enddo !ends icell loop
 
 !   deallocate(zmid,zedge)
 !   deallocate(T_mpas2,S_mpas2,U_mpas2)
 !   deallocate(V_mpas2)
+  do iCell=2,nCells
+   u_restart(:,:,:,iCell) = u(:,:,:)
+    v_restart(:,:,:,iCell) = v(:,:,:)
+    w_restart(:,:,:,iCell) = w(:,:,:)
+    pt_restart(:,:,:,iCell) = pt(:,:,:)
+    sa_restart(:,:,:,iCell) = sa(:,:,:)
+    e_restart(:,:,:,iCell) = e(:,:,:)
+    km_restart(:,:,:,iCell) = km(:,:,:)
+    kh_restart(:,:,:,iCell) = kh(:,:,:)
+
+    u_mean_restart(:,iCell) = u_mean_restart(:,1)
+    v_mean_restart(:,iCell) = v_mean_restart(:,1)
+    t_mean_restart(:,iCell) = t_mean_restart(:,1)
+    s_mean_restart(:,iCell) = s_mean_restart(:,1)
+  tIncrementLES(:,iCell) = tIncrementLES(:,1) 
+      sIncrementLES(:,iCell) = sIncrementLES(:,1)
+      uIncrementLES(:,iCell) = uIncrementLES(:,1)
+      vIncrementLES(:,iCell) = vIncrementLES(:,1)
+    enddo
 
 end subroutine palm_init
 
 subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
              lat_mpas,maxLevels,wtflux,wtflux_solar, wsflux,uwflux, &
-              vwflux,fac,dep1,dep2,dzLES,nzLES,        &
+              vwflux,fac,dep1,dep2,dxLES,dyLES,dzLES,nxLES,nyLES,nzLES,        &
              endTime, dtDisturb, tIncrementLES,sIncrementLES,             &
              uIncrementLES,vIncrementLES,tempLES,    &
              salinityLES, uLESout, vLESout, dtLS, zLES, &
@@ -544,7 +572,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
 ! -- Variables from MPAS
    integer(iwp),dimension(nCells) :: maxLevels
    integer(iwp) :: iCell,nCells, nVertLevels, il, jl, jloc, kl, knt, nzLES, iz, disturbNblocks
-   integer(iwp) :: nzMPAS, zmMPASspot, zeMPASspot
+   integer(iwp) :: nxLES, nyLES, nzMPAS, zmMPASspot, zeMPASspot
    Real(wp),intent(in)                             :: dtLS
    Real(wp),dimension(nVertLevels,nCells),intent(inout)   :: T_mpas, S_mpas, U_mpas, V_mpas
    Real(wp),dimension(nVertLevels,nCells),intent(inout)   :: tIncrementLES, sIncrementLES, &
@@ -554,7 +582,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
    Real(wp),dimension(nVertLevels,nCells),intent(in)      :: lt_mpas
    Real(wp),dimension(nCells) :: wtflux, wsflux, uwflux, vwflux, disturbBot
    Real(wp),dimension(nCells) :: botDepth, wtflux_solar, lat_mpas
-   Real(wp) :: dzLES, z_fac, z_frst, z_cntr
+   Real(wp) :: dxLES, dyLES, dzLES, z_fac, z_frst, z_cntr
    real(wp) :: z_fac1, z_fac2, z_facn, tol, test, fac, dep1, dep2
    real(wp) :: dtDisturb, endTime, thickDiff, disturbMax, disturbAmp
    real(wp) :: disturbTop, timeAv
@@ -572,12 +600,16 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
    call init_control_parameters
 
    create_disturbances=.false.
-   dt_disturb = 0.0_wp 
+   dt_disturb = 0.0_wp
    end_time = endTime
    ideal_solar_division = fac
    ideal_solar_efolding1 = dep1
    ideal_solar_efolding2 = dep2
+   dx = dxLES
+   dy = dyLES
    nz = nzLES
+   nx = nxLES
+   ny = nyLES
    disturb_nblocks = disturbNblocks
    dt_ls = dtLS
    dt_avg = timeAv
@@ -586,7 +618,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
    disturbance_amplitude = disturbAmp
    disturbance_energy_limit = disturbMax
    initializing_actions  = 'SP_run_continue'
-    do iCell=1,nCells
+    do iCell=1,1
       initializing_actions  = 'SP_run_continue'
     zmid(1) = -0.5_wp*lt_mpas(1,iCell)
    zedge(1) = 0
@@ -613,7 +645,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
    enddo
     nzt = nzLES
     ! construct a stretched stretched grid
-    z_cntr = zedge(zeMPASspot) 
+    z_cntr = zedge(zeMPASspot)
     z_frst = -dzLES
     z_fac1 = z_cntr / z_frst
     z_fac2 = 1.0_wp / REAL(nzt,kind=wp)
@@ -658,7 +690,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
 !
 !--    In case of dirichlet bc for u and v the first u- and w-level are defined
 !--    at same height.
-       IF ( ibc_uv_b == 0 ) THEN 
+       IF ( ibc_uv_b == 0 ) THEN
           zu(0) = zw(0)
        ENDIF
 !
@@ -697,7 +729,6 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
 
     call rmap1d(nzMPAS+1,nzLES+1,nvar,ndof,abs(zedge(1:nzMPAS+1)),abs(zeLESinv(1:nzLES+1)), &
                 fMPAS, fLES, bc_l, bc_r, work, opts)
-
     jl = 1
     do il = nzt,nzb+1,-1
       tLSforcing(il) = fLES(1,1,jl) + 273.15
@@ -707,7 +738,8 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
       jl = jl + 1
     enddo
 
-    do jl = nzt,nzb+1,-1
+
+   do jl = nzt,nzb+1,-1
 !          pt(jl,:,:) = tempLES(jl) + 273.15_wp
 !          sa(jl,:,:) = salinityLES(jl)
 !          u(jl,:,:) = uLESout(jl)
@@ -735,6 +767,11 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
     e_p = e
 
     CALL init_3d_model
+    CALL flow_statistics
+    uLESout(:,iCell) = hom(:,1,1,0) 
+    vLESout(:,iCell) = hom(:,1,2,0)
+    tempLES(:,iCell) = hom(:,1,4,0)
+    salinityLES(:,iCell) = hom(:,1,5,0)
 
 #if defined( __cudaProfiler )
 !-- Only profile time_integration
@@ -752,9 +789,11 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
 !-- Take final CPU-time for CPU-time analysis
     CALL cpu_log( log_point(1), 'total', 'stop' )
 !    CALL cpu_statistics
+flow_statistics_called = .FALSE.
 
+call flow_statistics
     if(average_count_meanpr /= 0) then
- 
+
        meanFields_avg(:,1) = meanFields_avg(:,1) / average_count_meanpr
        meanFields_avg(:,2) = meanFields_avg(:,2) / average_count_meanpr
        meanFields_avg(:,3) = meanFields_avg(:,3) / average_count_meanpr
@@ -769,10 +808,14 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
  ! need to integrate over layers in mpas to get increments
 
  if(minval(tempLES(:,iCell)) < 100.0_wp) tempLES(:,iCell) = tempLES(:,iCell) + 273.15_wp
-    tProfileInit(1:) = tempLES(:,iCell)
-    sProfileInit(1:) = salinityLES(:,iCell)
-    uProfileInit(1:) = uLESout(:,iCell)
-    vProfileInit(1:) = vLESout(:,iCell)
+!    tProfileInit(1:) = tempLES(:,iCell)
+!    sProfileInit(1:) = salinityLES(:,iCell)
+!    uProfileInit(1:) = uLESout(:,iCell)
+  !    vProfileInit(1:) = vLESout(:,iCell)
+    tProfileInit(1:) = t_mean_restart(1:nzt,iCell)
+    sProfileInit(1:) = s_mean_restart(1:nzt,iCell)
+    uProfileInit(1:) = u_mean_restart(1:nzt,iCell)
+    vProfileInit(1:) = v_mean_restart(1:nzt,iCell)
 
     jl=1
     do il=nzt,nzb+1,-1
@@ -782,8 +825,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
       fLES(1,4,jl) = (Vles(il) - vProfileInit(il)) / dtLS
       jl = jl+1
     enddo
-
-    call rmap1d(nzLES+1,nzMPAS+1,nvar,ndof,abs(zeLESinv(1:nzLES+1)),abs(zedge(1:nzMPAS+1)), &
+     call rmap1d(nzLES+1,nzMPAS+1,nvar,ndof,abs(zeLESinv(1:nzLES+1)),abs(zedge(1:nzMPAS+1)), &
                 fLES,fMPAS(:,:,:nzMPAS),bc_l,bc_r,work,opts)
 
     tIncrementLES(:,iCell) = 0.0_wp
@@ -806,8 +848,32 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
     e_restart(:,:,:,iCell) = e(:,:,:)
     km_restart(:,:,:,iCell) = km(:,:,:)
     kh_restart(:,:,:,iCell) = kh(:,:,:)
-    call init_control_parameters
+    u_mean_restart(:,iCell) = Ules
+    v_mean_restart(:,iCell) = Vles
+    t_mean_restart(:,iCell) = Tles
+    s_mean_restart(:,iCell) = Sles
+    
+call init_control_parameters
   enddo !ends icell loop
+
+  do iCell=2,nCells
+   u_restart(:,:,:,iCell) = u(:,:,:)
+    v_restart(:,:,:,iCell) = v(:,:,:)
+    w_restart(:,:,:,iCell) = w(:,:,:)
+    pt_restart(:,:,:,iCell) = pt(:,:,:)
+    sa_restart(:,:,:,iCell) = sa(:,:,:)
+    e_restart(:,:,:,iCell) = e(:,:,:)
+    km_restart(:,:,:,iCell) = km(:,:,:)
+    kh_restart(:,:,:,iCell) = kh(:,:,:)
+u_mean_restart(:,iCell) = u_mean_restart(:,1)
+    v_mean_restart(:,iCell) = v_mean_restart(:,1)
+    t_mean_restart(:,iCell) = t_mean_restart(:,1)
+    s_mean_restart(:,iCell) = s_mean_restart(:,1)
+  tIncrementLES(:,iCell) = tIncrementLES(:,1) 
+      sIncrementLES(:,iCell) = sIncrementLES(:,1)
+      uIncrementLES(:,iCell) = uIncrementLES(:,1)
+      vIncrementLES(:,iCell) = vIncrementLES(:,1)
+    enddo
 
 END subroutine palm_main
 
@@ -854,7 +920,6 @@ subroutine init_control_parameters
     USE statistics, only: flow_statistics_called
     USE kinds
 
-
     openfile = file_status(.FALSE.,.FALSE.)
 
     rayleigh_damping_factor = -1.0_wp
@@ -887,7 +952,7 @@ subroutine init_control_parameters
         data_output = ' '
         data_output_user = ' '
         doav = ' '
-        data_output_masks = ' ' 
+        data_output_masks = ' '
         data_output_pr = ' '
         domask = ' '
         do2d = ' '
@@ -909,7 +974,7 @@ subroutine init_control_parameters
         dopr_time_count = 0
         dopts_time_count = 0
         dots_time_count = 0
-        dp_level_ind_b = 0 
+        dp_level_ind_b = 0
         dvrp_filecount = 0
         ensemble_member_nr = 0
 
@@ -938,9 +1003,9 @@ subroutine init_control_parameters
         sa_vertical_gradient_level_ind(10) = -9999
  !       stokes_drift_method = -9999
 
- !       dz(10) = -1.0_wp 
+ !       dz(10) = -1.0_wp
  !       dzconst = 2.5_wp
-!        dt_disturb = 20.0_wp 
+!        dt_disturb = 20.0_wp
 !        dt_do3d = 9999999.9_wp
 !        dt_3d = 0.01_wp
 
@@ -961,7 +1026,7 @@ subroutine init_control_parameters
 end subroutine init_control_parameters
 
 subroutine deallocate_memory
-        
+
         use pegrid
 
         deallocate(hor_index_bounds)

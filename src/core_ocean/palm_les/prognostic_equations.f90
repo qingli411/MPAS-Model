@@ -280,7 +280,7 @@
                ref_state, rho_ocean, s,  s_init, s_p, sa, sa_init, sa_p, tend, &
                tnc_m,  tnr_m, tpt_m, tq_m, tqc_m, tqr_m, ts_m, tsa_m,    &
                tu_m, tv_m, tw_m, u, ug, u_init, u_p, v, vg, vpt, v_init, v_p,  &
-               w, w_p, alpha_T, beta_S, shf_sol
+               w, w_p, alpha_T, beta_S
     USE kinds
 
     USE control_parameters,                                                    &
@@ -449,8 +449,8 @@
            !                                    - tsc(5) * rdf(k) *               &
            !                                             ( u(k,j,i) - u_init(k) ) &
                              ) * MERGE( 1.0_wp, 0.0_wp,   &
-                                                BTEST( wall_flags_0(k,j,i), 1 )) 
-                                    
+                                                BTEST( wall_flags_0(k,j,i), 1 ))
+
           ENDDO
        ENDDO
     ENDDO
@@ -529,7 +529,7 @@
           DO  j = nysv, nyn
              DO  k = dp_level_ind_b+1, nzt
                 tend(k,j,i) = tend(k,j,i) -  disturbFactor * dt_3d / dt_LS * (                &
-                                                v(k,j,i) - vLSforcing(k)) 
+                                                v(k,j,i) - vLSforcing(k))
              ENDDO
           ENDDO
        ENDDO

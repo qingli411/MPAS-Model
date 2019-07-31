@@ -1,4 +1,4 @@
-MODEL_FORMULATION = 
+MODEL_FORMULATION =
 
 
 dummy:
@@ -28,7 +28,7 @@ xlf:
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
- 
+
 ftn:
 	( $(MAKE) all \
 	"FC_PARALLEL = ftn" \
@@ -128,6 +128,32 @@ pgi:
 	"USE_PAPI = $(USE_PAPI)" \
 	"OPENMP = $(OPENMP)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
+
+pgi-lanl:
+	( $(MAKE) all \
+	"FC_PARALLEL = mpif90" \
+	"CC_PARALLEL = mpicc" \
+	"CXX_PARALLEL = mpicxx" \
+	"FC_SERIAL = pgf90" \
+	"CC_SERIAL = pgcc" \
+	"CXX_SERIAL = pgc++" \
+	"FFLAGS_PROMOTION = -r8" \
+	"FFLAGS_OPT = -fpic -O3 -byteswapio -Mfree" \
+	"CFLAGS_OPT = -O3" \
+	"CXXFLAGS_OPT = -O3" \
+	"LDFLAGS_OPT = -O3" \
+	"FFLAGS_DEBUG = -fpic -O0 -g -Mbounds -Mchkptr -byteswapio -Mfree -Ktrap=divz,fp,inv,ovf -traceback" \
+	"CFLAGS_DEBUG = -O0 -g -traceback" \
+	"CXXFLAGS_DEBUG = -O0 -g -traceback" \
+	"LDFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -Ktrap=divz,fp,inv,ovf -traceback" \
+	"FFLAGS_OMP = -mp" \
+	"CFLAGS_OMP = -mp" \
+	"LES_COPT = -Mpreprocess -D__netcdf -D__nopointers -D__lc" \
+	"CORE = $(CORE)" \
+	"DEBUG = $(DEBUG)" \
+	"USE_PAPI = $(USE_PAPI)" \
+	"OPENMP = $(OPENMP)" \
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DUNDERSCORE" )
 
 pgi-titan-openacc:
 	( $(MAKE) all \
@@ -309,12 +335,14 @@ gfortran:
 	"CFLAGS_OPT = -O3 -m64" \
 	"CXXFLAGS_OPT = -O3 -m64" \
 	"LDFLAGS_OPT = -O3 -m64" \
+	"LES_LDFLAGS_OPT = -O3 -m64" \
 	"FFLAGS_DEBUG = -g -m64 -ffree-line-length-none -fconvert=big-endian -ffree-form -fbounds-check -fbacktrace -ffpe-trap=invalid,zero,overflow" \
 	"CFLAGS_DEBUG = -g -m64" \
 	"CXXFLAGS_DEBUG = -g -m64" \
 	"LDFLAGS_DEBUG = -g -m64" \
 	"FFLAGS_OMP = -fopenmp" \
 	"CFLAGS_OMP = -fopenmp" \
+	"LES_COPT = -cpp -D__netcdf -D__nopointers -D__lc" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"KOKKOS = $(KOKKOS)" \
@@ -508,9 +536,9 @@ llvm:
 	"OPENMP = $(OPENMP)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
-CPPINCLUDES = 
-FCINCLUDES = 
-LIBS = 
+CPPINCLUDES =
+FCINCLUDES =
+LIBS =
 
 #
 # If user has indicated a PIO2 library, define USE_PIO2 pre-processor macro
@@ -575,11 +603,16 @@ ifneq "$(NETCDF)" ""
 	LIBS += $(NCLIB)
 endif
 
-
 ifneq "$(PNETCDF)" ""
 	CPPINCLUDES += -I$(PNETCDF)/include
 	FCINCLUDES += -I$(PNETCDF)/include
 	LIBS += -L$(PNETCDF)/lib -lpnetcdf
+endif
+
+ifneq "$(FFTW)" ""
+	CPPINCLUDES += -I$(FFTW)/include
+	FCINCLUDES += -I$(FFTW)/include
+	LIBS += -L$(FFTW)/lib -lfftw3
 endif
 
 RM = rm -f
@@ -649,14 +682,14 @@ endif #OPENMP IF
 ifeq "$(KOKKOS)" "true"
 	KOKKOS_DEVICES=Cuda
 
-	KOKKOS_CXX=kokkos/bin/nvcc_wrapper -ccbin 
+	KOKKOS_CXX=kokkos/bin/nvcc_wrapper -ccbin
 	KOKKOS_CXX += $(CXX)
 	KOKKOS_CUDA_OPTIONS = enable_lambda
 	KOKKOS_CPP_FLAGS = "-DGPU -lineinfo"
 	LIBS += -L$(CUDA)/lib64 -lcudart -lcufft
 else
 	KOKKOS_DEVICES=Serial
-	KOKKOS_CXX = $(CXX_SERIAL) 
+	KOKKOS_CXX = $(CXX_SERIAL)
 endif
 
 ifneq "$(KOKKOSARCH)" ""
@@ -870,8 +903,8 @@ pio_test:
 	@# See whether either of the test programs can be compiled
 	@#
 	@echo "Checking for a usable PIO library..."
-	@($(FC) $(FCINCLUDES) $(LDFLAGS) $(LIBS) -o pio1.out pio1.f90 && echo "=> PIO 1 detected") || \
-	 ($(FC) $(FCINCLUDES) $(LDFLAGS) $(LIBS) -o pio2.out pio2.f90 && echo "=> PIO 2 detected") || \
+	@($(FC) pio1.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) -o pio1.out &> /dev/null && echo "=> PIO 1 detected") || \
+	 ($(FC) pio2.f90 $(FCINCLUDES) $(FFLAGS) $(LDFLAGS) $(LIBS) -o pio2.out &> /dev/null && echo "=> PIO 2 detected") || \
 	 (echo "************ ERROR ************"; \
 	  echo "Failed to compile a PIO test program"; \
 	  echo "Please ensure the PIO environment variable is set to the PIO installation directory"; \
@@ -922,13 +955,13 @@ endif
                  CORE="$(CORE)"\
                  AUTOCLEAN="$(AUTOCLEAN)" \
                  GEN_F90="$(GEN_F90)" \
-		 KOKKOS_CXX="$(KOKKOS_CXX)" \
+		 		 KOKKOS_CXX="$(KOKKOS_CXX)" \
                  KOKKOS_DEVICES="$(KOKKOS_DEVICES)" \
-		 KOKKOS_CUDA_OPTIONS="$(KOKKOS_CUDA_OPTIONS)" \
-		 KOKKOS_ARCH="$(KOKKOS_ARCH)" \
-		 KOKKOS_CPP_FLAGS="$(KOKKOS_CPP_FLAGS)" \
-		 LES_COPT="$(LES_COPT)" \
-		 NAMELIST_SUFFIX="$(NAMELIST_SUFFIX)" \
+		 		 KOKKOS_CUDA_OPTIONS="$(KOKKOS_CUDA_OPTIONS)" \
+		 		 KOKKOS_ARCH="$(KOKKOS_ARCH)" \
+		 		 KOKKOS_CPP_FLAGS="$(KOKKOS_CPP_FLAGS)" \
+				 LES_COPT="$(LES_COPT)" \
+				 NAMELIST_SUFFIX="$(NAMELIST_SUFFIX)" \
                  EXE_NAME="$(EXE_NAME)"
 
 	@echo "$(EXE_NAME)" > .mpas_core_$(CORE)

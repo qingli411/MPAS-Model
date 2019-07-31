@@ -798,7 +798,7 @@
     IMPLICIT NONE
 
     deallocate(kh, km)
-    deallocate(l_grid, l_wall) 
+    deallocate(l_grid, l_wall)
 #if defined( __nopointer )
     deallocate(e,e_p,te_m)
 #else
