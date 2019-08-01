@@ -141,11 +141,8 @@
     DEALLOCATE( d )
     deallocate(p)
     deallocate(tend)
-    print *, '12214123'
 !    deallocate(sums_l)
-    print *, '90029098'
 !    deallocate(sums_l_l )
-print *, '33'
 #if defined( __nopointer )
     DEALLOCATE( pt, pt_p, u, u_p, v, v_p, w, w_p, tpt_m, tu_m, tv_m, tw_m)
 #else

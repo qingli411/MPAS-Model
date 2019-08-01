@@ -53,6 +53,8 @@ module palm_mod
 
     USE kinds
 
+    USE make_vertical_grid
+
     USE ppr_1d
 
     USE pegrid
@@ -104,18 +106,19 @@ module palm_mod
 
     subroutine palm_init(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
                 lat_mpas,maxLevels,wtflux,wtflux_solar, wsflux,uwflux, &
-             vwflux,fac,dep1,dep2,dzLES,nzLES,        &
+             vwflux,fac,dep1,dep2,dxLES, dyLES, dzLES,nxLES,nyLES,nzLES,        &
              endTime, dtDisturb, tIncrementLES,sIncrementLES,             &
              uIncrementLES,vIncrementLES,tempLES,    &
              salinityLES, uLESout, vLESout, dtLS, zLES, &
              disturbMax, disturbAmp, disturbBot, disturbTop, disturbNblocks, &
-             botDepth, timeAv)
+             botDepth, timeAv, constant_dz, MLD, mixed_layer_refine)
 
 !
 ! -- Variables from MPAS
+   logical,intent(in) :: mixed_layer_refine, constant_dz
    integer(iwp),dimension(nCells) :: maxLevels
    integer(iwp) :: iCell,nCells, nVertLevels, il, jl, jloc, kl, knt, nzLES, iz, disturbNblocks
-   integer(iwp) :: nzMPAS, zmMPASspot, zeMPASspot
+   integer(iwp) :: nzMPAS, zmMPASspot, zeMPASspot, nxLES, nyLES
    Real(wp),intent(in)                             :: dtLS
    Real(wp),dimension(nVertLevels,nCells),intent(inout)   :: T_mpas, S_mpas, U_mpas, V_mpas
    Real(wp),dimension(nVertLevels,nCells),intent(inout)   :: tIncrementLES, sIncrementLES, &
@@ -124,8 +127,8 @@ module palm_mod
    Real(wp),dimension(nzLES,nCells),intent(out)           :: uLESout, vLESout
    Real(wp),dimension(nVertLevels,nCells),intent(in)      :: lt_mpas
    Real(wp),dimension(nCells) :: wtflux, wsflux, uwflux, vwflux, disturbBot
-   Real(wp),dimension(nCells) :: botDepth,wtflux_solar, lat_mpas
-   Real(wp) :: dzLES, z_fac, z_frst, z_cntr
+   Real(wp),dimension(nCells) :: botDepth,wtflux_solar, lat_mpas, MLD
+   Real(wp) :: dxLES, dyLES, dzLES, z_fac, z_frst, z_cntr
    real(wp) :: z_fac1, z_fac2, z_facn, tol, test, fac, dep1, dep2
    real(wp) :: dtDisturb, endTime, thickDiff, disturbMax, disturbAmp
    real(wp) :: disturbTop, timeAv
@@ -149,6 +152,10 @@ module palm_mod
    ideal_solar_efolding1 = dep1
    ideal_solar_efolding2 = dep2
    nz = nzLES
+   nx = nxLES
+   ny = nyLES
+   dx = dxLES
+   dy = dyLES
    disturb_nblocks = disturbNblocks
    ! dt_ls is the total run time for each MPAS time step, used in time_integration()
    ! simulated_time need to be reset to 0 for each iCell loop
@@ -219,49 +226,22 @@ module palm_mod
     CALL init_pegrid
     allocate(zu(nzb:nzt+1),zeLES(nzb-1:nzt+1),Tles(0:nzLES+1),Sles(0:nzLES+1))
     allocate(zw(nzb:nzt+1),Ules(0:nzLES+1),Vles(0:nzLES+1))
-    allocate(zeLESinv(nzb-1:nzt+2))
+    allocate(zeLESinv(1:nzt-nzb+2))
     ALLOCATE( hyp(nzb:nzt+1) )
 
     nzt = nzLES
-     ! construct a stretched stretched grid
-    z_cntr = zedge(zeMPASspot)
-    z_frst = -dzLES
-    z_fac1 = z_cntr / z_frst
-    z_fac2 = 1.0_wp / REAL(nzt,kind=wp)
-    z_fac = 1.10_wp
-    tol = 1.0E-10_wp
-    test = 10.00_wp
-    knt = 0
+    if (constant_dz) then
+      call construct_vertical_grid_const(dzLES,nzLES,zeLES,zedge(zeMPASspot),nzt,nzb,zu,zw)
+    else
+      if (mixed_layer_refine) then
+        call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu,MLD)
+      else
+        call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu)
+      endif
+    endif
 
-    do while (test > tol)
-      knt = knt + 1
-      z_facn = (z_fac1*(z_fac - 1.0_wp) + 1.0_wp)**z_fac2
-      test = abs(1.0 - z_facn / z_fac)
-      if(knt .gt. 500) THEN
-        print *, 'cannot find stretching factor,'
-        print *, 'z_fac = ',z_fac, 'z_facn = ',z_facn, 'knt = ',knt
-        stop
-      ENDIF
-      z_fac = z_facn
-    enddo
-
-    zeLES(nzt+1) = dzLES
-    zeLES(nzt) = 0.0_wp
-    zeLES(nzt-1) = -dzLES
-    iz = 2
-    do il = nzt-2,nzb,-1
-      zeLES(il) = zeLES(nzt-1)*(z_fac**(real(iz,kind=wp)) - 1.0_wp) / (z_fac - 1.0_wp)
-      iz = iz + 1
-    enddo
-
-    zeLES(nzb-1) = max(z_cntr,zeLES(nzb) - (zeLES(nzb+1) - zeLES(nzb)))
-
-    do il = nzt,nzb,-1
-      zu(il) = 0.5*(zeLES(il) + zeLES(il-1))
-    enddo
-    zu(nzt+1) = dzLES
-    zeLES(nzb+1:nzt) = zu(nzb+1:nzt)
-
+    !print *, zu
+    !stop
     call work%init(nzLES+1,nvar,opts)
    !
 !-- Generate grid parameters, initialize generic topography and further process
@@ -302,77 +282,40 @@ module palm_mod
 #endif
 
 
-      zmid(1) = -0.5_wp*lt_mpas(1,iCell)
-   zedge(1) = 0
+    zmid(1) = -0.5_wp*lt_mpas(1,iCell)
+    zedge(1) = 0
 
-   do il=2,maxLevels(iCell)
-      zmid(il) = zmid(il-1) - 0.5*(lt_mpas(il-1,iCell) + lt_mpas(il,iCell))
-      zedge(il) = zedge(il-1) - lt_mpas(il-1,iCell)
-   enddo
-
-   zedge(nvertLevels+1) = zedge(nVertLevels) - lt_mpas(maxLevels(iCell),iCell)
-
-   do il=1,maxLevels(iCell)
-     if(zmid(il) < botDepth(iCell)) then
-       zmMPASspot = il
-       nzMPAS = il
-       exit
-     endif
-   enddo
-
-   do il=1,nVertLevels
-     if(zedge(il) < botDepth(iCell)) then
-       zeMPASspot = il
-       exit
-     endif
-   enddo
-    ! construct a stretched stretched grid
-    z_cntr = zedge(zeMPASspot)
-    z_frst = -dzLES
-    z_fac1 = z_cntr / z_frst
-    z_fac2 = 1.0_wp / REAL(nzt,kind=wp)
-    z_fac = 1.10_wp
-    tol = 1.0E-10_wp
-    test = 10.00_wp
-    knt = 0
-
-    do while (test > tol)
-      knt = knt + 1
-      z_facn = (z_fac1*(z_fac - 1.0_wp) + 1.0_wp)**z_fac2
-      test = abs(1.0 - z_facn / z_fac)
-      if(knt .gt. 500) THEN
-        print *, 'cannot find stretching factor,'
-        print *, 'z_fac = ',z_fac, 'z_facn = ',z_facn, 'knt = ',knt
-        stop
-      ENDIF
-      z_fac = z_facn
+    do il=2,maxLevels(iCell)
+       zmid(il) = zmid(il-1) - 0.5*(lt_mpas(il-1,iCell) + lt_mpas(il,iCell))
+       zedge(il) = zedge(il-1) - lt_mpas(il-1,iCell)
     enddo
 
-    zeLES(nzt+1) = dzLES
-    zeLES(nzt) = 0.0_wp
-    zeLES(nzt-1) = -dzLES
-    iz = 2
-    do il = nzt-2,nzb,-1
-      zeLES(il) = zeLES(nzt-1)*(z_fac**(real(iz,kind=wp)) - 1.0_wp) / (z_fac - 1.0_wp)
-      iz = iz + 1
+    zedge(nvertLevels+1) = zedge(nVertLevels) - lt_mpas(maxLevels(iCell),iCell)
+
+    do il=1,maxLevels(iCell)
+      if(zmid(il) < botDepth(iCell)) then
+        zmMPASspot = il
+        nzMPAS = il
+        exit
+      endif
     enddo
 
-    zeLES(nzb-1) = max(z_cntr,zeLES(nzb) - (zeLES(nzb+1) - zeLES(nzb)))
-
-    zeLES(nzb) = zeLES(nzb-1)
-
-    do il = nzt,nzb,-1
-      zu(il) = 0.5*(zeLES(il) + zeLES(il-1))
+    do il=1,nVertLevels
+      if(zedge(il) < botDepth(iCell)) then
+        zeMPASspot = il
+        exit
+      endif
     enddo
-    zu(nzt+1) = dzLES
-    !zeLES(nzb+1:nzt) = zu(nzb+1:nzt)
+    if (constant_dz) then
+      call construct_vertical_grid_const(dzLES,nzLES,zeLES,zedge(zeMPASspot),nzt,nzb,zu,zw)
+    else
+      if (mixed_layer_refine) then
+        call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu,disturbBot)
+      else
+        call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu)
+      endif
+    endif
 
-       zw(nzt+1) = dz(1)
-       zw(nzt)   = 0.0_wp
-       DO  k = 0, nzt
-          zw(k) = ( zu(k) + zu(k+1) ) * 0.5_wp
-       ENDDO
-!
 !--    In case of dirichlet bc for u and v the first u- and w-level are defined
 !--    at same height.
        IF ( ibc_uv_b == 0 ) THEN
@@ -483,6 +426,7 @@ v_p = v
 !-- Only profile time_integration
     CALL cudaProfilerStart()
 #endif
+
 !
 !-- Integration of the model equations using timestep-scheme
     CALL time_integration
@@ -562,22 +506,42 @@ v_p = v
 !   deallocate(zmid,zedge)
 !   deallocate(T_mpas2,S_mpas2,U_mpas2)
 !   deallocate(V_mpas2)
+  do iCell=2,nCells
+   u_restart(:,:,:,iCell) = u(:,:,:)
+    v_restart(:,:,:,iCell) = v(:,:,:)
+    w_restart(:,:,:,iCell) = w(:,:,:)
+    pt_restart(:,:,:,iCell) = pt(:,:,:)
+    sa_restart(:,:,:,iCell) = sa(:,:,:)
+    e_restart(:,:,:,iCell) = e(:,:,:)
+    km_restart(:,:,:,iCell) = km(:,:,:)
+    kh_restart(:,:,:,iCell) = kh(:,:,:)
+
+    u_mean_restart(:,iCell) = u_mean_restart(:,1)
+    v_mean_restart(:,iCell) = v_mean_restart(:,1)
+    t_mean_restart(:,iCell) = t_mean_restart(:,1)
+    s_mean_restart(:,iCell) = s_mean_restart(:,1)
+  tIncrementLES(:,iCell) = tIncrementLES(:,1)
+      sIncrementLES(:,iCell) = sIncrementLES(:,1)
+      uIncrementLES(:,iCell) = uIncrementLES(:,1)
+      vIncrementLES(:,iCell) = vIncrementLES(:,1)
+    enddo
 
 end subroutine palm_init
 
 subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
              lat_mpas,maxLevels,wtflux,wtflux_solar, wsflux,uwflux, &
-              vwflux,fac,dep1,dep2,dzLES,nzLES,        &
+              vwflux,fac,dep1,dep2,dxLES,dyLES,dzLES,nxLES,nyLES,nzLES,        &
              endTime, dtDisturb, tIncrementLES,sIncrementLES,             &
              uIncrementLES,vIncrementLES,tempLES,    &
              salinityLES, uLESout, vLESout, dtLS, zLES, &
              disturbMax, disturbAmp, disturbBot, disturbTop, disturbNblocks, &
-             botDepth, timeAv)
+             botDepth, timeAv, constant_dz, MLD, mixed_layer_refine)
 !
 ! -- Variables from MPAS
+   logical,intent(in) :: mixed_layer_refine, constant_dz
    integer(iwp),dimension(nCells) :: maxLevels
    integer(iwp) :: iCell,nCells, nVertLevels, il, jl, jloc, kl, knt, nzLES, iz, disturbNblocks
-   integer(iwp) :: nzMPAS, zmMPASspot, zeMPASspot
+   integer(iwp) :: nxLES, nyLES, nzMPAS, zmMPASspot, zeMPASspot
    Real(wp),intent(in)                             :: dtLS
    Real(wp),dimension(nVertLevels,nCells),intent(inout)   :: T_mpas, S_mpas, U_mpas, V_mpas
    Real(wp),dimension(nVertLevels,nCells),intent(inout)   :: tIncrementLES, sIncrementLES, &
@@ -586,8 +550,8 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
    Real(wp),dimension(nzLES,nCells),intent(out)           :: uLESout, vLESout
    Real(wp),dimension(nVertLevels,nCells),intent(in)      :: lt_mpas
    Real(wp),dimension(nCells) :: wtflux, wsflux, uwflux, vwflux, disturbBot
-   Real(wp),dimension(nCells) :: botDepth, wtflux_solar, lat_mpas
-   Real(wp) :: dzLES, z_fac, z_frst, z_cntr
+   Real(wp),dimension(nCells) :: botDepth, wtflux_solar, lat_mpas, MLD
+   Real(wp) :: dxLES, dyLES, dzLES, z_fac, z_frst, z_cntr
    real(wp) :: z_fac1, z_fac2, z_facn, tol, test, fac, dep1, dep2
    real(wp) :: dtDisturb, endTime, thickDiff, disturbMax, disturbAmp
    real(wp) :: disturbTop, timeAv
@@ -611,7 +575,11 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
    ideal_solar_division = fac
    ideal_solar_efolding1 = dep1
    ideal_solar_efolding2 = dep2
+   dx = dxLES
+   dy = dyLES
    nz = nzLES
+   nx = nxLES
+   ny = nyLES
    disturb_nblocks = disturbNblocks
    dt_ls = dtLS
    dt_avg = timeAv
@@ -620,7 +588,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
    disturbance_amplitude = disturbAmp
    disturbance_energy_limit = disturbMax
    initializing_actions  = 'SP_run_continue'
-    do iCell=1,nCells
+    do iCell=1,1
       initializing_actions  = 'SP_run_continue'
     zmid(1) = -0.5_wp*lt_mpas(1,iCell)
    zedge(1) = 0
@@ -646,50 +614,16 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
      endif
    enddo
     nzt = nzLES
-    ! construct a stretched stretched grid
-    z_cntr = zedge(zeMPASspot)
-    z_frst = -dzLES
-    z_fac1 = z_cntr / z_frst
-    z_fac2 = 1.0_wp / REAL(nzt,kind=wp)
-    z_fac = 1.10_wp
-    tol = 1.0E-10_wp
-    test = 10.00_wp
-    knt = 0
-    do while (test > tol)
-      knt = knt + 1
-      z_facn = (z_fac1*(z_fac - 1.0_wp) + 1.0_wp)**z_fac2
-      test = abs(1.0 - z_facn / z_fac)
-      if(knt .gt. 500) THEN
-        print *, 'cannot find stretching factor,'
-        print *, 'z_fac = ',z_fac, 'z_facn = ',z_facn, 'knt = ',knt
-        stop
-      ENDIF
-      z_fac = z_facn
-    enddo
+    if (constant_dz) then
+      call construct_vertical_grid_const(dzLES,nzLES,zeLES,zedge(zeMPASspot),nzt,nzb,zu,zw)
+    else
+      if (mixed_layer_refine) then
+        call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu,disturbBot)
+      else
+        call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu)
+      endif
+    endif
 
-    zeLES(nzt+1) = dzLES
-    zeLES(nzt) = 0.0_wp
-    zeLES(nzt-1) = -dzLES
-    iz = 2
-    do il = nzt-2,nzb,-1
-      zeLES(il) = zeLES(nzt-1)*(z_fac**(real(iz,kind=wp)) - 1.0_wp) / (z_fac - 1.0_wp)
-      iz = iz + 1
-    enddo
-
-    zeLES(nzb-1) = max(z_cntr,zeLES(nzb) - (zeLES(nzb+1) - zeLES(nzb)))
-
-    do il = nzt,nzb,-1
-      zu(il) = 0.5*(zeLES(il) + zeLES(il-1))
-    enddo
-    zu(nzt+1) = dzLES
-    ! zeLES(nzb+1:nzt) = zu(nzb+1:nzt)
-
-       zw(nzt+1) = dz(1)
-       zw(nzt)   = 0.0_wp
-       DO  k = 0, nzt
-          zw(k) = ( zu(k) + zu(k+1) ) * 0.5_wp
-       ENDDO
-!
 !--    In case of dirichlet bc for u and v the first u- and w-level are defined
 !--    at same height.
        IF ( ibc_uv_b == 0 ) THEN
@@ -784,6 +718,11 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
     e_p = e
 
     CALL init_3d_model
+    CALL flow_statistics
+    uLESout(:,iCell) = hom(:,1,1,0)
+    vLESout(:,iCell) = hom(:,1,2,0)
+    tempLES(:,iCell) = hom(:,1,4,0)
+    salinityLES(:,iCell) = hom(:,1,5,0)
 
 ! TODO: for testing in single column mode <20190724, Qing Li> !
     if (iCell == 1) then
@@ -804,7 +743,9 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
 !-- Take final CPU-time for CPU-time analysis
     CALL cpu_log( log_point(1), 'total', 'stop' )
 !    CALL cpu_statistics
+flow_statistics_called = .FALSE.
 
+call flow_statistics
     if(average_count_meanpr /= 0) then
 
        meanFields_avg(:,1) = meanFields_avg(:,1) / average_count_meanpr
@@ -844,8 +785,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
       fLES(1,4,jl) = (Vles(il) - vProfileInit(il)) / dtLS
       jl = jl+1
     enddo
-
-    call rmap1d(nzLES+1,nzMPAS+1,nvar,ndof,abs(zeLESinv(1:nzLES+1)),abs(zedge(1:nzMPAS+1)), &
+     call rmap1d(nzLES+1,nzMPAS+1,nvar,ndof,abs(zeLESinv(1:nzLES+1)),abs(zedge(1:nzMPAS+1)), &
                 fLES,fMPAS(:,:,:nzMPAS),bc_l,bc_r,work,opts)
 
     tIncrementLES(:,iCell) = 0.0_wp
@@ -874,6 +814,25 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
     s_mean_restart(:,iCell) = Sles
     call init_control_parameters
   enddo !ends icell loop
+
+  do iCell=2,nCells
+   u_restart(:,:,:,iCell) = u(:,:,:)
+    v_restart(:,:,:,iCell) = v(:,:,:)
+    w_restart(:,:,:,iCell) = w(:,:,:)
+    pt_restart(:,:,:,iCell) = pt(:,:,:)
+    sa_restart(:,:,:,iCell) = sa(:,:,:)
+    e_restart(:,:,:,iCell) = e(:,:,:)
+    km_restart(:,:,:,iCell) = km(:,:,:)
+    kh_restart(:,:,:,iCell) = kh(:,:,:)
+u_mean_restart(:,iCell) = u_mean_restart(:,1)
+    v_mean_restart(:,iCell) = v_mean_restart(:,1)
+    t_mean_restart(:,iCell) = t_mean_restart(:,1)
+    s_mean_restart(:,iCell) = s_mean_restart(:,1)
+  tIncrementLES(:,iCell) = tIncrementLES(:,1)
+      sIncrementLES(:,iCell) = sIncrementLES(:,1)
+      uIncrementLES(:,iCell) = uIncrementLES(:,1)
+      vIncrementLES(:,iCell) = vIncrementLES(:,1)
+    enddo
 
 END subroutine palm_main
 

@@ -75,6 +75,7 @@ SOURCES = \
 	local_system.f90 \
 	local_tremain.f90 \
 	local_tremain_ini.f90 \
+	make_vertical_grid.f90 \
 	message.f90 \
 	mod_kinds.f90 \
 	modules.f90 \
@@ -346,6 +347,8 @@ local_tremain_ini.o: \
 	cpulog_mod.o \
 	mod_kinds.o \
 	modules.o
+make_vertical_grid.o: \
+	mod_kinds.o
 message.o: \
 	mod_kinds.o \
 	modules.o
@@ -369,6 +372,7 @@ outflow_turbulence.o: \
 palm_mod.o: \
 	src/ppr_1d.o \
 	cpulog_mod.o \
+	make_vertical_grid.o \
 	mod_kinds.o \
 	fft_xy_mod.o \
 	modules.o \
