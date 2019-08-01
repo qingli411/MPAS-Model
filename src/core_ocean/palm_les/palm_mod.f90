@@ -132,6 +132,7 @@ module palm_mod
    real(wp) :: sumValT, sumValS, sumValU, sumValV, thickVal
    real(wp) :: fLES(ndof, nvar, nzLES)
    real(wp) :: fMPAS(ndof, nvar, nVertLevels)
+   CHARACTER(LEN=30) :: format
 !-- this specifies options for the method, here is quartic interp
    opts%edge_meth = p5e_method
    opts%cell_meth = pqm_method
@@ -413,6 +414,17 @@ module palm_mod
     call rmap1d(nzMPAS+1,nzLES+1,nvar,ndof,abs(zedge(1:nzMPAS+1)),abs(zeLESinv(1:nzLES+1)), &
                 fMPAS(:,:,:nzMPAS), fLES, bc_l, bc_r, work, opts)
 
+    format = "(5x, F10.3, F10.3, F10.3)"
+    print *, 'fMPAS         Z         T         S'
+    do il = 1,nzMPAS+1
+      write(*,format) zedge(il), fMPAS(1,1,il), fMPAS(1,2,il)
+    enddo
+    print *, ' fLES         Z         T         S'
+    do il = 1,nzLES
+      write(*,format) zeLESinv(il), fLES(1,1,il), fLES(1,2,il)
+    enddo
+    write(*,"(5x, F10.3)") zeLESinv(nzLES+1)
+
     jl = 1
     do il = nzt,nzb+1,-1
       tLSforcing(il) = fLES(1,1,jl) + 273.15
@@ -582,6 +594,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
    real(wp) :: sumValT, sumValS, sumValU, sumValV, thickVal
    real(wp) :: fLES(ndof, nvar, nzLES)
    real(wp) :: fMPAS(ndof, nvar, nVertLevels)
+   CHARACTER(LEN=30) :: format
 !-- this specifies options for the method, here is quartic interp
    opts%edge_meth = p5e_method
    opts%cell_meth = pqm_method
@@ -718,6 +731,17 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
 
     call rmap1d(nzMPAS+1,nzLES+1,nvar,ndof,abs(zedge(1:nzMPAS+1)),abs(zeLESinv(1:nzLES+1)), &
                 fMPAS(:,:,:nzMPAS), fLES, bc_l, bc_r, work, opts)
+
+    format = "(5x, F10.3, F10.3, F10.3)"
+    print *, 'fMPAS         Z         T         S'
+    do il = 1,nzMPAS+1
+      write(*,format) zedge(il), fMPAS(1,1,il), fMPAS(1,2,il)
+    enddo
+    print *, ' fLES         Z         T         S'
+    do il = 1,nzLES
+      write(*,format) zeLESinv(il), fLES(1,1,il), fLES(1,2,il)
+    enddo
+    write(*,"(5x, F10.3)") zeLESinv(nzLES+1)
 
     jl = 1
     do il = nzt,nzb+1,-1
