@@ -53,6 +53,8 @@ module palm_mod
 
     USE kinds
 
+    USE make_vertical_grid
+
     USE ppr_1d
 
     USE pegrid
@@ -109,10 +111,11 @@ module palm_mod
              uIncrementLES,vIncrementLES,tempLES,    &
              salinityLES, uLESout, vLESout, dtLS, zLES, &
              disturbMax, disturbAmp, disturbBot, disturbTop, disturbNblocks, &
-             botDepth, timeAv)
+             botDepth, timeAv, constant_dz, MLD, mixed_layer_refine)
 
 !
 ! -- Variables from MPAS
+   logical,intent(in) :: mixed_layer_refine, constant_dz
    integer(iwp),dimension(nCells) :: maxLevels
    integer(iwp) :: iCell,nCells, nVertLevels, il, jl, jloc, kl, knt, nzLES, iz, disturbNblocks
    integer(iwp) :: nzMPAS, zmMPASspot, zeMPASspot, nxLES, nyLES
@@ -124,7 +127,7 @@ module palm_mod
    Real(wp),dimension(nzLES,nCells),intent(out)           :: uLESout, vLESout
    Real(wp),dimension(nVertLevels,nCells),intent(in)      :: lt_mpas
    Real(wp),dimension(nCells) :: wtflux, wsflux, uwflux, vwflux, disturbBot
-   Real(wp),dimension(nCells) :: botDepth,wtflux_solar, lat_mpas
+   Real(wp),dimension(nCells) :: botDepth,wtflux_solar, lat_mpas, MLD
    Real(wp) :: dxLES, dyLES, dzLES, z_fac, z_frst, z_cntr
    real(wp) :: z_fac1, z_fac2, z_facn, tol, test, fac, dep1, dep2
    real(wp) :: dtDisturb, endTime, thickDiff, disturbMax, disturbAmp
@@ -223,45 +226,18 @@ module palm_mod
     ALLOCATE( hyp(nzb:nzt+1) )
 
     nzt = nzLES
-     ! construct a stretched stretched grid
-    z_cntr = zedge(zeMPASspot)
-    z_frst = -dzLES
-    z_fac1 = z_cntr / z_frst
-    z_fac2 = 1.0_wp / REAL(nzt,kind=wp)
-    z_fac = 1.10_wp
-    tol = 1.0E-10_wp
-    test = 10.00_wp
-    knt = 0
+    if (constant_dz) then
+      call construct_vertical_grid_const(dzLES,nzLES,zeLES,zedge(zeMPASspot),nzt,nzb,zu,zw)
+    else
+      if (mixed_layer_refine) then
+        call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu,MLD)
+      else
+        call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu)
+      endif
+    endif
 
-    do while (test > tol)
-      knt = knt + 1
-      z_facn = (z_fac1*(z_fac - 1.0_wp) + 1.0_wp)**z_fac2
-      test = abs(1.0 - z_facn / z_fac)
-      if(knt .gt. 500) THEN
-        print *, 'cannot find stretching factor,'
-        print *, 'z_fac = ',z_fac, 'z_facn = ',z_facn, 'knt = ',knt
-        stop
-      ENDIF
-      z_fac = z_facn
-    enddo
-
-    zeLES(nzt+1) = dzLES
-    zeLES(nzt) = 0.0_wp
-    zeLES(nzt-1) = -dzLES
-    iz = 2
-    do il = nzt-2,nzb,-1
-      zeLES(il) = zeLES(nzt-1)*(z_fac**(real(iz,kind=wp)) - 1.0_wp) / (z_fac - 1.0_wp)
-      iz = iz + 1
-    enddo
-
-    zeLES(nzb-1) = max(z_cntr,zeLES(nzb) - (zeLES(nzb+1) - zeLES(nzb)))
-
-    do il = nzt,nzb,-1
-      zu(il) = 0.5*(zeLES(il) + zeLES(il-1))
-    enddo
-    zu(nzt+1) = dzLES
-    zeLES(nzb+1:nzt) = zu(nzb+1:nzt)
-
+    !print *, zu
+    !stop
     call work%init(nzLES+1,nvar,opts)
    !
 !-- Generate grid parameters, initialize generic topography and further process
@@ -301,7 +277,7 @@ module palm_mod
 #endif
 
 
-      zmid(1) = -0.5_wp*lt_mpas(1,iCell)
+   zmid(1) = -0.5_wp*lt_mpas(1,iCell)
    zedge(1) = 0
 
    do il=2,maxLevels(iCell)
@@ -325,53 +301,16 @@ module palm_mod
        exit
      endif
    enddo
-    ! construct a stretched stretched grid
-    z_cntr = zedge(zeMPASspot)
-    z_frst = -dzLES
-    z_fac1 = z_cntr / z_frst
-    z_fac2 = 1.0_wp / REAL(nzt,kind=wp)
-    z_fac = 1.10_wp
-    tol = 1.0E-10_wp
-    test = 10.00_wp
-    knt = 0
+    if (constant_dz) then
+      call construct_vertical_grid_const(dzLES,nzLES,zeLES,zedge(zeMPASspot),nzt,nzb,zu,zw)
+    else
+      if (mixed_layer_refine) then
+        call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu,disturbBot)
+      else
+        call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu)
+      endif
+    endif
 
-    do while (test > tol)
-      knt = knt + 1
-      z_facn = (z_fac1*(z_fac - 1.0_wp) + 1.0_wp)**z_fac2
-      test = abs(1.0 - z_facn / z_fac)
-      if(knt .gt. 500) THEN
-        print *, 'cannot find stretching factor,'
-        print *, 'z_fac = ',z_fac, 'z_facn = ',z_facn, 'knt = ',knt
-        stop
-      ENDIF
-      z_fac = z_facn
-    enddo
-
-    zeLES(nzt+1) = dzLES
-    zeLES(nzt) = 0.0_wp
-    zeLES(nzt-1) = -dzLES
-    iz = 2
-    do il = nzt-2,nzb,-1
-      zeLES(il) = zeLES(nzt-1)*(z_fac**(real(iz,kind=wp)) - 1.0_wp) / (z_fac - 1.0_wp)
-      iz = iz + 1
-    enddo
-
-    zeLES(nzb-1) = max(z_cntr,zeLES(nzb) - (zeLES(nzb+1) - zeLES(nzb)))
-
-    zeLES(nzb) = zeLES(nzb-1)
-
-    do il = nzt,nzb,-1
-      zu(il) = 0.5*(zeLES(il) + zeLES(il-1))
-    enddo
-    zu(nzt+1) = dzLES
-    !zeLES(nzb+1:nzt) = zu(nzb+1:nzt)
-
-       zw(nzt+1) = dz(1)
-       zw(nzt)   = 0.0_wp
-       DO  k = 0, nzt
-          zw(k) = ( zu(k) + zu(k+1) ) * 0.5_wp
-       ENDDO
-!
 !--    In case of dirichlet bc for u and v the first u- and w-level are defined
 !--    at same height.
        IF ( ibc_uv_b == 0 ) THEN
@@ -567,9 +506,10 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
              uIncrementLES,vIncrementLES,tempLES,    &
              salinityLES, uLESout, vLESout, dtLS, zLES, &
              disturbMax, disturbAmp, disturbBot, disturbTop, disturbNblocks, &
-             botDepth, timeAv)
+             botDepth, timeAv, constant_dz, MLD, mixed_layer_refine)
 !
 ! -- Variables from MPAS
+   logical,intent(in) :: mixed_layer_refine, constant_dz
    integer(iwp),dimension(nCells) :: maxLevels
    integer(iwp) :: iCell,nCells, nVertLevels, il, jl, jloc, kl, knt, nzLES, iz, disturbNblocks
    integer(iwp) :: nxLES, nyLES, nzMPAS, zmMPASspot, zeMPASspot
@@ -581,7 +521,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
    Real(wp),dimension(nzLES,nCells),intent(out)           :: uLESout, vLESout
    Real(wp),dimension(nVertLevels,nCells),intent(in)      :: lt_mpas
    Real(wp),dimension(nCells) :: wtflux, wsflux, uwflux, vwflux, disturbBot
-   Real(wp),dimension(nCells) :: botDepth, wtflux_solar, lat_mpas
+   Real(wp),dimension(nCells) :: botDepth, wtflux_solar, lat_mpas, MLD
    Real(wp) :: dxLES, dyLES, dzLES, z_fac, z_frst, z_cntr
    real(wp) :: z_fac1, z_fac2, z_facn, tol, test, fac, dep1, dep2
    real(wp) :: dtDisturb, endTime, thickDiff, disturbMax, disturbAmp
@@ -644,50 +584,16 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
      endif
    enddo
     nzt = nzLES
-    ! construct a stretched stretched grid
-    z_cntr = zedge(zeMPASspot)
-    z_frst = -dzLES
-    z_fac1 = z_cntr / z_frst
-    z_fac2 = 1.0_wp / REAL(nzt,kind=wp)
-    z_fac = 1.10_wp
-    tol = 1.0E-10_wp
-    test = 10.00_wp
-    knt = 0
-    do while (test > tol)
-      knt = knt + 1
-      z_facn = (z_fac1*(z_fac - 1.0_wp) + 1.0_wp)**z_fac2
-      test = abs(1.0 - z_facn / z_fac)
-      if(knt .gt. 500) THEN
-        print *, 'cannot find stretching factor,'
-        print *, 'z_fac = ',z_fac, 'z_facn = ',z_facn, 'knt = ',knt
-        stop
-      ENDIF
-      z_fac = z_facn
-    enddo
+    if (constant_dz) then
+      call construct_vertical_grid_const(dzLES,nzLES,zeLES,zedge(zeMPASspot),nzt,nzb,zu,zw)
+    else
+      if (mixed_layer_refine) then
+        call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu,disturbBot)
+      else
+        call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu)
+      endif
+    endif
 
-    zeLES(nzt+1) = dzLES
-    zeLES(nzt) = 0.0_wp
-    zeLES(nzt-1) = -dzLES
-    iz = 2
-    do il = nzt-2,nzb,-1
-      zeLES(il) = zeLES(nzt-1)*(z_fac**(real(iz,kind=wp)) - 1.0_wp) / (z_fac - 1.0_wp)
-      iz = iz + 1
-    enddo
-
-    zeLES(nzb-1) = max(z_cntr,zeLES(nzb) - (zeLES(nzb+1) - zeLES(nzb)))
-
-    do il = nzt,nzb,-1
-      zu(il) = 0.5*(zeLES(il) + zeLES(il-1))
-    enddo
-    zu(nzt+1) = dzLES
-    zeLES(nzb+1:nzt) = zu(nzb+1:nzt)
-
-       zw(nzt+1) = dz(1)
-       zw(nzt)   = 0.0_wp
-       DO  k = 0, nzt
-          zw(k) = ( zu(k) + zu(k+1) ) * 0.5_wp
-       ENDDO
-!
 !--    In case of dirichlet bc for u and v the first u- and w-level are defined
 !--    at same height.
        IF ( ibc_uv_b == 0 ) THEN

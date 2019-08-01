@@ -147,7 +147,8 @@ contains
 
       logical, pointer :: config_use_les_for_vmix, config_use_ecosysTracers,    &
                           config_use_activeTracers_surface_bulk_forcing,        &
-                          config_AM_mixedLayerDepths_enable
+                          config_AM_mixedLayerDepths_enable,                    &
+                          constant_dz, mixed_layer_refine
 
       real (kind=RKIND), pointer :: config_les_dz, config_les_dx, config_les_dy,               &
                                     config_les_dt_data_output,   &
@@ -211,6 +212,8 @@ contains
       call mpas_pool_get_config(ocnConfigs, 'config_les_disturb_top', config_les_disturb_top)
       call mpas_pool_get_config(ocnConfigs, 'config_les_disturb_nblocks', config_les_disturb_nblocks)
       call mpas_pool_get_config(ocnConfigs, 'config_les_time_avg', config_les_time_avg)
+      call mpas_pool_get_config(ocnConfigs, 'config_les_constant_dz', constant_dz)
+      call mpas_pool_get_config(ocnConfigs, 'config_les_mixed_layer_refine', mixed_layer_refine)
 
       call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
       call mpas_pool_get_dimension(meshPool, 'nCellsArray', nCellsArray)
@@ -261,6 +264,11 @@ contains
       call mpas_pool_get_array(forcingPool, 'surfaceStress', surfaceStress)
       call mpas_pool_get_array(forcingPool, 'surfaceStressMagnitude', surfaceStressMagnitude)
       etime = config_les_end_time
+
+      if(constant_dz .and. mixed_layer_refine) then
+        print *, 'Cannot set constant_dz and mixed_layer_refine, setting constant_dz to false'
+        constant_dz = .false.
+      endif
 
       allocate(zonalAverage(nVertLevels),meridionalAverage(nVertLevels))
 
@@ -317,7 +325,7 @@ contains
          les_bottom(iCell) = max(zMid(maxLevelCell(iCell),iCell), config_les_bottom)
 
          if(config_AM_mixedLayerDepths_enable) then
-            les_disturb_bottom(iCell) = -dThreshMLD(iCell)
+            les_disturb_bottom(iCell) = -2.0_RKIND*dThreshMLD(iCell)
          else
             les_disturb_bottom(iCell) = config_les_disturb_bottom
          endif
@@ -357,7 +365,8 @@ contains
              vIncrementLES, temperatureLES, salinityLES, velocityZonalLES,                    &
              velocityMeridionalLES, dt, zLES, config_les_disturb_energy_limit,                &
              config_les_disturb_amplitude, les_disturb_bottom, config_les_disturb_top,        &
-             config_les_disturb_nblocks, les_bottom, config_les_time_avg)
+             config_les_disturb_nblocks, les_bottom, config_les_time_avg, constant_dz,        &
+             dThreshMLD, mixed_layer_refine)
 
       endif
 
@@ -372,7 +381,8 @@ contains
              vIncrementLES, temperatureLES, salinityLES, velocityZonalLES,                    &
              velocityMeridionalLES, dt, zLES, config_les_disturb_energy_limit,                &
              config_les_disturb_amplitude, les_disturb_bottom, config_les_disturb_top,        &
-             config_les_disturb_nblocks, les_bottom, config_les_time_avg)
+             config_les_disturb_nblocks, les_bottom, config_les_time_avg, constant_dz,        &
+             dThreshMLD, mixed_layer_refine)
 
       normalVelocityIncrementLES(:,:) = 0.0_RKIND
       !$omp do schedule(runtime)

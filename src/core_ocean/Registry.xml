@@ -549,7 +549,14 @@
 					description="interval over which to average the LES increments"
 					possible_values="real vals >= 0"
 		/>
-		
+    <nml_option name="config_les_mixed_layer_refine" type="logical" default_value=".false." units="NA"
+					description="logical to determine if vertical grid is refined near MLD and surface"
+					possible_values="real vals >= 0"
+		/>
+    <nml_option name="config_les_constant_dz" type="logical" default_value=".false." units="NA"
+					description="logical to use constant grid spacing in LES"
+					possible_values="real vals >= 0"
+		/>
 	</nml_record>	
 	<nml_record name="cvmix" mode="forward">
 		<nml_option name="config_use_cvmix" type="logical" default_value=".false." units="NA"
