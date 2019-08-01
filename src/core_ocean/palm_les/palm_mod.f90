@@ -438,6 +438,12 @@ module palm_mod
        sProfileInit(jl) = sLSforcing(jl)
     enddo
 
+    ! no restoring for init step
+    uLSforcing = 0.0_wp
+    vLSforcing = 0.0_wp
+    tLSforcing = 0.0_wp
+    sLSforcing = 0.0_wp
+
     pt(nzb,:,:) = pt(nzb+1,:,:)
     sa(nzb,:,:) = sa(nzb+1,:,:)
     u(nzb,:,:) = u(nzb+1,:,:)
@@ -663,7 +669,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
       zu(il) = 0.5*(zeLES(il) + zeLES(il-1))
     enddo
     zu(nzt+1) = dzLES
-    zeLES(nzb+1:nzt) = zu(nzb+1:nzt)
+    ! zeLES(nzb+1:nzt) = zu(nzb+1:nzt)
 
        zw(nzt+1) = dz(1)
        zw(nzt)   = 0.0_wp
@@ -711,27 +717,31 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
     enddo
 
     call rmap1d(nzMPAS+1,nzLES+1,nvar,ndof,abs(zedge(1:nzMPAS+1)),abs(zeLESinv(1:nzLES+1)), &
-                fMPAS, fLES, bc_l, bc_r, work, opts)
+                fMPAS(:,:,:nzMPAS), fLES, bc_l, bc_r, work, opts)
 
     jl = 1
     do il = nzt,nzb+1,-1
-      tLSforcing(il) = fLES(1,1,jl) + 273.15
-      sLSforcing(il) = fLES(1,2,jl)
-      uLSforcing(il) = fLES(1,3,jl)
-      vLSforcing(il) = fLES(1,4,jl)
+      ! tLSforcing(il) = fLES(1,1,jl) + 273.15
+      ! sLSforcing(il) = fLES(1,2,jl)
+      ! uLSforcing(il) = fLES(1,3,jl)
+      ! vLSforcing(il) = fLES(1,4,jl)
+      tLSforcing(il) = fLES(1,1,jl) + 273.15 - t_mean_restart(il,iCell)
+      sLSforcing(il) = fLES(1,2,jl) - s_mean_restart(il,iCell)
+      uLSforcing(il) = fLES(1,3,jl) - u_mean_restart(il,iCell)
+      vLSforcing(il) = fLES(1,4,jl) - v_mean_restart(il,iCell)
       jl = jl + 1
     enddo
 
-    do jl = nzt,nzb+1,-1
-!          pt(jl,:,:) = tempLES(jl) + 273.15_wp
-!          sa(jl,:,:) = salinityLES(jl)
-!          u(jl,:,:) = uLESout(jl)
-!          v(jl,:,:) = vLESout(jl)
-       uProfileInit(jl) = uLSforcing(jl)
-       vProfileInit(jl) = vLSforcing(jl)
-       tProfileInit(jl) = tLSforcing(jl)
-       sProfileInit(jl) = sLSforcing(jl)
-    enddo
+    ! do jl = nzt,nzb+1,-1
+! !          pt(jl,:,:) = tempLES(jl) + 273.15_wp
+! !          sa(jl,:,:) = salinityLES(jl)
+! !          u(jl,:,:) = uLESout(jl)
+! !          v(jl,:,:) = vLESout(jl)
+    !    uProfileInit(jl) = uLSforcing(jl)
+    !    vProfileInit(jl) = vLSforcing(jl)
+    !    tProfileInit(jl) = tLSforcing(jl)
+    !    sProfileInit(jl) = sLSforcing(jl)
+    ! enddo
 !need to cudify this super easy collapse 3 herrel
     u(:,:,:) = u_restart(:,:,:,iCell)
     v(:,:,:) = v_restart(:,:,:,iCell)
