@@ -183,7 +183,7 @@
 !
 !    CALL location_message( 'starting timestep-sequence', .TRUE. )
 
-    disturbFactor = 1.0_wp
+    disturbFactor = 0.0_wp
 
     firstav = .true.
     first = .true.

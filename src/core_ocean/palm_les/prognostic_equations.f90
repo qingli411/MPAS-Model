@@ -705,7 +705,7 @@
                 ENDDO
              ENDDO
           ENDDO
-       ! ENDIF
+       ENDIF
 
 !--    Prognostic equation for potential temperature
     !$acc parallel present( tsc, wall_flags_0, rdf_sc ) &

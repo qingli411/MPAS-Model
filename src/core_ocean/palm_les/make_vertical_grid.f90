@@ -20,7 +20,7 @@
 !
 ! Description:
 ! ------------
-!> Creates the non uniform or uniform LES grid from MPAS options. 
+!> Creates the non uniform or uniform LES grid from MPAS options.
 !> This routine is taken from the "numerical recipies"
 !------------------------------------------------------------------------------!
  MODULE make_vertical_grid
@@ -63,7 +63,7 @@
          zmidOUT(il) = 0.5*(zedge(il) + zedge(il-1))
        enddo
        zmidOUT(nzt+1) = dz
-       zedge(nz+1:nzt) = zmidOUT(nzb+1:nzt)
+       ! zedge(nz+1:nzt) = zmidOUT(nzb+1:nzt)
 
        zedgeOUT(nzt+1) = dz
        zedgeOUT(nzt)   = 0.0_wp
@@ -100,7 +100,7 @@
          tol = 1.0E-10_wp
          test = 10.00_wp
          knt = 0
-         do while (test > tol) 
+         do while (test > tol)
            knt = knt + 1
            z_facn = (z_fac1*(z_fac - 1.0_wp) + 1.0_wp)**z_fac2
            test = abs(1.0 - z_facn / z_fac)
@@ -127,7 +127,7 @@
            zmidOUT(il) = 0.5*(zeLES(il) + zeLES(il-1))
          enddo
          zmidOUT(nzt+1) = dz
-         zeLES(nz+1:nzt) = zmidOUT(nzb+1:nzt)
+         ! zeLES(nz+1:nzt) = zmidOUT(nzb+1:nzt)
 
          zedgeOUT(nzt+1) = dz
          zedgeOUT(nzt)   = 0.0_wp
@@ -155,7 +155,7 @@
         knt = 0
         z_fac = 1.1_wp
 
-        do while (test > tol) 
+        do while (test > tol)
            knt = knt + 1
            z_facn = (z_fac1*(z_fac - 1.0_wp) + 1.0_wp)**z_fac2
            test = abs(1.0 - z_facn / z_fac)
@@ -169,12 +169,12 @@
 
          z_facbl = z_fac
 
-         z_fac1 = -(-z_ht - zedgeIN) / -dz
+         z_fac1 = -(-z_ht - zedgeIN) / (-dz)
          z_fac = 1.1_wp
          knt = 0
          test = 10.0_wp
 
-         do while (test > tol) 
+         do while (test > tol)
            knt = knt + 1
            z_facn = (z_fac1*(z_fac - 1.0_wp) + 1.0_wp)**z_fac2
            test = abs(1.0 - z_facn / z_fac)
@@ -231,6 +231,6 @@
 
       endif
 
-    END SUBROUTINE construct_vertical_grid_variable 
+    END SUBROUTINE construct_vertical_grid_variable
 
- END MODULE make_vertical_grid 
+ END MODULE make_vertical_grid

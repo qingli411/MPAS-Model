@@ -763,12 +763,12 @@ else
 	GEN_F90_MESSAGE="MPAS was built with .F files."
 endif
 
-ifeq "$(LES_GPU)" "true"
-override LES_COPT += -D__lc -D__cudaProfiler -D__GPU
-else
-	override LES_COPT += -D__fftw
-	LIBS += -L${OLCF_FFTW_ROOT}/lib -lfftw3
-endif
+# ifeq "$(LES_GPU)" "true"
+# override LES_COPT += -D__lc -D__cudaProfiler -D__GPU
+# else
+# 	override LES_COPT += -D__fftw
+# 	LIBS += -L${OLCF_FFTW_ROOT}/lib -lfftw3
+# endif
 
 
 ifeq "$(OPENMP)" "true"

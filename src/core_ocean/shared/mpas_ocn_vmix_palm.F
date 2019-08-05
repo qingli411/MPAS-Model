@@ -326,6 +326,7 @@ contains
 
          if(config_AM_mixedLayerDepths_enable) then
             les_disturb_bottom(iCell) = -2.0_RKIND*dThreshMLD(iCell)
+            ! les_disturb_bottom(iCell) = -dThreshMLD(iCell)
          else
             les_disturb_bottom(iCell) = config_les_disturb_bottom
          endif

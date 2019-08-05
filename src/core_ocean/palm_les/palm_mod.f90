@@ -172,7 +172,7 @@ module palm_mod
    iCell = 1
 
    zmid(1) = -0.5_wp*lt_mpas(1,iCell)
-   zedge(1) = 0
+   zedge(1) = 0.0_wp
 
    do il=2,nVertLevels
       zmid(il) = zmid(il-1) - 0.5*(lt_mpas(il-1,iCell) + lt_mpas(il,iCell))
@@ -266,6 +266,7 @@ module palm_mod
     CALL init_3d_model  ! need a pass through for restarts
 
     do iCell=1,nCells
+    ! do iCell=1,1
 
 #if ! defined( __nopointer )
 !
@@ -283,7 +284,7 @@ module palm_mod
 
 
     zmid(1) = -0.5_wp*lt_mpas(1,iCell)
-    zedge(1) = 0
+    zedge(1) = 0.0_wp
 
     do il=2,maxLevels(iCell)
        zmid(il) = zmid(il-1) - 0.5*(lt_mpas(il-1,iCell) + lt_mpas(il,iCell))
@@ -357,16 +358,16 @@ module palm_mod
     call rmap1d(nzMPAS+1,nzLES+1,nvar,ndof,abs(zedge(1:nzMPAS+1)),abs(zeLESinv(1:nzLES+1)), &
                 fMPAS(:,:,:nzMPAS), fLES, bc_l, bc_r, work, opts)
 
-    format = "(5x, F10.3, F10.3, F10.3)"
-    print *, 'fMPAS         Z         T         S'
-    do il = 1,nzMPAS+1
-      write(*,format) zedge(il), fMPAS(1,1,il), fMPAS(1,2,il)
-    enddo
-    print *, ' fLES         Z         T         S'
-    do il = 1,nzLES
-      write(*,format) zeLESinv(il), fLES(1,1,il), fLES(1,2,il)
-    enddo
-    write(*,"(5x, F10.3)") zeLESinv(nzLES+1)
+    ! format = "(5x, F10.3, F10.3, F10.3)"
+    ! print *, 'fMPAS         Z         T         S'
+    ! do il = 1,nzMPAS+1
+    !   write(*,format) zedge(il), fMPAS(1,1,il), fMPAS(1,2,il)
+    ! enddo
+    ! print *, ' fLES         Z         T         S'
+    ! do il = 1,nzLES
+    !   write(*,format) zeLESinv(il), fLES(1,1,il), fLES(1,2,il)
+    ! enddo
+    ! write(*,"(5x, F10.3)") zeLESinv(nzLES+1)
 
     jl = 1
     do il = nzt,nzb+1,-1
@@ -506,25 +507,30 @@ v_p = v
 !   deallocate(zmid,zedge)
 !   deallocate(T_mpas2,S_mpas2,U_mpas2)
 !   deallocate(V_mpas2)
-  do iCell=2,nCells
-   u_restart(:,:,:,iCell) = u(:,:,:)
-    v_restart(:,:,:,iCell) = v(:,:,:)
-    w_restart(:,:,:,iCell) = w(:,:,:)
-    pt_restart(:,:,:,iCell) = pt(:,:,:)
-    sa_restart(:,:,:,iCell) = sa(:,:,:)
-    e_restart(:,:,:,iCell) = e(:,:,:)
-    km_restart(:,:,:,iCell) = km(:,:,:)
-    kh_restart(:,:,:,iCell) = kh(:,:,:)
+  ! do iCell=2,nCells
+  !   u_restart(:,:,:,iCell) = u(:,:,:)
+  !   v_restart(:,:,:,iCell) = v(:,:,:)
+  !   w_restart(:,:,:,iCell) = w(:,:,:)
+  !   pt_restart(:,:,:,iCell) = pt(:,:,:)
+  !   sa_restart(:,:,:,iCell) = sa(:,:,:)
+  !   e_restart(:,:,:,iCell) = e(:,:,:)
+  !   km_restart(:,:,:,iCell) = km(:,:,:)
+  !   kh_restart(:,:,:,iCell) = kh(:,:,:)
 
-    u_mean_restart(:,iCell) = u_mean_restart(:,1)
-    v_mean_restart(:,iCell) = v_mean_restart(:,1)
-    t_mean_restart(:,iCell) = t_mean_restart(:,1)
-    s_mean_restart(:,iCell) = s_mean_restart(:,1)
-  tIncrementLES(:,iCell) = tIncrementLES(:,1)
-      sIncrementLES(:,iCell) = sIncrementLES(:,1)
-      uIncrementLES(:,iCell) = uIncrementLES(:,1)
-      vIncrementLES(:,iCell) = vIncrementLES(:,1)
-    enddo
+  !   u_mean_restart(:,iCell) = u_mean_restart(:,1)
+  !   v_mean_restart(:,iCell) = v_mean_restart(:,1)
+  !   t_mean_restart(:,iCell) = t_mean_restart(:,1)
+  !   s_mean_restart(:,iCell) = s_mean_restart(:,1)
+  !   tIncrementLES(:,iCell) = tIncrementLES(:,1)
+  !   sIncrementLES(:,iCell) = sIncrementLES(:,1)
+  !   uIncrementLES(:,iCell) = uIncrementLES(:,1)
+  !   vIncrementLES(:,iCell) = vIncrementLES(:,1)
+  !   tempLES(:,iCell) = tempLES(:,1)
+  !   salinityLES(:,iCell) = salinityLES(:,1)
+  !   uLESout(:,iCell) = uLESout(:,1)
+  !   vLESout(:,iCell) = vLESout(:,1)
+  !   zLES(:,iCell) = zLES(:,1)
+  ! enddo
 
 end subroutine palm_init
 
@@ -587,10 +593,12 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
    disturbance_level_t = disturbTop
    disturbance_amplitude = disturbAmp
    disturbance_energy_limit = disturbMax
+
+   do iCell=1,nCells
+   ! do iCell=1,1
+
    initializing_actions  = 'SP_run_continue'
-    do iCell=1,1
-      initializing_actions  = 'SP_run_continue'
-    zmid(1) = -0.5_wp*lt_mpas(1,iCell)
+   zmid(1) = -0.5_wp*lt_mpas(1,iCell)
    zedge(1) = 0
    do il=2,maxLevels(iCell)
       zmid(il) = zmid(il-1) - 0.5*(lt_mpas(il-1,iCell) + lt_mpas(il,iCell))
@@ -666,16 +674,16 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
     call rmap1d(nzMPAS+1,nzLES+1,nvar,ndof,abs(zedge(1:nzMPAS+1)),abs(zeLESinv(1:nzLES+1)), &
                 fMPAS(:,:,:nzMPAS), fLES, bc_l, bc_r, work, opts)
 
-    format = "(5x, F10.3, F10.3, F10.3)"
-    print *, 'fMPAS         Z         T         S'
-    do il = 1,nzMPAS+1
-      write(*,format) zedge(il), fMPAS(1,1,il), fMPAS(1,2,il)
-    enddo
-    print *, ' fLES         Z         T         S'
-    do il = 1,nzLES
-      write(*,format) zeLESinv(il), fLES(1,1,il), fLES(1,2,il)
-    enddo
-    write(*,"(5x, F10.3)") zeLESinv(nzLES+1)
+    ! format = "(5x, F10.3, F10.3, F10.3)"
+    ! print *, 'fMPAS         Z         T         S'
+    ! do il = 1,nzMPAS+1
+    !   write(*,format) zedge(il), fMPAS(1,1,il), fMPAS(1,2,il)
+    ! enddo
+    ! print *, ' fLES         Z         T         S'
+    ! do il = 1,nzLES
+    !   write(*,format) zeLESinv(il), fLES(1,1,il), fLES(1,2,il)
+    ! enddo
+    ! write(*,"(5x, F10.3)") zeLESinv(nzLES+1)
 
     jl = 1
     do il = nzt,nzb+1,-1
@@ -718,11 +726,11 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
     e_p = e
 
     CALL init_3d_model
-    CALL flow_statistics
-    uLESout(:,iCell) = hom(:,1,1,0)
-    vLESout(:,iCell) = hom(:,1,2,0)
-    tempLES(:,iCell) = hom(:,1,4,0)
-    salinityLES(:,iCell) = hom(:,1,5,0)
+    ! CALL flow_statistics
+    ! uLESout(:,iCell) = hom(:,1,1,0)
+    ! vLESout(:,iCell) = hom(:,1,2,0)
+    ! tempLES(:,iCell) = hom(:,1,4,0)
+    ! salinityLES(:,iCell) = hom(:,1,5,0)
 
 ! TODO: for testing in single column mode <20190724, Qing Li> !
     if (iCell == 1) then
@@ -743,9 +751,9 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
 !-- Take final CPU-time for CPU-time analysis
     CALL cpu_log( log_point(1), 'total', 'stop' )
 !    CALL cpu_statistics
-flow_statistics_called = .FALSE.
+! flow_statistics_called = .FALSE.
 
-call flow_statistics
+! call flow_statistics
     if(average_count_meanpr /= 0) then
 
        meanFields_avg(:,1) = meanFields_avg(:,1) / average_count_meanpr
@@ -815,24 +823,29 @@ call flow_statistics
     call init_control_parameters
   enddo !ends icell loop
 
-  do iCell=2,nCells
-   u_restart(:,:,:,iCell) = u(:,:,:)
-    v_restart(:,:,:,iCell) = v(:,:,:)
-    w_restart(:,:,:,iCell) = w(:,:,:)
-    pt_restart(:,:,:,iCell) = pt(:,:,:)
-    sa_restart(:,:,:,iCell) = sa(:,:,:)
-    e_restart(:,:,:,iCell) = e(:,:,:)
-    km_restart(:,:,:,iCell) = km(:,:,:)
-    kh_restart(:,:,:,iCell) = kh(:,:,:)
-u_mean_restart(:,iCell) = u_mean_restart(:,1)
-    v_mean_restart(:,iCell) = v_mean_restart(:,1)
-    t_mean_restart(:,iCell) = t_mean_restart(:,1)
-    s_mean_restart(:,iCell) = s_mean_restart(:,1)
-  tIncrementLES(:,iCell) = tIncrementLES(:,1)
-      sIncrementLES(:,iCell) = sIncrementLES(:,1)
-      uIncrementLES(:,iCell) = uIncrementLES(:,1)
-      vIncrementLES(:,iCell) = vIncrementLES(:,1)
-    enddo
+  ! do iCell=2,nCells
+  !   u_restart(:,:,:,iCell) = u(:,:,:)
+  !   v_restart(:,:,:,iCell) = v(:,:,:)
+  !   w_restart(:,:,:,iCell) = w(:,:,:)
+  !   pt_restart(:,:,:,iCell) = pt(:,:,:)
+  !   sa_restart(:,:,:,iCell) = sa(:,:,:)
+  !   e_restart(:,:,:,iCell) = e(:,:,:)
+  !   km_restart(:,:,:,iCell) = km(:,:,:)
+  !   kh_restart(:,:,:,iCell) = kh(:,:,:)
+  !   u_mean_restart(:,iCell) = u_mean_restart(:,1)
+  !   v_mean_restart(:,iCell) = v_mean_restart(:,1)
+  !   t_mean_restart(:,iCell) = t_mean_restart(:,1)
+  !   s_mean_restart(:,iCell) = s_mean_restart(:,1)
+  !   tIncrementLES(:,iCell) = tIncrementLES(:,1)
+  !   sIncrementLES(:,iCell) = sIncrementLES(:,1)
+  !   uIncrementLES(:,iCell) = uIncrementLES(:,1)
+  !   vIncrementLES(:,iCell) = vIncrementLES(:,1)
+  !   tempLES(:,iCell) = tempLES(:,1)
+  !   salinityLES(:,iCell) = salinityLES(:,1)
+  !   uLESout(:,iCell) = uLESout(:,1)
+  !   vLESout(:,iCell) = vLESout(:,1)
+  !   zLES(:,iCell) = zLES(:,1)
+  ! enddo
 
 END subroutine palm_main
 
