@@ -564,7 +564,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
    real(wp) :: sumValT, sumValS, sumValU, sumValV, thickVal
    real(wp) :: fLES(ndof, nvar, nzLES)
    real(wp) :: fMPAS(ndof, nvar, nVertLevels)
-   CHARACTER(LEN=30) :: format
+   CHARACTER(LEN=128) :: format
 !-- this specifies options for the method, here is quartic interp
    opts%edge_meth = p5e_method
    opts%cell_meth = pqm_method
@@ -666,6 +666,9 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
     fMPAS(1,4,:nzMPAS) = V_mpas(1:nzMPAS,iCell)
 
     jl=1
+    print *, nzt, nzb
+    print *, zu
+    print *, zw
     do il = nzt,nzb-1,-1
       zeLESinv(jl) = zeLES(il)
       jl = jl + 1
@@ -674,16 +677,17 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
     call rmap1d(nzMPAS+1,nzLES+1,nvar,ndof,abs(zedge(1:nzMPAS+1)),abs(zeLESinv(1:nzLES+1)), &
                 fMPAS(:,:,:nzMPAS), fLES, bc_l, bc_r, work, opts)
 
-    ! format = "(5x, F10.3, F10.3, F10.3)"
-    ! print *, 'fMPAS         Z         T         S'
-    ! do il = 1,nzMPAS+1
-    !   write(*,format) zedge(il), fMPAS(1,1,il), fMPAS(1,2,il)
-    ! enddo
-    ! print *, ' fLES         Z         T         S'
-    ! do il = 1,nzLES
-    !   write(*,format) zeLESinv(il), fLES(1,1,il), fLES(1,2,il)
-    ! enddo
-    ! write(*,"(5x, F10.3)") zeLESinv(nzLES+1)
+    if (iCell == 1) then
+    format = "(6x, F10.3, F10.3, F10.3, F10.3, F10.3)"
+    print *, 'fMPAS         Z         T         S         U         V'
+    do il = 1,nzMPAS
+      write(*,format) 0.5*(zedge(il)+zedge(il+1)), fMPAS(1,1,il), fMPAS(1,2,il), fMPAS(1,3,il), fMPAS(1,4,il)
+    enddo
+    print *, ' fLES         Z         T         S         U         V'
+    do il = 1,nzLES
+      write(*,format) 0.5*(zeLESinv(il)+zeLESinv(il+1)), fLES(1,1,il), fLES(1,2,il), fLES(1,3,il), fLES(1,4,il)
+    enddo
+    endif
 
     jl = 1
     do il = nzt,nzb+1,-1
@@ -695,8 +699,24 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
       sLSforcing(il) = fLES(1,2,jl) - s_mean_restart(il,iCell)
       uLSforcing(il) = fLES(1,3,jl) - u_mean_restart(il,iCell)
       vLSforcing(il) = fLES(1,4,jl) - v_mean_restart(il,iCell)
+      ! uLSforcing(il) = 0.0_wp
+      ! vLSforcing(il) = 0.0_wp
       jl = jl + 1
     enddo
+
+    if (iCell == 1) then
+       ! format = "(5x, F10.3, F10.3)"
+       ! print *, "LS forcing       max       min"
+       ! write(*, format) maxval(tLSforcing), minval(tLSforcing)
+       ! write(*, format) maxval(sLSforcing), minval(sLSforcing)
+       ! write(*, format) maxval(uLSforcing), minval(uLSforcing)
+       ! write(*, format) maxval(vLSforcing), minval(vLSforcing)
+       format = "(6x, F10.3, F10.3, F10.3, F10.3, F10.3)"
+       print *, '  LSF         Z         T         S         U         V'
+       do il = nzt,nzb+1,-1
+          write(*, format) 0.5*(zeLES(il)+zeLES(il-1)), tLSforcing(il), sLSforcing(il), uLSforcing(il), vLSforcing(il)
+       enddo
+    endif
 
     ! do jl = nzt,nzb+1,-1
 ! !          pt(jl,:,:) = tempLES(jl) + 273.15_wp
@@ -795,6 +815,18 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
     enddo
      call rmap1d(nzLES+1,nzMPAS+1,nvar,ndof,abs(zeLESinv(1:nzLES+1)),abs(zedge(1:nzMPAS+1)), &
                 fLES,fMPAS(:,:,:nzMPAS),bc_l,bc_r,work,opts)
+
+    if (iCell == 1) then
+    format = "(6x, F14.3, E14.3, E14.3, E14.3, E14.3)"
+    print *, 'fMPAS             Z          dTdt          dSdt          dUdt          dVdt'
+    do il = 1,nzMPAS
+      write(*,format) 0.5*(zedge(il)+zedge(il+1)), fMPAS(1,1,il), fMPAS(1,2,il), fMPAS(1,3,il), fMPAS(1,4,il)
+    enddo
+    print *, ' fLES             Z          dTdt          dSdt          dUdt          dVdt'
+    do il = 1,nzLES
+      write(*,format) 0.5*(zeLESinv(il)+zeLESinv(il+1)), fLES(1,1,il), fLES(1,2,il), fLES(1,3,il), fLES(1,4,il)
+    enddo
+    endif
 
     tIncrementLES(:,iCell) = 0.0_wp
     sIncrementLES(:,iCell) = 0.0_wp
