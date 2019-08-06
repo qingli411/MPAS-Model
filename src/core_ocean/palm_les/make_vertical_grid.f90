@@ -43,33 +43,26 @@
 ! ------------
 !> @todo Missing subroutine description.
 !------------------------------------------------------------------------------!
-    SUBROUTINE construct_vertical_grid_const(dz,nz,zedge,zedgeIN,nzt,nzb,zmidOUT,zedgeOUT)
+    SUBROUTINE construct_vertical_grid_const(dz,nzb,nzt,zmidOUT,zedgeOUT)
 
        IMPLICIT NONE
 
-       integer(iwp) :: nz,nzt,nzb,i,il,k
-       Real(wp) :: dz, zmidOUT(nzb:nzt+1), zedgeOUT(nzb:nzt+1)
-       real(wp) :: zedge(nzb-1:nzt+1),zedgeIN
-
-       zedge(nzt+1) = dz
-       zedge(nzt) = 0.0_wp
-
-       do i=nzt-1,nzb,-1
-         zedge(i) = zedge(i+1) - dz
-       enddo
-
-       zedge(nzb-1) = max(zedgeIN,zedge(nzb) - (zedge(nzb+1) - zedge(nzb)))
-       do il = nzt,nzb,-1
-         zmidOUT(il) = 0.5*(zedge(il) + zedge(il-1))
-       enddo
-       zmidOUT(nzt+1) = dz
-       ! zedge(nz+1:nzt) = zmidOUT(nzb+1:nzt)
+       integer(iwp), intent(in) :: nzt, nzb
+       real(wp), intent(in)  :: dz
+       real(wp), intent(out) :: zmidOUT(nzb:nzt+1), zedgeOUT(nzb:nzt+1)
+       integer(iwp) :: i
 
        zedgeOUT(nzt+1) = dz
-       zedgeOUT(nzt)   = 0.0_wp
-       DO  k = 0, nzt
-         zedgeOUT(k) = ( zmidOUT(k) + zmidOUT(k+1) ) * 0.5_wp
-       ENDDO
+       zedgeOUT(nzt) = 0.0_wp
+
+       do i = nzt-1,nzb,-1
+         zedgeOUT(i) = zedgeOUT(i+1) - dz
+       enddo
+
+       do i = nzb+1, nzt+1
+         zmidOUT(i) = 0.5*( zedgeOUT(i) + zedgeOUT(i-1) )
+       enddo
+       zmidOUT(nzb) = zedgeOUT(nzb)-0.5_wp * dz
 
     END SUBROUTINE construct_vertical_grid_const
 

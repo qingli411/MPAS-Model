@@ -118,7 +118,7 @@ module palm_mod
    logical,intent(in) :: mixed_layer_refine, constant_dz
    integer(iwp),dimension(nCells) :: maxLevels
    integer(iwp) :: iCell,nCells, nVertLevels, il, jl, jloc, kl, knt, nzLES, iz, disturbNblocks
-   integer(iwp) :: nzMPAS, zmMPASspot, zeMPASspot, nxLES, nyLES
+   integer(iwp) :: nzMPAS, zmMPASspot, zeMPASspot, nxLES, nyLES, idx_cutoff
    Real(wp),intent(in)                             :: dtLS
    Real(wp),dimension(nVertLevels,nCells),intent(inout)   :: T_mpas, S_mpas, U_mpas, V_mpas
    Real(wp),dimension(nVertLevels,nCells),intent(inout)   :: tIncrementLES, sIncrementLES, &
@@ -133,9 +133,9 @@ module palm_mod
    real(wp) :: dtDisturb, endTime, thickDiff, disturbMax, disturbAmp
    real(wp) :: disturbTop, timeAv
    real(wp) :: sumValT, sumValS, sumValU, sumValV, thickVal
-   real(wp) :: fLES(ndof, nvar, nzLES)
+   real(wp) :: fLES(ndof, nvar, nzLES+1)
    real(wp) :: fMPAS(ndof, nvar, nVertLevels)
-   CHARACTER(LEN=30) :: format
+   CHARACTER(LEN=128) :: format
 !-- this specifies options for the method, here is quartic interp
    opts%edge_meth = p5e_method
    opts%cell_meth = pqm_method
@@ -169,8 +169,10 @@ module palm_mod
    allocate(zmid(nVertLevels),zedge(nVertLevels+1))
    allocate(T_mpas2(nVertLevels),S_mpas2(nVertLevels),U_mpas2(nVertLevels))
    allocate(V_mpas2(nVertLevels))
+
    iCell = 1
 
+   ! vertical grid for MPAS (1:nzVertLeves)
    zmid(1) = -0.5_wp*lt_mpas(1,iCell)
    zedge(1) = 0.0_wp
 
@@ -181,6 +183,7 @@ module palm_mod
 
    zedge(nvertLevels+1) = zedge(nVertLevels) - lt_mpas(nVertLevels,iCell)
 
+   ! find the index of bottom
    do il=1,nVertLevels
      if(zmid(il) < minval(botDepth)) then
        zmMPASspot = il
@@ -224,14 +227,13 @@ module palm_mod
 
 !-- Determine processor topology and local array indices
     CALL init_pegrid
-    allocate(zu(nzb:nzt+1),zeLES(nzb-1:nzt+1),Tles(0:nzLES+1),Sles(0:nzLES+1))
-    allocate(zw(nzb:nzt+1),Ules(0:nzLES+1),Vles(0:nzLES+1))
-    allocate(zeLESinv(1:nzt-nzb+2))
+    allocate(zu(nzb:nzt+1),zw(nzb:nzt+1))
+    allocate(Tles(0:nz+1),Sles(0:nz+1),Ules(0:nz+1),Vles(0:nz+1))
+    allocate(zeLES(nzb-1:nzt+1), zeLESinv(1:nz+2))
     ALLOCATE( hyp(nzb:nzt+1) )
 
-    nzt = nzLES
     if (constant_dz) then
-      call construct_vertical_grid_const(dzLES,nzLES,zeLES,zedge(zeMPASspot),nzt,nzb,zu,zw)
+      call construct_vertical_grid_const(dzLES,nzb,nzt,zu,zw)
     else
       if (mixed_layer_refine) then
         call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu,MLD)
@@ -240,9 +242,7 @@ module palm_mod
       endif
     endif
 
-    !print *, zu
-    !stop
-    call work%init(nzLES+1,nvar,opts)
+    call work%init(nz+1,nvar,opts)
    !
 !-- Generate grid parameters, initialize generic topography and further process
 !-- topography information if required
@@ -307,8 +307,9 @@ module palm_mod
         exit
       endif
     enddo
+
     if (constant_dz) then
-      call construct_vertical_grid_const(dzLES,nzLES,zeLES,zedge(zeMPASspot),nzt,nzb,zu,zw)
+      call construct_vertical_grid_const(dzLES,nzb,nzt,zu,zw)
     else
       if (mixed_layer_refine) then
         call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu,disturbBot)
@@ -317,11 +318,13 @@ module palm_mod
       endif
     endif
 
+
 !--    In case of dirichlet bc for u and v the first u- and w-level are defined
 !--    at same height.
-       IF ( ibc_uv_b == 0 ) THEN
-          zu(0) = zw(0)
-       ENDIF
+    IF ( ibc_uv_b == 0 ) THEN
+       zu(0) = zw(0)
+    ENDIF
+
 !
 !-- Compute grid lengths.
     DO  k = 1, nzt+1
@@ -335,39 +338,50 @@ module palm_mod
        dd2zu(k) = 1.0_wp / ( dzu(k) + dzu(k+1) )
     ENDDO
 
-   disturbance_level_b = disturbBot(iCell)
  !TODO add check for right / acceptable range.
+    disturbance_level_b = disturbBot(iCell)
     top_momentumflux_u = uwflux(iCell)
     top_momentumflux_v = vwflux(iCell)
     top_heatflux =  wtflux(iCell)
     top_salinityflux = -wsflux(iCell)
     latitude = lat_mpas(iCell) * 180.0 / pi
     wb_solar = wtflux_solar(iCell)
+    if (iCell == 1) then
+    print *, 'top momentum flux u: ', top_momentumflux_u
+    print *, 'top momentum flux v: ', top_momentumflux_v
+    print *, 'top heat flux: ', top_heatflux
+    print *, 'top salinityflux: ', top_salinityflux
+    print *, 'solar radiation: ', wb_solar
+    endif
 
     fMPAS(1,1,:nzMPAS) = T_mpas(1:nzMPAS,iCell)
     fMPAS(1,2,:nzMPAS) = S_mpas(1:nzMPAS,iCell)
     fMPAS(1,3,:nzMPAS) = U_mpas(1:nzMPAS,iCell)
     fMPAS(1,4,:nzMPAS) = V_mpas(1:nzMPAS,iCell)
+
     jl=1
-    do il = nzt,nzb-1,-1
-      zeLESinv(jl) = zeLES(il)
+    do il = nzt,nzb,-1
+      zeLESinv(jl) = zw(il)
       jl = jl + 1
     enddo
+    zeLESinv(nzt+2) = zedge(nzMPAS+1)
 
     call ws_init2
-    call rmap1d(nzMPAS+1,nzLES+1,nvar,ndof,abs(zedge(1:nzMPAS+1)),abs(zeLESinv(1:nzLES+1)), &
+    call rmap1d(nzMPAS+1,nz+2,nvar,ndof,abs(zedge(1:nzMPAS+1)),abs(zeLESinv(1:nz+2)), &
                 fMPAS(:,:,:nzMPAS), fLES, bc_l, bc_r, work, opts)
 
-    ! format = "(5x, F10.3, F10.3, F10.3)"
-    ! print *, 'fMPAS         Z         T         S'
-    ! do il = 1,nzMPAS+1
-    !   write(*,format) zedge(il), fMPAS(1,1,il), fMPAS(1,2,il)
-    ! enddo
-    ! print *, ' fLES         Z         T         S'
-    ! do il = 1,nzLES
-    !   write(*,format) zeLESinv(il), fLES(1,1,il), fLES(1,2,il)
-    ! enddo
-    ! write(*,"(5x, F10.3)") zeLESinv(nzLES+1)
+    if (iCell == 1) then
+    format = "(6x, F10.3, F10.3, F10.3, F10.3, F10.3)"
+    print *, 'fMPAS         Z         T         S         U         V'
+    do il = 1,nzMPAS
+      write(*,format) 0.5*(zedge(il)+zedge(il+1)), fMPAS(1,1,il), fMPAS(1,2,il), fMPAS(1,3,il), fMPAS(1,4,il)
+    enddo
+    print *, ' fLES         Z         T         S         U         V'
+    do il = 1,nz
+      write(*,format) 0.5*(zeLESinv(il)+zeLESinv(il+1)), fLES(1,1,il), fLES(1,2,il), fLES(1,3,il), fLES(1,4,il)
+    enddo
+    endif
+
 
     jl = 1
     do il = nzt,nzb+1,-1
@@ -473,9 +487,31 @@ v_p = v
       fLES(1,4,jl) = (Vles(il) - vProfileInit(il)) / dtLS
       jl = jl+1
     enddo
+    fLES(:,:,nz+1) = fLES(:,:,nz)
 
-    call rmap1d(nzLES+1,nzMPAS+1,nvar,ndof,abs(zeLESinv(1:nzLES+1)),abs(zedge(1:nzMPAS+1)), &
+    call rmap1d(nz+2,nzMPAS+1,nvar,ndof,abs(zeLESinv(1:nz+2)),abs(zedge(1:nzMPAS+1)), &
                 fLES,fMPAS(:,:,:nzMPAS),bc_l,bc_r,work,opts)
+
+    idx_cutoff = nzMPAS
+    do il=1,nVertLevels
+     if(zmid(il) < zw(0)) then
+       idx_cutoff = il
+       exit
+     endif
+    enddo
+    fMPAS(:,:,idx_cutoff:nzMPAS) = 0.0_wp
+
+    if (iCell == 1) then
+    format = "(6x, F14.3, E14.3, E14.3, E14.3, E14.3)"
+    print *, 'fMPAS             Z          dTdt          dSdt          dUdt          dVdt'
+    do il = 1,nzMPAS
+      write(*,format) 0.5*(zedge(il)+zedge(il+1)), fMPAS(1,1,il), fMPAS(1,2,il), fMPAS(1,3,il), fMPAS(1,4,il)
+    enddo
+    print *, ' fLES             Z          dTdt          dSdt          dUdt          dVdt'
+    do il = 1,nzLES
+      write(*,format) 0.5*(zeLESinv(il)+zeLESinv(il+1)), fLES(1,1,il), fLES(1,2,il), fLES(1,3,il), fLES(1,4,il)
+    enddo
+    endif
 
     tIncrementLES(:,iCell) = 0.0_wp
     sIncrementLES(:,iCell) = 0.0_wp
@@ -547,7 +583,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
    logical,intent(in) :: mixed_layer_refine, constant_dz
    integer(iwp),dimension(nCells) :: maxLevels
    integer(iwp) :: iCell,nCells, nVertLevels, il, jl, jloc, kl, knt, nzLES, iz, disturbNblocks
-   integer(iwp) :: nxLES, nyLES, nzMPAS, zmMPASspot, zeMPASspot
+   integer(iwp) :: nxLES, nyLES, nzMPAS, zmMPASspot, zeMPASspot, idx_cutoff
    Real(wp),intent(in)                             :: dtLS
    Real(wp),dimension(nVertLevels,nCells),intent(inout)   :: T_mpas, S_mpas, U_mpas, V_mpas
    Real(wp),dimension(nVertLevels,nCells),intent(inout)   :: tIncrementLES, sIncrementLES, &
@@ -562,7 +598,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
    real(wp) :: dtDisturb, endTime, thickDiff, disturbMax, disturbAmp
    real(wp) :: disturbTop, timeAv
    real(wp) :: sumValT, sumValS, sumValU, sumValV, thickVal
-   real(wp) :: fLES(ndof, nvar, nzLES)
+   real(wp) :: fLES(ndof, nvar, nzLES+1)
    real(wp) :: fMPAS(ndof, nvar, nVertLevels)
    CHARACTER(LEN=128) :: format
 !-- this specifies options for the method, here is quartic interp
@@ -623,7 +659,8 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
    enddo
     nzt = nzLES
     if (constant_dz) then
-      call construct_vertical_grid_const(dzLES,nzLES,zeLES,zedge(zeMPASspot),nzt,nzb,zu,zw)
+      call construct_vertical_grid_const(dzLES,nzb,nzt,zu,zw)
+      ! call construct_vertical_grid_const(dzLES,nzLES,zeLES,zedge(zeMPASspot),nzt,nzb,zu,zw)
     else
       if (mixed_layer_refine) then
         call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu,disturbBot)
@@ -651,8 +688,8 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
     ENDDO
 
 
-   disturbance_level_b = disturbBot(iCell)
 !TODO add check for right / acceptable range.
+    disturbance_level_b = disturbBot(iCell)
     top_momentumflux_u = uwflux(iCell)
     top_momentumflux_v = vwflux(iCell)
     top_heatflux =  wtflux(iCell)
@@ -666,15 +703,13 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
     fMPAS(1,4,:nzMPAS) = V_mpas(1:nzMPAS,iCell)
 
     jl=1
-    print *, nzt, nzb
-    print *, zu
-    print *, zw
-    do il = nzt,nzb-1,-1
-      zeLESinv(jl) = zeLES(il)
+    do il = nzt,nzb,-1
+      zeLESinv(jl) = zw(il)
       jl = jl + 1
     enddo
+    zeLESinv(nzt+2) = zedge(nzMPAS+1)
 
-    call rmap1d(nzMPAS+1,nzLES+1,nvar,ndof,abs(zedge(1:nzMPAS+1)),abs(zeLESinv(1:nzLES+1)), &
+    call rmap1d(nzMPAS+1,nz+2,nvar,ndof,abs(zedge(1:nzMPAS+1)),abs(zeLESinv(1:nzLES+2)), &
                 fMPAS(:,:,:nzMPAS), fLES, bc_l, bc_r, work, opts)
 
     if (iCell == 1) then
@@ -813,8 +848,19 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
       fLES(1,4,jl) = (Vles(il) - vProfileInit(il)) / dtLS
       jl = jl+1
     enddo
-     call rmap1d(nzLES+1,nzMPAS+1,nvar,ndof,abs(zeLESinv(1:nzLES+1)),abs(zedge(1:nzMPAS+1)), &
+    fLES(:,:,nz+1) = fLES(:,:,nz)
+
+    call rmap1d(nz+2,nzMPAS+1,nvar,ndof,abs(zeLESinv(1:nzLES+2)),abs(zedge(1:nzMPAS+1)), &
                 fLES,fMPAS(:,:,:nzMPAS),bc_l,bc_r,work,opts)
+
+    idx_cutoff = nzMPAS
+    do il=1,nVertLevels
+     if(zmid(il) < zw(0)) then
+       idx_cutoff = il
+       exit
+     endif
+    enddo
+    fMPAS(:,:,idx_cutoff:nzMPAS) = 0.0_wp
 
     if (iCell == 1) then
     format = "(6x, F14.3, E14.3, E14.3, E14.3, E14.3)"
