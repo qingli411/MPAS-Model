@@ -111,7 +111,7 @@ module palm_mod
              uIncrementLES,vIncrementLES,tempLES,    &
              salinityLES, uLESout, vLESout, dtLS, zLES, &
              disturbMax, disturbAmp, disturbBot, disturbTop, disturbNblocks, &
-             botDepth, timeAv, constant_dz, MLD, mixed_layer_refine)
+             botDepth, timeAv, constant_dz, MLD, mixed_layer_refine, restore_strength)
 
 !
 ! -- Variables from MPAS
@@ -128,7 +128,7 @@ module palm_mod
    Real(wp),dimension(nVertLevels,nCells),intent(in)      :: lt_mpas
    Real(wp),dimension(nCells) :: wtflux, wsflux, uwflux, vwflux, disturbBot
    Real(wp),dimension(nCells) :: botDepth,wtflux_solar, lat_mpas, MLD
-   Real(wp) :: dxLES, dyLES, dzLES, z_fac, z_frst, z_cntr
+   Real(wp) :: dxLES, dyLES, dzLES, z_fac, z_frst, z_cntr, restore_strength
    real(wp) :: z_fac1, z_fac2, z_facn, tol, test, fac, dep1, dep2
    real(wp) :: dtDisturb, endTime, thickDiff, disturbMax, disturbAmp
    real(wp) :: disturbTop, timeAv
@@ -145,6 +145,7 @@ module palm_mod
 
    ! call init_control_parameters
 
+   disturbFactor = restore_strength
    dt_disturb = dtDisturb
    end_time = 3600.0_wp
    ideal_solar_division = fac
@@ -236,8 +237,6 @@ module palm_mod
       endif
     endif
 
-    !print *, zu
-    !stop
     call work%init(nzLES+1,nvar,opts)
    !
 !-- Generate grid parameters, initialize generic topography and further process
@@ -289,15 +288,15 @@ module palm_mod
 
    do il=1,maxLevels(iCell)
      if(zmid(il) < botDepth(iCell)) then
-       zmMPASspot = il
-       nzMPAS = il
+       zmMPASspot = il-1
+       nzMPAS = il-1
        exit
      endif
    enddo
 
    do il=1,nVertLevels
      if(zedge(il) < botDepth(iCell)) then
-       zeMPASspot = il
+       zeMPASspot = il-1
        exit
      endif
    enddo
@@ -305,7 +304,7 @@ module palm_mod
       call construct_vertical_grid_const(dzLES,nzLES,zeLES,zedge(zeMPASspot),nzt,nzb,zu,zw)
     else
       if (mixed_layer_refine) then
-        call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu,disturbBot)
+        call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu,MLD)
       else
         call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu)
       endif
@@ -348,6 +347,8 @@ module palm_mod
       jl = jl + 1
     enddo
 
+    print *, fMPAS(1,1,:nzMPAS)
+    print *, ' '
     call ws_init2
     call rmap1d(nzMPAS+1,nzLES+1,nvar,ndof,abs(zedge(1:nzMPAS+1)),abs(zeLESinv(1:nzLES+1)), &
                 fMPAS(:,:,:nzMPAS), fLES, bc_l, bc_r, work, opts)
@@ -506,7 +507,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
              uIncrementLES,vIncrementLES,tempLES,    &
              salinityLES, uLESout, vLESout, dtLS, zLES, &
              disturbMax, disturbAmp, disturbBot, disturbTop, disturbNblocks, &
-             botDepth, timeAv, constant_dz, MLD, mixed_layer_refine)
+             botDepth, timeAv, constant_dz, MLD, mixed_layer_refine, restore_strength)
 !
 ! -- Variables from MPAS
    logical,intent(in) :: mixed_layer_refine, constant_dz
@@ -522,7 +523,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
    Real(wp),dimension(nVertLevels,nCells),intent(in)      :: lt_mpas
    Real(wp),dimension(nCells) :: wtflux, wsflux, uwflux, vwflux, disturbBot
    Real(wp),dimension(nCells) :: botDepth, wtflux_solar, lat_mpas, MLD
-   Real(wp) :: dxLES, dyLES, dzLES, z_fac, z_frst, z_cntr
+   Real(wp) :: dxLES, dyLES, dzLES, z_fac, z_frst, z_cntr, restore_strength
    real(wp) :: z_fac1, z_fac2, z_facn, tol, test, fac, dep1, dep2
    real(wp) :: dtDisturb, endTime, thickDiff, disturbMax, disturbAmp
    real(wp) :: disturbTop, timeAv
@@ -532,10 +533,10 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
 !-- this specifies options for the method, here is quartic interp
    opts%edge_meth = p5e_method
    opts%cell_meth = pqm_method
-   opts%cell_lims = null_limit
+   opts%cell_lims = mono_limit
 
-   bc_l(:)%bcopt = bcon_loose
-   bc_r(:)%bcopt = bcon_loose
+   bc_l(:)%bcopt = bcon_value
+   bc_r(:)%bcopt = bcon_value
 
    call init_control_parameters
 
@@ -554,6 +555,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
    dt_ls = dtLS
    dt_avg = timeAv
 
+   disturbFactor = restore_strength
    disturbance_level_t = disturbTop
    disturbance_amplitude = disturbAmp
    disturbance_energy_limit = disturbMax
@@ -571,15 +573,15 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
 
    do il=1,maxLevels(iCell)
      if(zmid(il) < botDepth(iCell)) then
-       zmMPASspot = il
-       nzMPAS = il
+       zmMPASspot = il-1
+       nzMPAS = il-1
        exit
      endif
    enddo
 
    do il=1,nVertLevels
      if(zedge(il) < botDepth(iCell)) then
-       zeMPASspot = il
+       zeMPASspot = il-1
        exit
      endif
    enddo

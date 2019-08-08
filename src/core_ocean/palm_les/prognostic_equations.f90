@@ -425,10 +425,11 @@
     ENDIF
     !$acc end parallel
     if (disturbFactor .gt. 0.0_wp) then
+      !$acc loop collapse(3)
        DO  i = nxlu, nxr
           DO  j = nys, nyn
              DO  k = dp_level_ind_b+1, nzt
-                tend(k,j,i) = tend(k,j,i) - disturbFactor * dt_3d / dt_LS *  &
+                tend(k,j,i) = tend(k,j,i) - disturbFactor / dt_LS *  &
                                              ( u(k,j,i) - uLSforcing(k))
               ENDDO
          ENDDO
@@ -525,10 +526,11 @@
     ENDIF
     !$acc end parallel
     IF ( disturbFactor .gt. 0.0_wp )  THEN
+      !$acc loop collapse(3)
        DO  i = nxl, nxr
           DO  j = nysv, nyn
              DO  k = dp_level_ind_b+1, nzt
-                tend(k,j,i) = tend(k,j,i) -  disturbFactor * dt_3d / dt_LS * (                &
+                tend(k,j,i) = tend(k,j,i) -  disturbFactor / dt_LS * (                &
                                                 v(k,j,i) - vLSforcing(k))
              ENDDO
           ENDDO
@@ -691,10 +693,11 @@
        ENDIF
 
        if (disturbFactor .gt. 0.0_wp) then
+         !$acc loop collapse(3)
           do i = nxl, nxr
              do j = nys, nyn
                 do k = nzb+1, nzt
-                   tend(k,j,i) = tend(k,j,i) - disturbFactor * dt_3d / dt_LS *  &
+                   tend(k,j,i) = tend(k,j,i) - disturbFactor / dt_LS *  &
                                                 (pt(k,j,i) - tLSforcing(k))
                 enddo
              enddo
@@ -780,10 +783,11 @@
           CALL stokes_force_s( sa )
        ENDIF
        if (disturbFactor .gt. 0.0_wp) then
+         !$acc loop collapse(3)
           do i = nxl, nxr
              do j = nys, nyn
                 do k = nzb+1, nzt
-                   tend(k,j,i) = tend(k,j,i) - disturbFactor * dt_3d / dt_LS *  &
+                   tend(k,j,i) = tend(k,j,i) - disturbFactor / dt_LS *  &
                                                 (sa(k,j,i) - sLSforcing(k))
                 enddo
              enddo

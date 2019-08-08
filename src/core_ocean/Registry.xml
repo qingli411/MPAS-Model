@@ -544,19 +544,27 @@
 	  <nml_option name="config_les_bottom" type="real" default_value="-64.0" units="m"
 					description="bottom of LES domain in m, will be clipped if deeper than bottomDepth"
 					possible_values="negative real numbers"
-		/>
+    />
+    <nml_option name="config_les_use_variable_bottom_depth" type="logical" default_value=".false." units="NA"
+          description="if true, bottom of LES computational domain is 4*MLD else config_les_bottom is used"
+          possible_values=".true. or .false."
+    />
 	  <nml_option name="config_les_time_avg" type="real" default_value="0" units="s"
 					description="interval over which to average the LES increments"
 					possible_values="real vals >= 0"
 		/>
     <nml_option name="config_les_mixed_layer_refine" type="logical" default_value=".false." units="NA"
 					description="logical to determine if vertical grid is refined near MLD and surface"
-					possible_values="real vals >= 0"
+					possible_values=".true. or .false."
 		/>
     <nml_option name="config_les_constant_dz" type="logical" default_value=".false." units="NA"
 					description="logical to use constant grid spacing in LES"
-					possible_values="real vals >= 0"
-		/>
+					possible_values=".true. or .false."
+    />
+    <nml_option name="config_les_restoring_strength" type="real" default_value="0.0" units="NA"
+          description="strength of restoring of LES to MPAS results"
+          possible_values="real values b/w zero and one"
+    />
 	</nml_record>	
 	<nml_record name="cvmix" mode="forward">
 		<nml_option name="config_use_cvmix" type="logical" default_value=".false." units="NA"

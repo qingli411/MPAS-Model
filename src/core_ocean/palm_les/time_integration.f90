@@ -183,8 +183,6 @@
 !
 !    CALL location_message( 'starting timestep-sequence', .TRUE. )
 
-    disturbFactor = 0.0_wp
-
     firstav = .true.
     first = .true.
     !
@@ -192,7 +190,6 @@
     DO  WHILE ( simulated_time < end_time  .AND.  .NOT. stop_dt  .AND. &
                 .NOT. terminate_run )
 
-!
        CALL cpu_log( log_point_s(10), 'timesteps', 'start' )
 !
 !--    Start of intermediate step loop
