@@ -139,7 +139,7 @@ module palm_mod
 !-- this specifies options for the method, here is quartic interp
    opts%edge_meth = p5e_method
    opts%cell_meth = pqm_method
-   opts%cell_lims = null_limit
+   opts%cell_lims = mono_limit
 
    bc_l(:)%bcopt = bcon_loose
    bc_r(:)%bcopt = bcon_loose
@@ -325,6 +325,10 @@ module palm_mod
        zu(0) = zw(0)
     ENDIF
 
+    if (iCell == 1) then
+       print *, zu
+       print *, zw
+    endif
 !
 !-- Compute grid lengths.
     DO  k = 1, nzt+1
@@ -503,13 +507,13 @@ v_p = v
 
     if (iCell == 1) then
     format = "(6x, F14.3, E14.3, E14.3, E14.3, E14.3)"
-    print *, 'fMPAS             Z          dTdt          dSdt          dUdt          dVdt'
-    do il = 1,nzMPAS
-      write(*,format) 0.5*(zedge(il)+zedge(il+1)), fMPAS(1,1,il), fMPAS(1,2,il), fMPAS(1,3,il), fMPAS(1,4,il)
-    enddo
     print *, ' fLES             Z          dTdt          dSdt          dUdt          dVdt'
     do il = 1,nzLES
       write(*,format) 0.5*(zeLESinv(il)+zeLESinv(il+1)), fLES(1,1,il), fLES(1,2,il), fLES(1,3,il), fLES(1,4,il)
+    enddo
+    print *, 'fMPAS             Z          dTdt          dSdt          dUdt          dVdt'
+    do il = 1,nzMPAS
+      write(*,format) 0.5*(zedge(il)+zedge(il+1)), fMPAS(1,1,il), fMPAS(1,2,il), fMPAS(1,3,il), fMPAS(1,4,il)
     enddo
     endif
 
@@ -749,7 +753,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
        format = "(6x, F10.3, F10.3, F10.3, F10.3, F10.3)"
        print *, '  LSF         Z         T         S         U         V'
        do il = nzt,nzb+1,-1
-          write(*, format) 0.5*(zeLES(il)+zeLES(il-1)), tLSforcing(il), sLSforcing(il), uLSforcing(il), vLSforcing(il)
+          write(*, format) 0.5*(zw(il)+zw(il-1)), tLSforcing(il), sLSforcing(il), uLSforcing(il), vLSforcing(il)
        enddo
     endif
 
@@ -840,6 +844,66 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
     uLESout(:,iCell) = Ules(1:nzt)
     vLESout(:,iCell) = Vles(1:nzt)
 
+    if (iCell == 1) then
+    jl=1
+    do il=nzt,nzb+1,-1
+      fLES(1,1,jl) = Tles(il) - 273.15_wp
+      fLES(1,2,jl) = Sles(il)
+      fLES(1,3,jl) = Ules(il)
+      fLES(1,4,jl) = Vles(il)
+      jl = jl+1
+    enddo
+    fLES(:,:,nz+1) = fLES(:,:,nz)
+    format = "(6x, F10.3, F10.3, F10.3, F10.3, F10.3)"
+    print *, 'fLES1         Z         T         S         U         V'
+    sumValT = 0.0_wp
+    sumValS = 0.0_wp
+    sumValU = 0.0_wp
+    sumValV = 0.0_wp
+    do il = 1,nzLES
+      write(*,format) 0.5*(zeLESinv(il)+zeLESinv(il+1)), fLES(1,1,il), fLES(1,2,il), fLES(1,3,il), fLES(1,4,il)
+      sumValT = sumValT + fLES(1,1,il) * (zeLESinv(il)-zeLESinv(il+1))
+      sumValS = sumValS + fLES(1,2,il) * (zeLESinv(il)-zeLESinv(il+1))
+      sumValU = sumValU + fLES(1,3,il) * (zeLESinv(il)-zeLESinv(il+1))
+      sumValV = sumValV + fLES(1,4,il) * (zeLESinv(il)-zeLESinv(il+1))
+    enddo
+    print *, '  Sum         Z         T         S         U         V'
+    write(*,format) 0.0_wp, sumValT, sumValS, sumValU, sumValV
+    call rmap1d(nz+2,nzMPAS+1,nvar,ndof,abs(zeLESinv(1:nzLES+2)),abs(zedge(1:nzMPAS+1)), &
+                fLES,fMPAS(:,:,:nzMPAS),bc_l,bc_r,work,opts)
+    sumValT = 0.0_wp
+    sumValS = 0.0_wp
+    sumValU = 0.0_wp
+    sumValV = 0.0_wp
+    print *, 'fMPAS         Z         T         S         U         V'
+    do il = 1,nzMPAS
+      write(*,format) 0.5*(zedge(il)+zedge(il+1)), fMPAS(1,1,il), fMPAS(1,2,il), fMPAS(1,3,il), fMPAS(1,4,il)
+      sumValT = sumValT + fMPAS(1,1,il) * (zedge(il)-zedge(il+1))
+      sumValS = sumValS + fMPAS(1,2,il) * (zedge(il)-zedge(il+1))
+      sumValU = sumValU + fMPAS(1,3,il) * (zedge(il)-zedge(il+1))
+      sumValV = sumValV + fMPAS(1,4,il) * (zedge(il)-zedge(il+1))
+    enddo
+    print *, '  Sum         Z         T         S         U         V'
+    write(*,format) 0.0_wp, sumValT, sumValS, sumValU, sumValV
+
+    call rmap1d(nzMPAS+1,nz+2,nvar,ndof,abs(zedge(1:nzMPAS+1)),abs(zeLESinv(1:nzLES+2)), &
+                fMPAS(:,:,:nzMPAS), fLES, bc_l, bc_r, work, opts)
+    print *, 'fLES2         Z         T         S         U         V'
+    sumValT = 0.0_wp
+    sumValS = 0.0_wp
+    sumValU = 0.0_wp
+    sumValV = 0.0_wp
+    do il = 1,nzLES
+      write(*,format) 0.5*(zeLESinv(il)+zeLESinv(il+1)), fLES(1,1,il), fLES(1,2,il), fLES(1,3,il), fLES(1,4,il)
+      sumValT = sumValT + fLES(1,1,il) * (zeLESinv(il)-zeLESinv(il+1))
+      sumValS = sumValS + fLES(1,2,il) * (zeLESinv(il)-zeLESinv(il+1))
+      sumValU = sumValU + fLES(1,3,il) * (zeLESinv(il)-zeLESinv(il+1))
+      sumValV = sumValV + fLES(1,4,il) * (zeLESinv(il)-zeLESinv(il+1))
+    enddo
+    print *, '  Sum         Z         T         S         U         V'
+    write(*,format) 0.0_wp, sumValT, sumValS, sumValU, sumValV
+    endif
+
     jl=1
     do il=nzt,nzb+1,-1
       fLES(1,1,jl) = (Tles(il) - tProfileInit(il)) / dtLS
@@ -864,13 +928,13 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
 
     if (iCell == 1) then
     format = "(6x, F14.3, E14.3, E14.3, E14.3, E14.3)"
-    print *, 'fMPAS             Z          dTdt          dSdt          dUdt          dVdt'
-    do il = 1,nzMPAS
-      write(*,format) 0.5*(zedge(il)+zedge(il+1)), fMPAS(1,1,il), fMPAS(1,2,il), fMPAS(1,3,il), fMPAS(1,4,il)
-    enddo
     print *, ' fLES             Z          dTdt          dSdt          dUdt          dVdt'
     do il = 1,nzLES
       write(*,format) 0.5*(zeLESinv(il)+zeLESinv(il+1)), fLES(1,1,il), fLES(1,2,il), fLES(1,3,il), fLES(1,4,il)
+    enddo
+    print *, 'fMPAS             Z          dTdt          dSdt          dUdt          dVdt'
+    do il = 1,nzMPAS
+      write(*,format) 0.5*(zedge(il)+zedge(il+1)), fMPAS(1,1,il), fMPAS(1,2,il), fMPAS(1,3,il), fMPAS(1,4,il)
     enddo
     endif
 
