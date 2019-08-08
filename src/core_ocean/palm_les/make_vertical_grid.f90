@@ -122,11 +122,12 @@
          zmidOUT(nzt+1) = dz
          ! zeLES(nz+1:nzt) = zmidOUT(nzb+1:nzt)
 
-         zedgeOUT(nzt+1) = dz
-         zedgeOUT(nzt)   = 0.0_wp
-         DO  k = 0, nzt
-           zedgeOUT(k) = ( zmidOUT(k) + zmidOUT(k+1) ) * 0.5_wp
-         ENDDO
+         ! zedgeOUT(nzt+1) = dz
+         ! zedgeOUT(nzt)   = 0.0_wp
+         ! DO  k = 0, nzt
+         !   zedgeOUT(k) = ( zmidOUT(k) + zmidOUT(k+1) ) * 0.5_wp
+         ! ENDDO
+         zedgeOUT = zeLES(nzb:nzt+1)
 
       else
 
