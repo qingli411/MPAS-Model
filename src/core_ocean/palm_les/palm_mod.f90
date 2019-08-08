@@ -337,6 +337,9 @@ module palm_mod
     latitude = lat_mpas(iCell) * 180.0 / pi
     wb_solar = wtflux_solar(iCell)
 
+    f  = 2.0_wp * omega * SIN( latitude / 180.0_wp * pi )
+!    fs = 0.0_wp * omega * COS( latitude / 180.0_wp * pi )
+
     fMPAS(1,1,:nzMPAS) = T_mpas(1:nzMPAS,iCell)
     fMPAS(1,2,:nzMPAS) = S_mpas(1:nzMPAS,iCell)
     fMPAS(1,3,:nzMPAS) = U_mpas(1:nzMPAS,iCell)
@@ -347,8 +350,6 @@ module palm_mod
       jl = jl + 1
     enddo
 
-    print *, fMPAS(1,1,:nzMPAS)
-    print *, ' '
     call ws_init2
     call rmap1d(nzMPAS+1,nzLES+1,nvar,ndof,abs(zedge(1:nzMPAS+1)),abs(zeLESinv(1:nzLES+1)), &
                 fMPAS(:,:,:nzMPAS), fLES, bc_l, bc_r, work, opts)
@@ -533,10 +534,10 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
 !-- this specifies options for the method, here is quartic interp
    opts%edge_meth = p5e_method
    opts%cell_meth = pqm_method
-   opts%cell_lims = mono_limit
+   opts%cell_lims = null_limit
 
-   bc_l(:)%bcopt = bcon_value
-   bc_r(:)%bcopt = bcon_value
+   bc_l(:)%bcopt = bcon_loose
+   bc_r(:)%bcopt = bcon_loose
 
    call init_control_parameters
 
@@ -623,6 +624,9 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
     top_salinityflux = -wsflux(iCell)
     latitude = lat_mpas(iCell) * 180.0 / pi
     wb_solar = wtflux_solar(iCell)
+
+    f  = 2.0_wp * omega * SIN( latitude / 180.0_wp * pi )
+!    fs = 0.0_wp * omega * COS( latitude / 180.0_wp * pi )
 
     fMPAS(1,1,:nzMPAS) = T_mpas(1:nzMPAS,iCell)
     fMPAS(1,2,:nzMPAS) = S_mpas(1:nzMPAS,iCell)
