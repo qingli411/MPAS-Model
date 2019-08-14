@@ -19,44 +19,44 @@
 !
 ! Current revisions:
 ! -----------------
-! 
+!
 ! 2018-10-25 cbegeman
 ! Add dirichlet bottom boundary conditions for salinity
-! 
+!
 ! Former revisions:
 ! -----------------
 ! $Id: read_restart_data_mod.f90 3065 2018-06-12 07:03:02Z Giersch $
 ! New parameters concerning vertical grid stretching have been added
-! 
+!
 ! 3056 2018-06-04 07:49:35Z Giersch
 ! found variable has to be set to false inside overlap loop
-! 
+!
 ! 3049 2018-05-29 13:52:36Z Giersch
 ! Error messages revised
-! 
+!
 ! 3045 2018-05-28 07:55:41Z Giersch
 ! Error messages revised
-! 
+!
 ! 3004 2018-04-27 12:33:25Z Giersch
 ! precipitation_rate_av removed
-! 
+!
 ! 3003 2018-04-23 10:22:58Z Giersch
-! z_i is also read to use the last known inversion height from the 
+! z_i is also read to use the last known inversion height from the
 ! initial run as the first inversion height which is written into the
-! run control file 
-! 
+! run control file
+!
 ! 2956 2018-04-10 11:01:03Z Giersch
 ! spectrum_x and spectrum_y have been moved to global data
-! 
+!
 ! 2921 2018-03-22 15:05:23Z Giersch
 ! spinup_time, day_of_year_init and time_utc_init are also read now
-! 
+!
 ! 2912 2018-03-20 13:00:05Z knoop
 ! Added gust module interface calls
-! 
+!
 ! 2894 2018-03-15 09:17:58Z Giersch
 ! Initial revision
-! 
+!
 !
 ! Description:
 ! ------------
@@ -66,7 +66,7 @@
 
 
     USE control_parameters
-     
+
 
     IMPLICIT NONE
 
@@ -88,7 +88,7 @@
     END INTERFACE rrd_skip_global
 
 
-    PUBLIC rrd_global, rrd_read_parts_of_global, rrd_local,      & 
+    PUBLIC rrd_global, rrd_read_parts_of_global, rrd_local,      &
            rrd_skip_global
 
 
@@ -96,7 +96,7 @@
 
 ! Description:
 ! ------------
-!> Reads values of global control variables from restart-file (binary format) 
+!> Reads values of global control variables from restart-file (binary format)
 !> created by PE0 of the previous run
 !------------------------------------------------------------------------------!
     SUBROUTINE rrd_global
@@ -128,7 +128,7 @@
 
        CHARACTER (LEN=10) ::  binary_version_global, version_on_file
 
-       LOGICAL ::  found  
+       LOGICAL ::  found
 
 
        CALL check_open( 13 )
@@ -212,7 +212,7 @@
 !-- Now read all control parameters:
 !-- Caution: When the following read instructions have been changed, the
 !-- -------  version number stored in the variable binary_version_global has to
-!--          be increased. The same changes must also be done in 
+!--          be increased. The same changes must also be done in
 !--          wrd_write_global.
        READ ( 13 )  length
        READ ( 13 )  restart_string(1:length)
@@ -529,8 +529,8 @@
                 READ ( 13 )  surface_pressure
              CASE ( 'surface_scalarflux' )
                 READ ( 13 )  surface_scalarflux
-             CASE ( 'surface_waterflux' )
-                READ ( 13 )  surface_waterflux
+             CASE ( 'surface_salinityflux' )
+                READ ( 13 )  surface_salinityflux
              CASE ( 'time_coupling' )
                 READ ( 13 )  time_coupling
              CASE ( 'time_disturb' )
@@ -686,24 +686,24 @@
                 IF ( .NOT. found )  THEN
                    WRITE( message_string, * ) 'unknown variable named "',      &
                                            restart_string(1:length),           &
-                                          '" found in global data from ',      & 
+                                          '" found in global data from ',      &
                                           'prior run on PE ', myid
                 CALL message( 'rrd_global', 'PA0302', 1, 2, 0, 6, 0 )
- 
+
                 ENDIF
 
           END SELECT
 !
 !--       Read next string
           READ ( 13 )  length
-          READ ( 13 )  restart_string(1:length)    
+          READ ( 13 )  restart_string(1:length)
 
        ENDDO
- 
+
 
     CALL close_file( 13 )
 
-    
+
     END SUBROUTINE rrd_global
 
 
@@ -861,7 +861,7 @@
                 IF ( average_count_pr /= 0 )  THEN
                    WRITE( message_string, * ) 'inflow profiles not ',          &
                                   'temporally averaged. &Averaging will be ',  &
-                                  'done now using', average_count_pr,          & 
+                                  'done now using', average_count_pr,          &
                                   ' samples.'
                    CALL message( 'rrd_read_parts_of_global', 'PA0309',         &
                                  0, 1, 0, 6, 0 )
@@ -942,11 +942,11 @@
 
 ! Description:
 ! ------------
-!> Reads processor specific data of variables and arrays from restart file 
+!> Reads processor specific data of variables and arrays from restart file
 !> (binary format).
 !------------------------------------------------------------------------------!
- SUBROUTINE rrd_local 
- 
+ SUBROUTINE rrd_local
+
 
     USE arrays_3d,                                                             &
         ONLY:  e, kh, km, p, pt, q, ql, qc, nc, nr, prr, precipitation_amount, &
@@ -1070,16 +1070,16 @@
 !--    Start with this offset and then check, if the subdomain on file
 !--    matches another time(s) in the current subdomain by shifting it
 !--    for nx_on_file+1, ny_on_file+1 respectively
-    
+
        shift_y = 0
        j       = 0
        DO WHILE (  nyspr+shift_y <= nyn-offset_y )
-          
-          IF ( nynpr+shift_y >= nys-offset_y ) THEN 
+
+          IF ( nynpr+shift_y >= nys-offset_y ) THEN
 
              shift_x = 0
              DO WHILE ( nxlpr+shift_x <= nxr-offset_x )
-                
+
                 IF ( nxrpr+shift_x >= nxl-offset_x ) THEN
                    j = j +1
                    IF ( j > 1000 )  THEN
@@ -1095,7 +1095,7 @@
                       files_to_be_opened = files_to_be_opened + 1
                       file_list(files_to_be_opened) = i-1
                    ENDIF
-                      
+
                    offset_xa(files_to_be_opened,j) = offset_x + shift_x
                    offset_ya(files_to_be_opened,j) = offset_y + shift_y
 !
@@ -1104,25 +1104,25 @@
                                                       nxlpr )
                    nxrfa(files_to_be_opened,j) = MIN( nxr-offset_x-shift_x,    &
                                                       nxrpr )
-                   nysfa(files_to_be_opened,j) = MAX( nys-offset_y-shift_y,    & 
+                   nysfa(files_to_be_opened,j) = MAX( nys-offset_y-shift_y,    &
                                                       nyspr )
-                   nynfa(files_to_be_opened,j) = MIN( nyn-offset_y-shift_y,    & 
+                   nynfa(files_to_be_opened,j) = MIN( nyn-offset_y-shift_y,    &
                                                       nynpr )
 
                 ENDIF
 
                 shift_x = shift_x + ( nx_on_file + 1 )
              ENDDO
-       
+
           ENDIF
-             
-          shift_y = shift_y + ( ny_on_file + 1 )             
+
+          shift_y = shift_y + ( ny_on_file + 1 )
        ENDDO
-          
+
        IF ( j > 0 )  overlap_count(files_to_be_opened) = j
-          
+
     ENDDO
-   
+
 !
 !-- Save the id-string of the current process, since myid_char may now be used
 !-- to open files created by PEs with other id.
@@ -1139,7 +1139,7 @@
 !
 !-- Read data from all restart files determined above
     DO  i = 1, files_to_be_opened
- 
+
        j = file_list(i)
 !
 !--    Set the filename (underscore followed by four digit processor id)
@@ -1177,7 +1177,7 @@
                                'restart file "', myid_char, '"'  ,             &
                                ' nxr = ', nxr_on_file, ' but it should be',    &
                                ' = ', hor_index_bounds_previous_run(2,j),      &
-                               ' from the index bound information array' 
+                               ' from the index bound information array'
           CALL message( 'rrd_local', 'PA0288', 2, 2, -1, 6, 1 )
 
        ENDIF
@@ -1188,7 +1188,7 @@
                                  '&nys = ', nys_on_file, ' but it should be',  &
                                  '&= ', hor_index_bounds_previous_run(3,j),    &
                                  '&from the index bound information array'
-          CALL message( 'rrd_local', 'PA0289', 2, 2, -1, 6, 1 ) 
+          CALL message( 'rrd_local', 'PA0289', 2, 2, -1, 6, 1 )
        ENDIF
 
        IF ( nyn_on_file /= hor_index_bounds_previous_run(4,j) )  THEN
@@ -1197,7 +1197,7 @@
                                '&nyn = ', nyn_on_file, ' but it should be',    &
                                '&= ', hor_index_bounds_previous_run(4,j),      &
                                '&from the index bound information array'
-          CALL message( 'rrd_local', 'PA0290', 2, 2, -1, 6, 1 ) 
+          CALL message( 'rrd_local', 'PA0290', 2, 2, -1, 6, 1 )
        ENDIF
 
        IF ( nzb_on_file /= nzb )  THEN
@@ -1205,7 +1205,7 @@
                                      'from prior run on PE ', myid,            &
                                      '&nzb on file = ', nzb_on_file,           &
                                      '&nzb         = ', nzb
-          CALL message( 'rrd_local', 'PA0291', 1, 2, 0, 6, 0 )  
+          CALL message( 'rrd_local', 'PA0291', 1, 2, 0, 6, 0 )
        ENDIF
 
        IF ( nzt_on_file /= nzt )  THEN
@@ -1213,7 +1213,7 @@
                                      'from prior run on PE ', myid,            &
                                      '&nzt on file = ', nzt_on_file,           &
                                      '&nzt         = ', nzt
-          CALL message( 'rrd_local', 'PA0292', 1, 2, 0, 6, 0 )  
+          CALL message( 'rrd_local', 'PA0292', 1, 2, 0, 6, 0 )
        ENDIF
 
 !
@@ -1225,14 +1225,14 @@
 
 !
 !--    Read arrays
-!--    ATTENTION: If the following read commands have been altered, the 
-!--    ---------- version number of the variable binary_version_local must 
-!--               be altered, too. Furthermore, the output list of arrays in 
-!--               wrd_write_local must also be altered 
+!--    ATTENTION: If the following read commands have been altered, the
+!--    ---------- version number of the variable binary_version_local must
+!--               be altered, too. Furthermore, the output list of arrays in
+!--               wrd_write_local must also be altered
 !--               accordingly.
        READ ( 13 )  length
        READ ( 13 )  restart_string(1:length)
-       
+
 
 !
 !--    Loop over processor specific field data
@@ -1243,7 +1243,7 @@
           DO  k = 1, overlap_count(i)
 
              found = .FALSE.
-             
+
 !
 !--          Get the index range of the subdomain on file which overlap with
 !--          the current subdomain
@@ -1275,7 +1275,7 @@
                 CASE ( 'e_av' )
                    IF ( .NOT. ALLOCATED( e_av ) )  THEN
                       ALLOCATE( e_av(nzb:nzt+1,nys-nbgp:nyn+nbgp,              &
-                                     nxl-nbgp:nxr+nbgp) )    
+                                     nxl-nbgp:nxr+nbgp) )
                    ENDIF
                    IF ( k == 1 )  READ ( 13 )  tmp_3d
                    e_av(:,nysc-nbgp:nync+nbgp,nxlc-nbgp:nxrc+nbgp) =           &
@@ -1497,7 +1497,7 @@
                 CASE ( 'qsws_av' )
                    IF ( .NOT. ALLOCATED( qsws_av ) )  THEN
                       ALLOCATE( qsws_av(nysg:nyng,nxlg:nxrg) )
-                   ENDIF  
+                   ENDIF
                    IF ( k == 1 )  READ ( 13 )  tmp_2d
                    qsws_av(nysc-nbgp:nync+nbgp,nxlc-nbgp:nxrc+nbgp)  =         &
                       tmp_2d(nysf-nbgp:nynf+nbgp,nxlf-nbgp:nxrf+nbgp)
@@ -1619,11 +1619,11 @@
                 CASE ( 'ssws_av' )
                    IF ( .NOT. ALLOCATED( ssws_av ) )  THEN
                       ALLOCATE( ssws_av(nysg:nyng,nxlg:nxrg) )
-                   ENDIF  
+                   ENDIF
                    IF ( k == 1 )  READ ( 13 )  tmp_2d
                    ssws_av(nysc-nbgp:nync+nbgp,nxlc-nbgp:nxrc+nbgp)  =         &
                       tmp_2d(nysf-nbgp:nynf+nbgp,nxlf-nbgp:nxrf+nbgp)
-                 
+
                 CASE ( 'ts_av' )
                    IF ( .NOT. ALLOCATED( ts_av ) )  THEN
                       ALLOCATE( ts_av(nysg:nyng,nxlg:nxrg) )
@@ -1660,7 +1660,7 @@
                       READ ( 13 )  tmp_3dwul
                    ENDIF
                    IF ( outflow_l )  THEN
-                      u_m_l(:,nysc-nbgp:nync+nbgp,:) =                         & 
+                      u_m_l(:,nysc-nbgp:nync+nbgp,:) =                         &
                          tmp_3dwul(:,nysf-nbgp:nynf+nbgp,:)
                    ENDIF
 
@@ -1671,7 +1671,7 @@
                       READ ( 13 )  tmp_3dwun
                    ENDIF
                    IF ( outflow_n )  THEN
-                      u_m_n(:,:,nxlc-nbgp:nxrc+nbgp) =                         & 
+                      u_m_n(:,:,nxlc-nbgp:nxrc+nbgp) =                         &
                          tmp_3dwun(:,:,nxlf-nbgp:nxrf+nbgp)
                    ENDIF
 
@@ -1682,7 +1682,7 @@
                       READ ( 13 )  tmp_3dwur
                    ENDIF
                    IF ( outflow_r )  THEN
-                      u_m_r(:,nysc-nbgp:nync+nbgp,:) =                         & 
+                      u_m_r(:,nysc-nbgp:nync+nbgp,:) =                         &
                          tmp_3dwur(:,nysf-nbgp:nynf+nbgp,:)
                    ENDIF
 
@@ -1725,7 +1725,7 @@
                       READ ( 13 )  tmp_3dwvl
                    ENDIF
                    IF ( outflow_l )  THEN
-                      v_m_l(:,nysc-nbgp:nync+nbgp,:) =                         & 
+                      v_m_l(:,nysc-nbgp:nync+nbgp,:) =                         &
                          tmp_3dwvl(:,nysf-nbgp:nynf+nbgp,:)
                    ENDIF
 
@@ -1795,7 +1795,7 @@
                       READ ( 13 )  tmp_3dwwl
                    ENDIF
                    IF ( outflow_l )  THEN
-                      w_m_l(:,nysc-nbgp:nync+nbgp,:) =                         & 
+                      w_m_l(:,nysc-nbgp:nync+nbgp,:) =                         &
                          tmp_3dwwl(:,nysf-nbgp:nynf+nbgp,:)
                    ENDIF
 
@@ -1817,7 +1817,7 @@
                       READ ( 13 )  tmp_3dwwr
                    ENDIF
                    IF ( outflow_r )  THEN
-                      w_m_r(:,nysc-nbgp:nync+nbgp,:) =                         & 
+                      w_m_r(:,nysc-nbgp:nync+nbgp,:) =                         &
                          tmp_3dwwr(:,nysf-nbgp:nynf+nbgp,:)
                    ENDIF
 
@@ -1828,7 +1828,7 @@
                       READ ( 13 )  tmp_3dwws
                    ENDIF
                    IF ( outflow_s )  THEN
-                      w_m_s(:,:,nxlc-nbgp:nxrc+nbgp) =                         & 
+                      w_m_s(:,:,nxlc-nbgp:nxrc+nbgp) =                         &
                          tmp_3dwws(:,:,nxlf-nbgp:nxrf+nbgp)
                    ENDIF
 
@@ -1861,23 +1861,23 @@
 !
 !--                Read surface related variables
                    IF ( .NOT. found ) CALL surface_rrd_local( i, k, nxlf,      &
-                                           nxlc, nxl_on_file, nxrf, nxrc,      & 
-                                           nxr_on_file, nynf, nync,            & 
+                                           nxlc, nxl_on_file, nxrf, nxrc,      &
+                                           nxr_on_file, nynf, nync,            &
                                            nyn_on_file, nysf, nysc,            &
                                            nys_on_file, found )
 
                    IF ( .NOT. found )  THEN
                       WRITE( message_string, * ) 'unknown variable named "',   &
                                                  restart_string(1:length),     &
-                                                '" found in subdomain data ',  & 
+                                                '" found in subdomain data ',  &
                                                 'from prior run on PE ', myid
                       CALL message( 'rrd_local', 'PA0302', 1, 2, 0, 6, 0 )
- 
+
                    ENDIF
 
              END SELECT
 
-          ENDDO ! overlaploop 
+          ENDDO ! overlaploop
 
 !
 !--       Deallocate arrays needed for specific variables only
@@ -1943,7 +1943,7 @@
        DO  WHILE ( restart_string(1:length) /= 'binary_version_local' )
 
           READ ( 13 )  cdum
-          READ ( 13 )  length 
+          READ ( 13 )  length
           READ ( 13 )  restart_string(1:length)
 
        ENDDO

@@ -350,6 +350,10 @@ module palm_mod
     top_salinityflux = -wsflux(iCell)
     latitude = lat_mpas(iCell) * 180.0 / pi
     wb_solar = wtflux_solar(iCell)
+
+    f  = 2.0_wp * omega * SIN( latitude / 180.0_wp * pi )
+    fs = 0.0_wp * omega * COS( latitude / 180.0_wp * pi )
+
     if (iCell == 1) then
     print *, 'top momentum flux u: ', top_momentumflux_u
     print *, 'top momentum flux v: ', top_momentumflux_v
@@ -608,7 +612,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
 !-- this specifies options for the method, here is quartic interp
    opts%edge_meth = p5e_method
    opts%cell_meth = pqm_method
-   opts%cell_lims = null_limit
+   opts%cell_lims = mono_limit
 
    bc_l(:)%bcopt = bcon_loose
    bc_r(:)%bcopt = bcon_loose
@@ -700,6 +704,9 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
     top_salinityflux = -wsflux(iCell)
     latitude = lat_mpas(iCell) * 180.0 / pi
     wb_solar = wtflux_solar(iCell)
+
+    f  = 2.0_wp * omega * SIN( latitude / 180.0_wp * pi )
+    fs = 0.0_wp * omega * COS( latitude / 180.0_wp * pi )
 
     fMPAS(1,1,:nzMPAS) = T_mpas(1:nzMPAS,iCell)
     fMPAS(1,2,:nzMPAS) = S_mpas(1:nzMPAS,iCell)

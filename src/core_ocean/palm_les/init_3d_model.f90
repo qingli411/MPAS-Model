@@ -171,10 +171,10 @@
 !
 !-- Allocation of flux conversion arrays
     DEALLOCATE( heatflux_input_conversion )
-    DEALLOCATE( waterflux_input_conversion )
+    DEALLOCATE( salinityflux_input_conversion )
     DEALLOCATE( momentumflux_input_conversion )
     DEALLOCATE( heatflux_output_conversion )
-    DEALLOCATE( waterflux_output_conversion )
+    DEALLOCATE( salinityflux_output_conversion )
     DEALLOCATE( momentumflux_output_conversion )
 
    end subroutine deallocate_3d_variables
@@ -311,10 +311,10 @@
 !
 !-- Allocation of flux conversion arrays
     ALLOCATE( heatflux_input_conversion(nzb:nzt+1) )
-    ALLOCATE( waterflux_input_conversion(nzb:nzt+1) )
+    ALLOCATE( salinityflux_input_conversion(nzb:nzt+1) )
     ALLOCATE( momentumflux_input_conversion(nzb:nzt+1) )
     ALLOCATE( heatflux_output_conversion(nzb:nzt+1) )
-    ALLOCATE( waterflux_output_conversion(nzb:nzt+1) )
+    ALLOCATE( salinityflux_output_conversion(nzb:nzt+1) )
     ALLOCATE( momentumflux_output_conversion(nzb:nzt+1) )
 
 !
@@ -323,19 +323,22 @@
 
         IF ( TRIM( flux_input_mode ) == 'kinematic' )  THEN
             heatflux_input_conversion(k)      = rho_air_zw(k)
-            waterflux_input_conversion(k)     = rho_air_zw(k)
+            salinityflux_input_conversion(k)  = rho_air_zw(k)
             momentumflux_input_conversion(k)  = rho_air_zw(k)
+        ELSE
+            heatflux_input_conversion(k)      = 1.0_wp
+            salinityflux_input_conversion(k)  = 1.0_wp
+            momentumflux_input_conversion(k)  = 1.0_wp
         ENDIF
 
         IF ( TRIM( flux_output_mode ) == 'kinematic' )  THEN
             heatflux_output_conversion(k)     = drho_air_zw(k)
-            waterflux_output_conversion(k)    = drho_air_zw(k)
+            salinityflux_output_conversion(k) = drho_air_zw(k)
             momentumflux_output_conversion(k) = drho_air_zw(k)
-        ENDIF
-
-        IF ( .NOT. humidity ) THEN
-            waterflux_input_conversion(k)  = 1.0_wp
-            waterflux_output_conversion(k) = 1.0_wp
+        ELSE
+            heatflux_output_conversion(k)     = 1.0_wp
+            salinityflux_output_conversion(k) = 1.0_wp
+            momentumflux_output_conversion(k) = 1.0_wp
         ENDIF
 
     ENDDO

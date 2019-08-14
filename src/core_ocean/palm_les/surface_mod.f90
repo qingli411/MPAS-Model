@@ -22,23 +22,23 @@
 ! Description:
 ! ------------
 !> Surface module defines derived data structures to treat surface-
-!> bounded grid cells. Three different types of surfaces are defined: 
+!> bounded grid cells. Three different types of surfaces are defined:
 !> default surfaces, natural surfaces, and urban surfaces. The module
-!> encompasses the allocation and initialization of surface arrays, and handles 
-!> reading and writing restart data. 
+!> encompasses the allocation and initialization of surface arrays, and handles
+!> reading and writing restart data.
 !> In addition, a further derived data structure is defined, in order to set
-!> boundary conditions at surfaces.  
-!> @todo For the moment, downward-facing surfaces are only classified as  
-!>        default type 
-!> @todo Clean up urban-surface variables (some of them are not used any more) 
-!> @todo Revise chemistry surface flux part (reduce loops?!) 
+!> boundary conditions at surfaces.
+!> @todo For the moment, downward-facing surfaces are only classified as
+!>        default type
+!> @todo Clean up urban-surface variables (some of them are not used any more)
+!> @todo Revise chemistry surface flux part (reduce loops?!)
 !------------------------------------------------------------------------------!
  MODULE surface_mod
 
     USE arrays_3d,                                                             &
         ONLY:  heatflux_input_conversion, momentumflux_input_conversion,       &
                alpha_T, beta_S, rho_air, rho_air_zw, zu, zw,                   &
-               waterflux_input_conversion
+               salinityflux_input_conversion
 
     USE control_parameters
 
@@ -56,22 +56,22 @@
     IMPLICIT NONE
 
 !
-!-- Data type used to identify grid-points where horizontal boundary conditions 
-!-- are applied 
+!-- Data type used to identify grid-points where horizontal boundary conditions
+!-- are applied
     TYPE bc_type
 
        INTEGER(iwp) :: ns                                  !< number of surface elements on the PE
 
-       INTEGER(iwp), DIMENSION(:), ALLOCATABLE ::  i       !< x-index linking to the PALM 3D-grid  
-       INTEGER(iwp), DIMENSION(:), ALLOCATABLE ::  j       !< y-index linking to the PALM 3D-grid    
-       INTEGER(iwp), DIMENSION(:), ALLOCATABLE ::  k       !< z-index linking to the PALM 3D-grid   
+       INTEGER(iwp), DIMENSION(:), ALLOCATABLE ::  i       !< x-index linking to the PALM 3D-grid
+       INTEGER(iwp), DIMENSION(:), ALLOCATABLE ::  j       !< y-index linking to the PALM 3D-grid
+       INTEGER(iwp), DIMENSION(:), ALLOCATABLE ::  k       !< z-index linking to the PALM 3D-grid
 
-       INTEGER(iwp), DIMENSION(:,:), ALLOCATABLE :: start_index !< start index within surface data type for given (j,i) 
-       INTEGER(iwp), DIMENSION(:,:), ALLOCATABLE :: end_index   !< end index within surface data type for given (j,i)  
+       INTEGER(iwp), DIMENSION(:,:), ALLOCATABLE :: start_index !< start index within surface data type for given (j,i)
+       INTEGER(iwp), DIMENSION(:,:), ALLOCATABLE :: end_index   !< end index within surface data type for given (j,i)
 
     END TYPE bc_type
 !
-!-- Data type used to identify and treat surface-bounded grid points  
+!-- Data type used to identify and treat surface-bounded grid points
     TYPE surf_type
 
        INTEGER(iwp) :: ioff                                !< offset value in x-direction, used to determine index of surface element
@@ -79,16 +79,16 @@
        INTEGER(iwp) :: koff                                !< offset value in z-direction, used to determine index of surface element
        INTEGER(iwp) :: ns                                  !< number of surface elements on the PE
 
-       INTEGER(iwp), DIMENSION(:), ALLOCATABLE ::  i       !< x-index linking to the PALM 3D-grid  
-       INTEGER(iwp), DIMENSION(:), ALLOCATABLE ::  j       !< y-index linking to the PALM 3D-grid    
-       INTEGER(iwp), DIMENSION(:), ALLOCATABLE ::  k       !< z-index linking to the PALM 3D-grid       
+       INTEGER(iwp), DIMENSION(:), ALLOCATABLE ::  i       !< x-index linking to the PALM 3D-grid
+       INTEGER(iwp), DIMENSION(:), ALLOCATABLE ::  j       !< y-index linking to the PALM 3D-grid
+       INTEGER(iwp), DIMENSION(:), ALLOCATABLE ::  k       !< z-index linking to the PALM 3D-grid
 
-       INTEGER(iwp), DIMENSION(:), ALLOCATABLE ::  facing  !< Bit indicating surface orientation 
-     
-       INTEGER(iwp), DIMENSION(:,:), ALLOCATABLE :: start_index !< Start index within surface data type for given (j,i) 
-       INTEGER(iwp), DIMENSION(:,:), ALLOCATABLE :: end_index   !< End index within surface data type for given (j,i)  
+       INTEGER(iwp), DIMENSION(:), ALLOCATABLE ::  facing  !< Bit indicating surface orientation
 
-       REAL(wp), DIMENSION(:), ALLOCATABLE ::  z_mo      !< surface-layer height 
+       INTEGER(iwp), DIMENSION(:,:), ALLOCATABLE :: start_index !< Start index within surface data type for given (j,i)
+       INTEGER(iwp), DIMENSION(:,:), ALLOCATABLE :: end_index   !< End index within surface data type for given (j,i)
+
+       REAL(wp), DIMENSION(:), ALLOCATABLE ::  z_mo      !< surface-layer height
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  uvw_abs   !< absolute surface-parallel velocity
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  us        !< friction velocity
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  ts        !< scaling parameter temerature
@@ -112,17 +112,17 @@
 !
 !--    Define arrays for surface fluxes
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  usws      !< vertical momentum flux for u-component at horizontal surfaces
-       REAL(wp), DIMENSION(:), ALLOCATABLE ::  vsws      !< vertical momentum flux for v-component at horizontal surfaces 
+       REAL(wp), DIMENSION(:), ALLOCATABLE ::  vsws      !< vertical momentum flux for v-component at horizontal surfaces
 
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  shf       !< surface flux sensible heat
-       REAL(wp), DIMENSION(:), ALLOCATABLE ::  qsws      !< surface flux latent heat 
+       REAL(wp), DIMENSION(:), ALLOCATABLE ::  qsws      !< surface flux latent heat
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  ssws      !< surface flux passive scalar
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  qcsws     !< surface flux qc
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  ncsws     !< surface flux nc
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  qrsws     !< surface flux qr
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  nrsws     !< surface flux nr
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  sasws     !< surface flux salinity
-       REAL(wp), DIMENSION(:), ALLOCATABLE ::  shf_sol   !< surface solar heat flux -- based on shf and sasws 
+       REAL(wp), DIMENSION(:), ALLOCATABLE ::  shf_sol   !< surface solar heat flux -- based on shf and sasws
        REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  cssws   !< surface flux chemical species
 !
 !--    Required for horizontal walls in production_e
@@ -157,18 +157,18 @@
        REAL(wp), DIMENSION(:,:), ALLOCATABLE   ::  rrtm_asdir      !< albedo for shortwave direct radiation, solar angle of 60°
 
        REAL(wp), DIMENSION(:), ALLOCATABLE   ::  pt_surface        !< skin-surface temperature
-       REAL(wp), DIMENSION(:), ALLOCATABLE   ::  rad_net           !< net radiation 
+       REAL(wp), DIMENSION(:), ALLOCATABLE   ::  rad_net           !< net radiation
        REAL(wp), DIMENSION(:), ALLOCATABLE   ::  rad_net_l         !< net radiation, used in USM
-       REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  lambda_h          !< heat conductivity of soil/ wall (W/m/K) 
-       REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  lambda_h_green    !< heat conductivity of green soil (W/m/K) 
-       REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  lambda_h_window   !< heat conductivity of windows (W/m/K) 
-       REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  lambda_h_def      !< default heat conductivity of soil (W/m/K)   
+       REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  lambda_h          !< heat conductivity of soil/ wall (W/m/K)
+       REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  lambda_h_green    !< heat conductivity of green soil (W/m/K)
+       REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  lambda_h_window   !< heat conductivity of windows (W/m/K)
+       REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  lambda_h_def      !< default heat conductivity of soil (W/m/K)
 
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  rad_lw_in           !< incoming longwave radiation
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  rad_lw_out          !< emitted longwave radiation
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  rad_sw_in           !< incoming shortwave radiation
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  rad_sw_out          !< emitted shortwave radiation
-       
+
 
 
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  c_liq               !< liquid water coverage (of vegetated area)
@@ -182,7 +182,7 @@
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  qsws_liq            !< surface flux of latent heat (liquid water portion)
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  qsws_soil           !< surface flux of latent heat (soil portion)
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  qsws_veg            !< surface flux of latent heat (vegetation portion)
-       REAL(wp), DIMENSION(:), ALLOCATABLE ::  r_a                 !< aerodynamic resistance 
+       REAL(wp), DIMENSION(:), ALLOCATABLE ::  r_a                 !< aerodynamic resistance
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  r_a_green           !< aerodynamic resistance at green fraction
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  r_a_window          !< aerodynamic resistance at window fraction
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  r_canopy            !< canopy resistance
@@ -200,7 +200,7 @@
        REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  m_res             !< residual soil moisture
        REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  m_sat             !< saturation soil moisture (m3/m3)
        REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  m_wilt            !< soil moisture at permanent wilting point (m3/m3)
-       REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  n_vg              !< coef. Van Genuchten  
+       REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  n_vg              !< coef. Van Genuchten
        REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  rho_c_total_def   !< default volumetric heat capacity of the (soil) layer (J/m3/K)
        REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  rho_c_total       !< volumetric heat capacity of the actual soil matrix (J/m3/K)
        REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  root_fr           !< root fraction within the soil layers
@@ -209,10 +209,10 @@
        INTEGER(iwp), DIMENSION(:), ALLOCATABLE ::  surface_types   !< array of types of wall parameters
 
        LOGICAL, DIMENSION(:), ALLOCATABLE  ::  isroof_surf          !< flag indicating roof surfaces
-       LOGICAL, DIMENSION(:), ALLOCATABLE  ::  ground_level         !< flag indicating ground floor level surfaces 
+       LOGICAL, DIMENSION(:), ALLOCATABLE  ::  ground_level         !< flag indicating ground floor level surfaces
 
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  target_temp_summer  !< indoor target temperature summer
-       REAL(wp), DIMENSION(:), ALLOCATABLE ::  target_temp_winter  !< indoor target temperature summer        
+       REAL(wp), DIMENSION(:), ALLOCATABLE ::  target_temp_winter  !< indoor target temperature summer
 
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  c_surface           !< heat capacity of the wall surface skin (J/m2/K)
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  c_surface_green     !< heat capacity of the green surface skin (J/m2/K)
@@ -254,21 +254,21 @@
        REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  ddz_wall          !< 1/dz_wall
        REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  dz_wall_stag      !< wall grid spacing (edge-edge)
        REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  ddz_wall_stag     !< 1/dz_wall_stag
-       REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  tt_wall_m         !< t_wall prognostic array 
+       REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  tt_wall_m         !< t_wall prognostic array
        REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  zw                !< wall layer depths (m)
        REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  rho_c_window      !< volumetric heat capacity of the window material ( J m-3 K-1 ) (= 2.19E6)
        REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  dz_window         !< window grid spacing (center-center)
        REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  ddz_window        !< 1/dz_window
        REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  dz_window_stag    !< window grid spacing (edge-edge)
        REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  ddz_window_stag   !< 1/dz_window_stag
-       REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  tt_window_m       !< t_window prognostic array 
+       REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  tt_window_m       !< t_window prognostic array
        REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  zw_window         !< window layer depths (m)
        REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  rho_c_green       !< volumetric heat capacity of the green material ( J m-3 K-1 ) (= 2.19E6)
        REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  dz_green          !< green grid spacing (center-center)
        REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  ddz_green         !< 1/dz_green
        REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  dz_green_stag     !< green grid spacing (edge-edge)
        REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  ddz_green_stag    !< 1/dz_green_stag
-       REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  tt_green_m        !< t_green prognostic array 
+       REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  tt_green_m        !< t_green prognostic array
        REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  zw_green          !< green layer depths (m)
 
 
@@ -285,7 +285,7 @@
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  surfoutlw_av     !< average of total lw radiation outgoing from nonvirtual surfaces surfaces after all reflection
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  surfins_av       !< average of array of residua of sw radiation absorbed in surface after last reflection
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  surfinl_av       !< average of array of residua of lw radiation absorbed in surface after last reflection
-       REAL(wp), DIMENSION(:), ALLOCATABLE ::  surfhf_av        !< average of total radiation flux incoming to minus outgoing from local surface  
+       REAL(wp), DIMENSION(:), ALLOCATABLE ::  surfhf_av        !< average of total radiation flux incoming to minus outgoing from local surface
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  wghf_eb_av       !< average of wghf_eb
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  wghf_eb_window_av  !< average of wghf_eb window
        REAL(wp), DIMENSION(:), ALLOCATABLE ::  wghf_eb_green_av   !< average of wghf_eb window
@@ -309,14 +309,14 @@
     TYPE (surf_type), DIMENSION(0:2), TARGET ::  surf_def_h  !< horizontal default surfaces (Up, Down, and Top)
     TYPE (surf_type), DIMENSION(0:3), TARGET ::  surf_def_v  !< vertical default surfaces (North, South, East, West)
 
-    INTEGER(iwp), PARAMETER ::  ind_veg_wall  = 0            !< index for vegetation / wall-surface fraction, used for access of albedo, emissivity, etc., for each surface type   
+    INTEGER(iwp), PARAMETER ::  ind_veg_wall  = 0            !< index for vegetation / wall-surface fraction, used for access of albedo, emissivity, etc., for each surface type
     INTEGER(iwp), PARAMETER ::  ind_pav_green = 1            !< index for pavement / green-wall surface fraction, used for access of albedo, emissivity, etc., for each surface type
     INTEGER(iwp), PARAMETER ::  ind_wat_win   = 2            !< index for water / window-surface fraction, used for access of albedo, emissivity, etc., for each surface type
 
-    INTEGER(iwp) ::  ns_h_on_file(0:2)                       !< total number of horizontal surfaces with the same facing, required for writing restart data 
-    INTEGER(iwp) ::  ns_v_on_file(0:3)                       !< total number of vertical surfaces with the same facing, required for writing restart data 
+    INTEGER(iwp) ::  ns_h_on_file(0:2)                       !< total number of horizontal surfaces with the same facing, required for writing restart data
+    INTEGER(iwp) ::  ns_v_on_file(0:3)                       !< total number of vertical surfaces with the same facing, required for writing restart data
 
-    LOGICAL ::  vertical_surfaces_exist = .FALSE.   !< flag indicating that there are vertical urban/land surfaces 
+    LOGICAL ::  vertical_surfaces_exist = .FALSE.   !< flag indicating that there are vertical urban/land surfaces
                                                     !< in the domain (required to activiate RTM)
 
 
@@ -366,7 +366,7 @@
 !-- Public subroutines and functions
     PUBLIC get_topography_top_index, get_topography_top_index_ji, init_bc,     &
            init_surfaces, deallocate_bc,                                                     &
-           init_surface_arrays, surface_rrd_local,                     & 
+           init_surface_arrays, surface_rrd_local,                     &
            surface_restore_elements, surface_wrd_local,               &
            surface_last_actions
 
@@ -388,11 +388,11 @@
        DEALLOCATE( bc_h(1)%start_index )
        DEALLOCATE( bc_h(1)%end_index )
 
-    end subroutine deallocate_bc       
+    end subroutine deallocate_bc
 !------------------------------------------------------------------------------!
 ! Description:
 ! ------------
-!> Initialize data type for setting boundary conditions at horizontal surfaces. 
+!> Initialize data type for setting boundary conditions at horizontal surfaces.
 !------------------------------------------------------------------------------!
     SUBROUTINE init_bc
 
@@ -500,7 +500,7 @@
 ! Description:
 ! ------------
 !> Initialize horizontal and vertical surfaces. Counts the number of default-,
-!> natural and urban surfaces and allocates memory, respectively. 
+!> natural and urban surfaces and allocates memory, respectively.
 !------------------------------------------------------------------------------!
     SUBROUTINE init_surface_arrays
 
@@ -510,12 +510,12 @@
 
        IMPLICIT NONE
 
-       INTEGER(iwp)                 ::  i         !< running index x-direction 
+       INTEGER(iwp)                 ::  i         !< running index x-direction
        INTEGER(iwp)                 ::  j         !< running index y-direction
        INTEGER(iwp)                 ::  k         !< running index z-direction
        INTEGER(iwp)                 ::  l         !< index variable for surface facing
-       INTEGER(iwp), DIMENSION(0:2) ::  num_def_h !< number of horizontally-aligned default surfaces 
-       INTEGER(iwp), DIMENSION(0:3) ::  num_def_v !< number of vertically-aligned default surfaces 
+       INTEGER(iwp), DIMENSION(0:2) ::  num_def_h !< number of horizontally-aligned default surfaces
+       INTEGER(iwp), DIMENSION(0:3) ::  num_def_v !< number of vertically-aligned default surfaces
 
        INTEGER(iwp)              ::  num_surf_v_l !< number of vertically-aligned local urban/land surfaces
        INTEGER(iwp)              ::  num_surf_v   !< number of vertically-aligned total urban/land surfaces
@@ -526,11 +526,11 @@
 !
 !--    Surfaces are classified according to the input data read from static
 !--    input file. If no input file is present, all surfaces are classified
-!--    either as natural, urban, or default, depending on the setting of 
+!--    either as natural, urban, or default, depending on the setting of
 !--    land_surface and urban_surface. To control this, use the control
 !--    flag topo_no_distinct
 !
-!--    Count number of horizontal surfaces on local domain 
+!--    Count number of horizontal surfaces on local domain
        DO  i = nxl, nxr
           DO  j = nys, nyn
              DO  k = nzb+1, nzt
@@ -551,18 +551,18 @@
                    IF ( k == nzt  .AND.  use_top_fluxes )  THEN
                       num_def_h(2) = num_def_h(2) + 1
 !
-!--                Check for any other downward-facing surface. So far only for 
+!--                Check for any other downward-facing surface. So far only for
 !--                default surface type.
                    ELSEIF ( .NOT. BTEST( wall_flags_0(k+1,j,i), 0 ) )  THEN
                       num_def_h(1) = num_def_h(1) + 1
-                   ENDIF 
+                   ENDIF
 
                 ENDIF
              ENDDO
           ENDDO
        ENDDO
 !
-!--    Count number of vertical surfaces on local domain 
+!--    Count number of vertical surfaces on local domain
        DO  i = nxl, nxr
           DO  j = nys, nyn
              DO  k = nzb+1, nzt
@@ -571,28 +571,28 @@
 !--                Northward-facing
                    IF ( .NOT. BTEST( wall_flags_0(k,j-1,i), 0 ) )  THEN
 !
-                         num_def_v(0) = num_def_v(0) + 1 
+                         num_def_v(0) = num_def_v(0) + 1
 !
                    ENDIF
 !
 !--                Southward-facing
                    IF ( .NOT. BTEST( wall_flags_0(k,j+1,i), 0 ) )  THEN
 !
-                         num_def_v(1) = num_def_v(1) + 1 
+                         num_def_v(1) = num_def_v(1) + 1
 !
                    ENDIF
 !
 !--                Eastward-facing
                    IF ( .NOT. BTEST( wall_flags_0(k,j,i-1), 0 ) )  THEN
 !
-                         num_def_v(2) = num_def_v(2) + 1 
+                         num_def_v(2) = num_def_v(2) + 1
 !
                    ENDIF
 !
 !--                Westward-facing
                    IF ( .NOT. BTEST( wall_flags_0(k,j,i+1), 0 ) )  THEN
 !
-                         num_def_v(3) = num_def_v(3) + 1 
+                         num_def_v(3) = num_def_v(3) + 1
 !
                    ENDIF
                 ENDIF
@@ -623,7 +623,7 @@
 !--    Vertical surface, default type, westward facing
        surf_def_v(3)%ns = num_def_v(3)
 !
-!--    Allocate required attributes for horizontal surfaces - default type. 
+!--    Allocate required attributes for horizontal surfaces - default type.
 !--    Upward-facing (l=0) and downward-facing (l=1).
        DO  l = 0, 1
           CALL allocate_surface_attributes_h ( surf_def_h(l), nys, nyn, nxl, nxr )
@@ -632,7 +632,7 @@
 !--    Allocate required attributes for model top
        CALL allocate_surface_attributes_h_top ( surf_def_h(2), nys, nyn, nxl, nxr )
 !
-!--    Allocate required attributes for vertical surfaces. 
+!--    Allocate required attributes for vertical surfaces.
 !--    Northward-facing (l=0), southward-facing (l=1), eastward-facing (l=2)
 !--    and westward-facing (l=3).
 !--    Default type.
@@ -649,7 +649,7 @@
        num_surf_v = num_surf_v_l
 #endif
        IF ( num_surf_v > 0 ) vertical_surfaces_exist = .TRUE.
-        
+
 
     END SUBROUTINE init_surface_arrays
 
@@ -657,8 +657,8 @@
 !------------------------------------------------------------------------------!
 ! Description:
 ! ------------
-!> Deallocating memory for upward and downward-facing horizontal surface types, 
-!> except for top fluxes. 
+!> Deallocating memory for upward and downward-facing horizontal surface types,
+!> except for top fluxes.
 !------------------------------------------------------------------------------!
     SUBROUTINE deallocate_surface_attributes_h( surfaces )
 
@@ -700,20 +700,20 @@
        DEALLOCATE ( surfaces%rib )
 !
 !--    Vertical momentum fluxes of u and v
-       DEALLOCATE ( surfaces%usws )  
-       DEALLOCATE ( surfaces%vsws )  
+       DEALLOCATE ( surfaces%usws )
+       DEALLOCATE ( surfaces%vsws )
 !
 !--    Required in production_e
-          DEALLOCATE ( surfaces%u_0 )  
+          DEALLOCATE ( surfaces%u_0 )
           DEALLOCATE ( surfaces%v_0 )
 !
 !--    Characteristic temperature and surface flux of sensible heat
-       DEALLOCATE ( surfaces%ts )    
-       DEALLOCATE ( surfaces%shf )    
+       DEALLOCATE ( surfaces%ts )
+       DEALLOCATE ( surfaces%shf )
 !
 !--    surface temperature
        DEALLOCATE ( surfaces%pt1 )
-       DEALLOCATE ( surfaces%pt_surface ) 
+       DEALLOCATE ( surfaces%pt_surface )
        DEALLOCATE ( surfaces%sasws )
        DEALLOCATE ( surfaces%shf_sol )
 
@@ -723,8 +723,8 @@
 !------------------------------------------------------------------------------!
 ! Description:
 ! ------------
-!> Allocating memory for upward and downward-facing horizontal surface types, 
-!> except for top fluxes. 
+!> Allocating memory for upward and downward-facing horizontal surface types,
+!> except for top fluxes.
 !------------------------------------------------------------------------------!
     SUBROUTINE allocate_surface_attributes_h( surfaces,                        &
                                               nys_l, nyn_l, nxl_l, nxr_l )
@@ -738,16 +738,16 @@
 
        TYPE(surf_type) ::  surfaces  !< respective surface type
 
-       
+
        IF ( ALLOCATED( surfaces%start_index ) )                      &
-           CALL deallocate_surface_attributes_h( surfaces )           
+           CALL deallocate_surface_attributes_h( surfaces )
 
 
 !
-!--    Allocate arrays for start and end index of horizontal surface type 
+!--    Allocate arrays for start and end index of horizontal surface type
 !--    for each (j,i)-grid point. This is required e.g. in diffion_x, which is
-!--    called for each (j,i). In order to find the location where the 
-!--    respective flux is store within the surface-type, start- and end- 
+!--    called for each (j,i). In order to find the location where the
+!--    respective flux is store within the surface-type, start- and end-
 !--    index are stored for each (j,i). For example, each (j,i) can have
 !--    several entries where fluxes for horizontal surfaces might be stored,
 !--    e.g. for overhanging structures where several upward-facing surfaces
@@ -788,19 +788,19 @@
        ALLOCATE ( surfaces%rib(1:surfaces%ns) )
 !
 !--    Vertical momentum fluxes of u and v
-       ALLOCATE ( surfaces%usws(1:surfaces%ns) )  
-       ALLOCATE ( surfaces%vsws(1:surfaces%ns) )  
+       ALLOCATE ( surfaces%usws(1:surfaces%ns) )
+       ALLOCATE ( surfaces%vsws(1:surfaces%ns) )
 !
 !--    Required in production_e
-          ALLOCATE ( surfaces%u_0(1:surfaces%ns) )  
+          ALLOCATE ( surfaces%u_0(1:surfaces%ns) )
           ALLOCATE ( surfaces%v_0(1:surfaces%ns) )
 !
 !--    Characteristic temperature and surface flux of sensible heat
-       ALLOCATE ( surfaces%ts(1:surfaces%ns)  )    
-       ALLOCATE ( surfaces%shf(1:surfaces%ns) )    
+       ALLOCATE ( surfaces%ts(1:surfaces%ns)  )
+       ALLOCATE ( surfaces%shf(1:surfaces%ns) )
 !
 !--    surface temperature
-       ALLOCATE ( surfaces%pt_surface(1:surfaces%ns) ) 
+       ALLOCATE ( surfaces%pt_surface(1:surfaces%ns) )
 
 !--    Arrays for storing potential temperature and
 !--    mixing ratio at first grid level
@@ -814,7 +814,7 @@
 !------------------------------------------------------------------------------!
 ! Description:
 ! ------------
-!> Deallocating memory for model-top fluxes  
+!> Deallocating memory for model-top fluxes
 !------------------------------------------------------------------------------!
     SUBROUTINE deallocate_surface_attributes_h_top( surfaces )
 
@@ -831,15 +831,15 @@
        DEALLOCATE ( surfaces%j )
        DEALLOCATE ( surfaces%k )
 
-          DEALLOCATE ( surfaces%u_0 )  
+          DEALLOCATE ( surfaces%u_0 )
           DEALLOCATE ( surfaces%v_0 )
 !
 !--    Vertical momentum fluxes of u and v
-       DEALLOCATE ( surfaces%usws )  
-       DEALLOCATE ( surfaces%vsws )  
+       DEALLOCATE ( surfaces%usws )
+       DEALLOCATE ( surfaces%vsws )
 !
 !--    Sensible heat flux
-       DEALLOCATE ( surfaces%shf )    
+       DEALLOCATE ( surfaces%shf )
        DEALLOCATE ( surfaces%sasws )
        DEALLOCATE ( surfaces%shf_sol )
 
@@ -849,7 +849,7 @@
 !------------------------------------------------------------------------------!
 ! Description:
 ! ------------
-!> Allocating memory for model-top fluxes  
+!> Allocating memory for model-top fluxes
 !------------------------------------------------------------------------------!
     SUBROUTINE allocate_surface_attributes_h_top( surfaces,                    &
                                                   nys_l, nyn_l, nxl_l, nxr_l )
@@ -862,10 +862,10 @@
        INTEGER(iwp) ::  nxr_l  !< east bound of local 2d array start/end_index, is equal to nyn, except for restart-array
 
        TYPE(surf_type) ::  surfaces !< respective surface type
- 
+
        IF ( ALLOCATED( surfaces%start_index ) )                      &
-           CALL deallocate_surface_attributes_h_top( surfaces ) 
-  
+           CALL deallocate_surface_attributes_h_top( surfaces )
+
        ALLOCATE ( surfaces%start_index(nys_l:nyn_l,nxl_l:nxr_l) )
        ALLOCATE ( surfaces%end_index(nys_l:nyn_l,nxl_l:nxr_l)   )
        surfaces%start_index = 0
@@ -876,15 +876,15 @@
        ALLOCATE ( surfaces%j(1:surfaces%ns)  )
        ALLOCATE ( surfaces%k(1:surfaces%ns)  )
 
-          ALLOCATE ( surfaces%u_0(1:surfaces%ns) )  
+          ALLOCATE ( surfaces%u_0(1:surfaces%ns) )
           ALLOCATE ( surfaces%v_0(1:surfaces%ns) )
 !
 !--    Vertical momentum fluxes of u and v
-       ALLOCATE ( surfaces%usws(1:surfaces%ns) )  
-       ALLOCATE ( surfaces%vsws(1:surfaces%ns) )  
+       ALLOCATE ( surfaces%usws(1:surfaces%ns) )
+       ALLOCATE ( surfaces%vsws(1:surfaces%ns) )
 !
 !--    Sensible heat flux
-       ALLOCATE ( surfaces%shf(1:surfaces%ns) )    
+       ALLOCATE ( surfaces%shf(1:surfaces%ns) )
        ALLOCATE ( surfaces%sasws(1:surfaces%ns) )
        ALLOCATE ( surfaces%shf_sol(1:surfaces%ns) )
 
@@ -894,7 +894,7 @@
 !------------------------------------------------------------------------------!
 ! Description:
 ! ------------
-!> Deallocating memory for vertical surface types. 
+!> Deallocating memory for vertical surface types.
 !------------------------------------------------------------------------------!
     SUBROUTINE deallocate_surface_attributes_v( surfaces )
 
@@ -904,14 +904,14 @@
        TYPE(surf_type) ::  surfaces !< respective surface type
 
 !
-!--    Allocate arrays for start and end index of vertical surface type 
+!--    Allocate arrays for start and end index of vertical surface type
 !--    for each (j,i)-grid point. This is required in diffion_x, which is
-!--    called for each (j,i). In order to find the location where the 
-!--    respective flux is store within the surface-type, start- and end- 
+!--    called for each (j,i). In order to find the location where the
+!--    respective flux is store within the surface-type, start- and end-
 !--    index are stored for each (j,i). For example, each (j,i) can have
-!--    several entries where fluxes for vertical surfaces might be stored.  
-!--    In the flat case, where no vertical walls exit, set indicies such 
-!--    that loop in diffusion routines will not be entered. 
+!--    several entries where fluxes for vertical surfaces might be stored.
+!--    In the flat case, where no vertical walls exit, set indicies such
+!--    that loop in diffusion routines will not be entered.
        DEALLOCATE ( surfaces%start_index )
        DEALLOCATE ( surfaces%end_index )
 !
@@ -939,25 +939,25 @@
        DEALLOCATE ( surfaces%us )
 !
 !--    Allocate Obukhov length and bulk Richardson number. Actually, at
-!--    vertical surfaces these are only required for natural surfaces.  
+!--    vertical surfaces these are only required for natural surfaces.
 !--    for natural land surfaces
-       DEALLOCATE( surfaces%ol ) 
-       DEALLOCATE( surfaces%rib ) 
+       DEALLOCATE( surfaces%ol )
+       DEALLOCATE( surfaces%rib )
 !
-!--    Allocate arrays for surface momentum fluxes for u and v. For u at north- 
+!--    Allocate arrays for surface momentum fluxes for u and v. For u at north-
 !--    and south-facing surfaces, for v at east- and west-facing surfaces.
        DEALLOCATE ( surfaces%mom_flux_uv )
 !
 !--    Allocate array for surface momentum flux for w - wsus and wsvs
-       DEALLOCATE ( surfaces%mom_flux_w ) 
+       DEALLOCATE ( surfaces%mom_flux_w )
 !
-!--    Allocate array for surface momentum flux for subgrid-scale tke wsus and 
+!--    Allocate array for surface momentum flux for subgrid-scale tke wsus and
 !--    wsvs; first index usvs or vsws, second index for wsus or wsvs, depending
 !--    on surface.
-       DEALLOCATE ( surfaces%mom_flux_tke )  
+       DEALLOCATE ( surfaces%mom_flux_tke )
 !
 !--    Characteristic temperature and surface flux of sensible heat
-       DEALLOCATE ( surfaces%ts )    
+       DEALLOCATE ( surfaces%ts )
        DEALLOCATE ( surfaces%shf )
 
 !--    Arrays for storing potential temperature and
@@ -973,7 +973,7 @@
 !------------------------------------------------------------------------------!
 ! Description:
 ! ------------
-!> Allocating memory for vertical surface types. 
+!> Allocating memory for vertical surface types.
 !------------------------------------------------------------------------------!
     SUBROUTINE allocate_surface_attributes_v( surfaces,                        &
                                               nys_l, nyn_l, nxl_l, nxr_l )
@@ -991,14 +991,14 @@
                       CALL deallocate_surface_attributes_v( surfaces )
 
 !
-!--    Allocate arrays for start and end index of vertical surface type 
+!--    Allocate arrays for start and end index of vertical surface type
 !--    for each (j,i)-grid point. This is required in diffion_x, which is
-!--    called for each (j,i). In order to find the location where the 
-!--    respective flux is store within the surface-type, start- and end- 
+!--    called for each (j,i). In order to find the location where the
+!--    respective flux is store within the surface-type, start- and end-
 !--    index are stored for each (j,i). For example, each (j,i) can have
-!--    several entries where fluxes for vertical surfaces might be stored.  
-!--    In the flat case, where no vertical walls exit, set indicies such 
-!--    that loop in diffusion routines will not be entered. 
+!--    several entries where fluxes for vertical surfaces might be stored.
+!--    In the flat case, where no vertical walls exit, set indicies such
+!--    that loop in diffusion routines will not be entered.
        ALLOCATE ( surfaces%start_index(nys_l:nyn_l,nxl_l:nxr_l) )
        ALLOCATE ( surfaces%end_index(nys_l:nyn_l,nxl_l:nxr_l)   )
        surfaces%start_index = 0
@@ -1028,29 +1028,29 @@
        ALLOCATE ( surfaces%us(1:surfaces%ns) )
 !
 !--    Allocate Obukhov length and bulk Richardson number. Actually, at
-!--    vertical surfaces these are only required for natural surfaces.  
+!--    vertical surfaces these are only required for natural surfaces.
 !--    for natural land surfaces
-       ALLOCATE( surfaces%ol(1:surfaces%ns)  ) 
-       ALLOCATE( surfaces%rib(1:surfaces%ns) ) 
+       ALLOCATE( surfaces%ol(1:surfaces%ns)  )
+       ALLOCATE( surfaces%rib(1:surfaces%ns) )
 !
-!--    Allocate arrays for surface momentum fluxes for u and v. For u at north- 
+!--    Allocate arrays for surface momentum fluxes for u and v. For u at north-
 !--    and south-facing surfaces, for v at east- and west-facing surfaces.
        ALLOCATE ( surfaces%mom_flux_uv(1:surfaces%ns) )
 !
 !--    Allocate array for surface momentum flux for w - wsus and wsvs
-       ALLOCATE ( surfaces%mom_flux_w(1:surfaces%ns) ) 
+       ALLOCATE ( surfaces%mom_flux_w(1:surfaces%ns) )
 !
-!--    Allocate array for surface momentum flux for subgrid-scale tke wsus and 
+!--    Allocate array for surface momentum flux for subgrid-scale tke wsus and
 !--    wsvs; first index usvs or vsws, second index for wsus or wsvs, depending
 !--    on surface.
-       ALLOCATE ( surfaces%mom_flux_tke(0:1,1:surfaces%ns) )  
+       ALLOCATE ( surfaces%mom_flux_tke(0:1,1:surfaces%ns) )
 !
 !--    Characteristic temperature and surface flux of sensible heat
-       ALLOCATE ( surfaces%ts(1:surfaces%ns)  )    
+       ALLOCATE ( surfaces%ts(1:surfaces%ns)  )
        ALLOCATE ( surfaces%shf(1:surfaces%ns) )
 !
 !--    surface temperature
-       ALLOCATE ( surfaces%pt_surface(1:surfaces%ns) ) 
+       ALLOCATE ( surfaces%pt_surface(1:surfaces%ns) )
 
 !--    Arrays for storing potential temperature and
 !--    mixing ratio at first grid level
@@ -1065,12 +1065,12 @@
 !------------------------------------------------------------------------------!
 ! Description:
 ! ------------
-!> Initialize surface elements, i.e. set initial values for surface fluxes, 
-!> friction velocity, calcuation of start/end indices, etc. . 
-!> Please note, further initialization concerning 
-!> special surface characteristics, e.g. soil- and vegatation type, 
-!> building type, etc., is done in the land-surface and urban-surface module, 
-!> respectively.  
+!> Initialize surface elements, i.e. set initial values for surface fluxes,
+!> friction velocity, calcuation of start/end indices, etc. .
+!> Please note, further initialization concerning
+!> special surface characteristics, e.g. soil- and vegatation type,
+!> building type, etc., is done in the land-surface and urban-surface module,
+!> respectively.
 !------------------------------------------------------------------------------!
     SUBROUTINE init_surfaces
 
@@ -1085,7 +1085,7 @@
        INTEGER(iwp), DIMENSION(0:2) ::  num_def_h     !< current number of horizontal surface element, default type
        INTEGER(iwp), DIMENSION(0:2) ::  num_def_h_kji !< dummy to determing local end index in surface type for given (j,i), for horizonal default surfaces
        INTEGER(iwp), DIMENSION(0:2) ::  start_index_def_h !< dummy to determing local start index in surface type for given (j,i), for horizontal default surfaces
-     
+
        INTEGER(iwp), DIMENSION(0:3) ::  num_def_v     !< current number of vertical surface element, default type
        INTEGER(iwp), DIMENSION(0:3) ::  num_def_v_kji !< dummy to determing local end index in surface type for given (j,i), for vertical default surfaces
 
@@ -1095,7 +1095,7 @@
        LOGICAL ::  terrain      !< flag indicating natural terrain grid point
 
 !
-!--    Set offset indices, i.e. index difference between surface element and 
+!--    Set offset indices, i.e. index difference between surface element and
 !--    surface-bounded grid point.
 !--    Upward facing - no horizontal offsets
        surf_def_h(0:2)%ioff = 0
@@ -1128,7 +1128,7 @@
 !--    Westward facing offset in y
        surf_def_v(3)%ioff = 1
 !
-!--    Initialize surface attributes, store indicies, surfaces orientation, etc., 
+!--    Initialize surface attributes, store indicies, surfaces orientation, etc.,
        num_def_h(0:2) = 1
        num_def_v(0:3) = 1
 
@@ -1147,33 +1147,33 @@
                 IF ( BTEST( wall_flags_0(k,j,i), 0 ) )  THEN
                         !
 !--                Upward-facing surface. Distinguish between differet surface types.
-!--                To do, think about method to flag natural and non-natural 
-!--                surfaces. 
-                   IF ( .NOT. BTEST( wall_flags_0(k-1,j,i), 0 ) )  THEN 
+!--                To do, think about method to flag natural and non-natural
+!--                surfaces.
+                   IF ( .NOT. BTEST( wall_flags_0(k-1,j,i), 0 ) )  THEN
 !
                      CALL initialize_horizontal_surfaces( k, j, i,         &
                                                            surf_def_h(0),   &
                                                             num_def_h(0),    &
                                                             num_def_h_kji(0),&
-                                                            .TRUE., .FALSE. )  
-                   ENDIF  
+                                                            .TRUE., .FALSE. )
+                   ENDIF
 !
-!--                downward-facing surface, first, model top. Please note, 
-!--                for the moment, downward-facing surfaces are always of 
+!--                downward-facing surface, first, model top. Please note,
+!--                for the moment, downward-facing surfaces are always of
 !--                default type
                    IF ( k == nzt  .AND.  use_top_fluxes )  THEN
                       CALL initialize_top( k, j, i, surf_def_h(2),             &
                                            num_def_h(2), num_def_h_kji(2) )
 !
-!--                Check for any other downward-facing surface. So far only for 
+!--                Check for any other downward-facing surface. So far only for
 !--                default surface type.
                    ELSEIF ( .NOT. BTEST( wall_flags_0(k+1,j,i), 0 ) )  THEN
                       CALL initialize_horizontal_surfaces( k, j, i,            &
                                                            surf_def_h(1),      &
                                                            num_def_h(1),       &
                                                            num_def_h_kji(1),   &
-                                                           .FALSE., .TRUE. )    
-                   ENDIF 
+                                                           .FALSE., .TRUE. )
+                   ENDIF
 !
 !--                Check for vertical walls and, if required, initialize it.
 !                  Start with northward-facing surface.
@@ -1182,8 +1182,8 @@
                                                             surf_def_v(0),     &
                                                             num_def_v(0),      &
                                                             num_def_v_kji(0),  &
-                                                            .FALSE., .FALSE.,  &             
-                                                            .FALSE., .TRUE. ) 
+                                                            .FALSE., .FALSE.,  &
+                                                            .FALSE., .TRUE. )
                    ENDIF
 !
 !--                southward-facing surface
@@ -1194,7 +1194,7 @@
                                                             num_def_v(1),      &
                                                             num_def_v_kji(1),  &
                                                             .FALSE., .FALSE.,  &
-                                                            .TRUE., .FALSE. ) 
+                                                            .TRUE., .FALSE. )
                    ENDIF
 !
 !--                eastward-facing surface
@@ -1205,9 +1205,9 @@
                                                             num_def_v(2),      &
                                                             num_def_v_kji(2),  &
                                                             .TRUE., .FALSE.,   &
-                                                            .FALSE., .FALSE. ) 
-                   ENDIF 
-!   
+                                                            .FALSE., .FALSE. )
+                   ENDIF
+!
 !--                westward-facing surface
                    IF ( .NOT. BTEST( wall_flags_0(k,j,i+1), 0 ) )  THEN
                         CALL initialize_vertical_surfaces( 3, k, j, i,        &
@@ -1215,15 +1215,15 @@
                                                             num_def_v(3),      &
                                                             num_def_v_kji(3),  &
                                                            .FALSE., .TRUE.,    &
-                                                           .FALSE., .FALSE. ) 
+                                                           .FALSE., .FALSE. )
                    ENDIF
                 ENDIF
 
- 
+
              ENDDO
 !
-!--          Determine start- and end-index at grid point (j,i). Also, for 
-!--          horizontal surfaces more than 1 horizontal surface element can 
+!--          Determine start- and end-index at grid point (j,i). Also, for
+!--          horizontal surfaces more than 1 horizontal surface element can
 !--          exist at grid point (j,i) if overhanging structures are present.
 !--          Upward-facing surfaces
              surf_def_h(0)%start_index(j,i) = start_index_def_h(0)
@@ -1248,7 +1248,7 @@
              surf_def_v(1)%start_index(j,i) = start_index_def_v(1)
              surf_def_v(2)%start_index(j,i) = start_index_def_v(2)
              surf_def_v(3)%start_index(j,i) = start_index_def_v(3)
-             surf_def_v(0)%end_index(j,i)   = start_index_def_v(0) +           & 
+             surf_def_v(0)%end_index(j,i)   = start_index_def_v(0) +           &
                                               num_def_v_kji(0) - 1
              surf_def_v(1)%end_index(j,i)   = start_index_def_v(1) +           &
                                               num_def_v_kji(1) - 1
@@ -1269,15 +1269,15 @@
 !------------------------------------------------------------------------------!
 ! Description:
 ! ------------
-!> Initialize horizontal surface elements, upward- and downward-facing. 
+!> Initialize horizontal surface elements, upward- and downward-facing.
 !> Note, horizontal surface type alsw comprises model-top fluxes, which are,
-!> initialized in a different routine. 
+!> initialized in a different routine.
 !------------------------------------------------------------------------------!
           SUBROUTINE initialize_horizontal_surfaces( k, j, i, surf, num_h,     &
                                                      num_h_kji, upward_facing, &
-                                                     downward_facing )       
+                                                     downward_facing )
 
-             IMPLICIT NONE 
+             IMPLICIT NONE
 
              INTEGER(iwp)  ::  i                !< running index x-direction
              INTEGER(iwp)  ::  j                !< running index y-direction
@@ -1296,7 +1296,7 @@
              surf%j(num_h) = j
              surf%k(num_h) = k
 !
-!--          Surface orientation, bit 0 is set to 1 for upward-facing surfaces, 
+!--          Surface orientation, bit 0 is set to 1 for upward-facing surfaces,
 !--          bit 1 is for downward-facing surfaces.
              IF ( upward_facing   )  surf%facing(num_h) = IBSET( surf%facing(num_h), 0 )
              IF ( downward_facing )  surf%facing(num_h) = IBSET( surf%facing(num_h), 1 )
@@ -1307,23 +1307,23 @@
              ELSE
                 surf%z_mo(num_h)  = zw(k) - zu(k)
              ENDIF
- 
+
              surf%z0(num_h)    = roughness_length
              surf%z0h(num_h)   = z0h_factor * roughness_length
-             surf%z0q(num_h)   = z0h_factor * roughness_length          
+             surf%z0q(num_h)   = z0h_factor * roughness_length
 
                 surf%ol(num_h)   = surf%z_mo(num_h) / zeta_min
 !
-!--             Very small number is required for calculation of Obukhov length 
-!--             at first timestep     
-             surf%us(num_h)    = 1E-30_wp 
+!--             Very small number is required for calculation of Obukhov length
+!--             at first timestep
+             surf%us(num_h)    = 1E-30_wp
              surf%usws(num_h)  = 0.0_wp
              surf%vsws(num_h)  = 0.0_wp
 
-             surf%rib(num_h)     = 0.0_wp 
+             surf%rib(num_h)     = 0.0_wp
              surf%uvw_abs(num_h) = 0.0_wp
 
-                surf%u_0(num_h)     = 0.0_wp  
+                surf%u_0(num_h)     = 0.0_wp
                 surf%v_0(num_h)     = 0.0_wp
 
              surf%ts(num_h)   = 0.0_wp
@@ -1337,14 +1337,14 @@
 
                 IF ( upward_facing )  THEN
                    IF ( constant_heatflux )  THEN
-!   
-!--                   Initialize surface heatflux. However, skip this for now if 
+!
+!--                   Initialize surface heatflux. However, skip this for now if
 !--                   if random_heatflux is set. This case, shf is initialized later.
                       IF ( .NOT. random_heatflux )  THEN
                          surf%shf(num_h) = surface_heatflux *                  &
                                                  heatflux_input_conversion(k-1)
 !
-!--                      Check if surface heat flux might be replaced by 
+!--                      Check if surface heat flux might be replaced by
 !--                      prescribed wall heatflux
                          IF ( k-1 /= 0 )  THEN
                             surf%shf(num_h) = wall_heatflux(0) *               &
@@ -1360,8 +1360,9 @@
                    surf%shf(num_h) = wall_heatflux(5) *                        &
                                              heatflux_input_conversion(k)
                 ENDIF
-                   IF ( upward_facing )  THEN 
-                      surf%sasws(num_h) = bottom_salinityflux * rho_air_zw(k-1)
+                   IF ( upward_facing )  THEN
+                      surf%sasws(num_h) = bottom_salinityflux *                &
+                                             salinityflux_input_conversion(k-1)
                    ELSE
                       surf%sasws(num_h) = 0.0_wp
                    ENDIF
@@ -1369,21 +1370,21 @@
 !
 !--          Increment surface indices
              num_h     = num_h + 1
-             num_h_kji = num_h_kji + 1      
+             num_h_kji = num_h_kji + 1
 
 
           END SUBROUTINE initialize_horizontal_surfaces
-       
+
 
 !------------------------------------------------------------------------------!
 ! Description:
 ! ------------
-!> Initialize model-top fluxes. Currently, only the heatflux and salinity flux 
+!> Initialize model-top fluxes. Currently, only the heatflux and salinity flux
 !> can be prescribed, latent flux is zero in this case!
 !------------------------------------------------------------------------------!
-          SUBROUTINE initialize_top( k, j, i, surf, num_h, num_h_kji )       
+          SUBROUTINE initialize_top( k, j, i, surf, num_h, num_h_kji )
 
-             IMPLICIT NONE 
+             IMPLICIT NONE
 
              INTEGER(iwp)  ::  i                !< running index x-direction
              INTEGER(iwp)  ::  j                !< running index y-direction
@@ -1410,8 +1411,9 @@
 
 !--          Prescribe top salinity flux
              IF ( ocean .AND. constant_top_salinityflux)                       &
-                surf%sasws(num_h) = top_salinityflux * rho_air_zw(nzt+1)
- 
+                surf%sasws(num_h) = top_salinityflux *                         &
+                                           salinityflux_input_conversion(nzt+1)
+
 !--          Top momentum fluxes
              IF ( constant_top_momentumflux )  THEN
                 surf%usws(num_h) = top_momentumflux_u *                        &
@@ -1422,7 +1424,7 @@
 !
 !--          Increment surface indices
              num_h     = num_h + 1
-             num_h_kji = num_h_kji + 1      
+             num_h_kji = num_h_kji + 1
 
           END SUBROUTINE initialize_top
 
@@ -1430,20 +1432,20 @@
 !------------------------------------------------------------------------------!
 ! Description:
 ! ------------
-!> Initialize vertical surface elements. 
+!> Initialize vertical surface elements.
 !------------------------------------------------------------------------------!
           SUBROUTINE initialize_vertical_surfaces( l, k, j, i, surf, num_v,    &
                                                 num_v_kji, east_facing,        &
                                                 west_facing, south_facing,     &
-                                                north_facing )       
+                                                north_facing )
 
-             IMPLICIT NONE 
+             IMPLICIT NONE
 
-             INTEGER(iwp)  ::  component       !< index of wall_fluxes_ array for respective orientation 
+             INTEGER(iwp)  ::  component       !< index of wall_fluxes_ array for respective orientation
              INTEGER(iwp)  ::  i               !< running index x-direction
              INTEGER(iwp)  ::  j               !< running index x-direction
              INTEGER(iwp)  ::  k               !< running index x-direction
-             INTEGER(iwp)  ::  l               !< index variable for the surface type, indicating the facing 
+             INTEGER(iwp)  ::  l               !< index variable for the surface type, indicating the facing
              INTEGER(iwp)  ::  num_v           !< current number of surface element
              INTEGER(iwp)  ::  num_v_kji       !< current number of surface element at (j,i)
 
@@ -1469,15 +1471,15 @@
 
              surf%facing(num_v)  = 0
 !
-!--          Surface orientation. Moreover, set component id to map wall_heatflux, 
+!--          Surface orientation. Moreover, set component id to map wall_heatflux,
 !--          etc., on surface type (further below)
              IF ( north_facing )  THEN
-                surf%facing(num_v) = 5 !IBSET( surf%facing(num_v), 0 )  
+                surf%facing(num_v) = 5 !IBSET( surf%facing(num_v), 0 )
                 component          = 4
              ENDIF
 
              IF ( south_facing )  THEN
-                surf%facing(num_v) = 6 !IBSET( surf%facing(num_v), 1 ) 
+                surf%facing(num_v) = 6 !IBSET( surf%facing(num_v), 1 )
                 component          = 3
              ENDIF
 
@@ -1487,11 +1489,11 @@
              ENDIF
 
              IF ( west_facing )  THEN
-                surf%facing(num_v) = 8 !IBSET( surf%facing(num_v), 3 ) 
+                surf%facing(num_v) = 8 !IBSET( surf%facing(num_v), 3 )
                 component          = 1
              ENDIF
 
- 
+
              surf%z0(num_v)  = roughness_length
              surf%z0h(num_v) = z0h_factor * roughness_length
              surf%z0q(num_v) = z0h_factor * roughness_length
@@ -1514,8 +1516,8 @@
 !--          Set initial value for surface temperature
              surf%pt_surface(num_v) = pt_surface
 !
-!--          So far, salinityflux at vertical surfaces is simply zero 
-!--          at the moment  
+!--          So far, salinityflux at vertical surfaces is simply zero
+!--          at the moment
              surf%sasws(num_v) = wall_salinityflux(component)
 !
 !--          Increment wall indices
@@ -1530,11 +1532,11 @@
 !------------------------------------------------------------------------------!
 ! Description:
 ! ------------
-!> Determines topography-top index at given (j,i)-position.  
+!> Determines topography-top index at given (j,i)-position.
 !------------------------------------------------------------------------------!
     FUNCTION get_topography_top_index_ji( j, i, grid )
 
-       IMPLICIT NONE 
+       IMPLICIT NONE
 
        CHARACTER(LEN=*) ::  grid                         !< flag to distinquish between staggered grids
        INTEGER(iwp)     ::  i                            !< grid index in x-dimension
@@ -1557,7 +1559,7 @@
           CASE DEFAULT
 !
 !--          Set default to scalar grid
-             ibit = 12 
+             ibit = 12
 
        END SELECT
 
@@ -1574,11 +1576,11 @@
 !------------------------------------------------------------------------------!
 ! Description:
 ! ------------
-!> Determines topography-top index at each (j,i)-position.  
+!> Determines topography-top index at each (j,i)-position.
 !------------------------------------------------------------------------------!
     FUNCTION get_topography_top_index( grid )
 
-       IMPLICIT NONE 
+       IMPLICIT NONE
 
        CHARACTER(LEN=*) ::  grid                      !< flag to distinquish between staggered grids
        INTEGER(iwp)     ::  ibit                      !< bit position where topography information is stored on respective grid
@@ -1599,7 +1601,7 @@
           CASE DEFAULT
 !
 !--          Set default to scalar grid
-             ibit = 12 
+             ibit = 12
 
        END SELECT
 
@@ -1616,8 +1618,8 @@
 !------------------------------------------------------------------------------!
 ! Description:
 ! ------------
-!> Gathers all surface elements with the same facing (but possibly different 
-!> type) onto a surface type, and writes binary data into restart files. 
+!> Gathers all surface elements with the same facing (but possibly different
+!> type) onto a surface type, and writes binary data into restart files.
 !------------------------------------------------------------------------------!
     SUBROUTINE surface_wrd_local
 
@@ -1662,7 +1664,7 @@
                                               nys, nyn, nxl, nxr )
        ENDDO
 !
-!--    In the following, gather data from surfaces elements with the same 
+!--    In the following, gather data from surfaces elements with the same
 !--    facing (but possibly differt type) on 1 data-type array.
        mm(0:2) = 1
        DO  l = 0, 2
@@ -1708,7 +1710,7 @@
                       surf_h(l)%nrsws(mm(l))   = surf_def_h(l)%nrsws(m)
                    IF ( ALLOCATED( surf_def_h(l)%sasws ) )                     &
                       surf_h(l)%sasws(mm(l))   = surf_def_h(l)%sasws(m)
-                
+
                    mm(l) = mm(l) + 1
                 ENDDO
 
@@ -1717,7 +1719,7 @@
           ENDDO
 !
 !--       Gather start- and end indices
-          start_index_h(l) = 1                                        
+          start_index_h(l) = 1
           DO  i = nxl, nxr
              DO  j = nys, nyn
 
@@ -1781,14 +1783,14 @@
                       surf_v(l)%mom_flux_w(mm(l))   = surf_def_v(l)%mom_flux_w(m)
                    IF ( ALLOCATED( surf_def_v(l)%mom_flux_tke) )               &
                       surf_v(l)%mom_flux_tke(0:1,mm(l)) = surf_def_v(l)%mom_flux_tke(0:1,m)
-                
+
                    mm(l) = mm(l) + 1
                 ENDDO
              ENDDO
           ENDDO
 !
 !--       Gather start- and end indices
-          start_index_v(l) = 1                                        
+          start_index_v(l) = 1
           DO  i = nxl, nxr
              DO  j = nys, nyn
 
@@ -1826,120 +1828,120 @@
           WRITE ( 14 )  surf_h(l)%end_index
 
           IF ( ALLOCATED ( surf_h(l)%us ) )  THEN
-             CALL wrd_write_string( 'surf_h(' // dum // ')%us' ) 
+             CALL wrd_write_string( 'surf_h(' // dum // ')%us' )
              WRITE ( 14 )  surf_h(l)%us
           ENDIF
 
           IF ( ALLOCATED ( surf_h(l)%ts ) )  THEN
-             CALL wrd_write_string( 'surf_h(' // dum // ')%ts' ) 
+             CALL wrd_write_string( 'surf_h(' // dum // ')%ts' )
              WRITE ( 14 )  surf_h(l)%ts
           ENDIF
-          
+
           IF ( ALLOCATED ( surf_h(l)%qs ) )  THEN
-             CALL wrd_write_string( 'surf_h(' // dum // ')%qs' )  
+             CALL wrd_write_string( 'surf_h(' // dum // ')%qs' )
              WRITE ( 14 )  surf_h(l)%qs
           ENDIF
 
           IF ( ALLOCATED ( surf_h(l)%ss ) )  THEN
-             CALL wrd_write_string( 'surf_h(' // dum // ')%ss' )  
+             CALL wrd_write_string( 'surf_h(' // dum // ')%ss' )
              WRITE ( 14 )  surf_h(l)%ss
           ENDIF
 
-          IF ( ALLOCATED ( surf_h(l)%qcs ) )  THEN  
+          IF ( ALLOCATED ( surf_h(l)%qcs ) )  THEN
              CALL wrd_write_string( 'surf_h(' // dum // ')%qcs' )
              WRITE ( 14 )  surf_h(l)%qcs
           ENDIF
 
           IF ( ALLOCATED ( surf_h(l)%ncs ) )  THEN
-             CALL wrd_write_string( 'surf_h(' // dum // ')%ncs' ) 
+             CALL wrd_write_string( 'surf_h(' // dum // ')%ncs' )
              WRITE ( 14 )  surf_h(l)%ncs
           ENDIF
 
-          IF ( ALLOCATED ( surf_h(l)%qrs ) )  THEN  
+          IF ( ALLOCATED ( surf_h(l)%qrs ) )  THEN
              CALL wrd_write_string( 'surf_h(' // dum // ')%qrs' )
              WRITE ( 14 )  surf_h(l)%qrs
           ENDIF
 
           IF ( ALLOCATED ( surf_h(l)%nrs ) )  THEN
-             CALL wrd_write_string( 'surf_h(' // dum // ')%nrs' )  
+             CALL wrd_write_string( 'surf_h(' // dum // ')%nrs' )
              WRITE ( 14 )  surf_h(l)%nrs
           ENDIF
 
           IF ( ALLOCATED ( surf_h(l)%ol ) )  THEN
-             CALL wrd_write_string( 'surf_h(' // dum // ')%ol' )  
+             CALL wrd_write_string( 'surf_h(' // dum // ')%ol' )
              WRITE ( 14 )  surf_h(l)%ol
           ENDIF
 
           IF ( ALLOCATED ( surf_h(l)%rib ) )  THEN
-            CALL wrd_write_string( 'surf_h(' // dum // ')%rib' ) 
+            CALL wrd_write_string( 'surf_h(' // dum // ')%rib' )
              WRITE ( 14 )  surf_h(l)%rib
           ENDIF
 
           IF ( ALLOCATED ( surf_h(l)%pt_surface ) )  THEN
-             CALL wrd_write_string( 'surf_h(' // dum // ')%pt_surface' ) 
+             CALL wrd_write_string( 'surf_h(' // dum // ')%pt_surface' )
              WRITE ( 14 )  surf_h(l)%pt_surface
           ENDIF
 
           IF ( ALLOCATED ( surf_h(l)%usws ) )  THEN
-             CALL wrd_write_string( 'surf_h(' // dum // ')%usws' ) 
+             CALL wrd_write_string( 'surf_h(' // dum // ')%usws' )
              WRITE ( 14 )  surf_h(l)%usws
           ENDIF
 
           IF ( ALLOCATED ( surf_h(l)%vsws ) )  THEN
-             CALL wrd_write_string( 'surf_h(' // dum // ')%vsws' )  
+             CALL wrd_write_string( 'surf_h(' // dum // ')%vsws' )
              WRITE ( 14 )  surf_h(l)%vsws
           ENDIF
-          
+
           IF ( ALLOCATED ( surf_h(l)%shf ) )  THEN
-             CALL wrd_write_string( 'surf_h(' // dum // ')%shf' ) 
+             CALL wrd_write_string( 'surf_h(' // dum // ')%shf' )
              WRITE ( 14 )  surf_h(l)%shf
           ENDIF
 
           IF ( ALLOCATED ( surf_h(l)%qsws ) )  THEN
-             CALL wrd_write_string( 'surf_h(' // dum // ')%qsws' )  
+             CALL wrd_write_string( 'surf_h(' // dum // ')%qsws' )
              WRITE ( 14 )  surf_h(l)%qsws
           ENDIF
 
-          IF ( ALLOCATED ( surf_h(l)%ssws ) )  THEN 
-             CALL wrd_write_string( 'surf_h(' // dum // ')%ssws' )  
+          IF ( ALLOCATED ( surf_h(l)%ssws ) )  THEN
+             CALL wrd_write_string( 'surf_h(' // dum // ')%ssws' )
              WRITE ( 14 )  surf_h(l)%ssws
           ENDIF
 
-          IF ( ALLOCATED ( surf_h(l)%css ) )  THEN 
+          IF ( ALLOCATED ( surf_h(l)%css ) )  THEN
              CALL wrd_write_string( 'surf_h(' // dum // ')%css' )
              WRITE ( 14 )  surf_h(l)%css
           ENDIF
 
-          IF ( ALLOCATED ( surf_h(l)%cssws ) )  THEN 
+          IF ( ALLOCATED ( surf_h(l)%cssws ) )  THEN
              CALL wrd_write_string( 'surf_h(' // dum // ')%cssws' )
              WRITE ( 14 )  surf_h(l)%cssws
           ENDIF
 
           IF ( ALLOCATED ( surf_h(l)%qcsws ) )  THEN
-             CALL wrd_write_string( 'surf_h(' // dum // ')%qcsws' )  
+             CALL wrd_write_string( 'surf_h(' // dum // ')%qcsws' )
              WRITE ( 14 )  surf_h(l)%qcsws
           ENDIF
 
           IF ( ALLOCATED ( surf_h(l)%ncsws ) )  THEN
-             CALL wrd_write_string( 'surf_h(' // dum // ')%ncsws' )  
+             CALL wrd_write_string( 'surf_h(' // dum // ')%ncsws' )
              WRITE ( 14 )  surf_h(l)%ncsws
           ENDIF
 
           IF ( ALLOCATED ( surf_h(l)%qrsws ) )  THEN
-             CALL wrd_write_string( 'surf_h(' // dum // ')%qrsws' )  
+             CALL wrd_write_string( 'surf_h(' // dum // ')%qrsws' )
              WRITE ( 14 )  surf_h(l)%qrsws
           ENDIF
 
           IF ( ALLOCATED ( surf_h(l)%nrsws ) )  THEN
-             CALL wrd_write_string( 'surf_h(' // dum // ')%nrsws' )  
+             CALL wrd_write_string( 'surf_h(' // dum // ')%nrsws' )
              WRITE ( 14 )  surf_h(l)%nrsws
           ENDIF
 
-          IF ( ALLOCATED ( surf_h(l)%sasws ) )  THEN 
-             CALL wrd_write_string( 'surf_h(' // dum // ')%sasws' ) 
+          IF ( ALLOCATED ( surf_h(l)%sasws ) )  THEN
+             CALL wrd_write_string( 'surf_h(' // dum // ')%sasws' )
              WRITE ( 14 )  surf_h(l)%sasws
-          ENDIF     
-  
+          ENDIF
+
        ENDDO
 !
 !--    Write vertical surfaces
@@ -1953,47 +1955,47 @@
           WRITE ( 14 )   surf_v(l)%end_index
 
           IF ( ALLOCATED ( surf_v(l)%us ) )  THEN
-             CALL wrd_write_string( 'surf_v(' // dum // ')%us' )  
+             CALL wrd_write_string( 'surf_v(' // dum // ')%us' )
              WRITE ( 14 )  surf_v(l)%us
-          ENDIF  
+          ENDIF
 
           IF ( ALLOCATED ( surf_v(l)%ts ) )  THEN
-             CALL wrd_write_string( 'surf_v(' // dum // ')%ts' ) 
+             CALL wrd_write_string( 'surf_v(' // dum // ')%ts' )
              WRITE ( 14 )  surf_v(l)%ts
           ENDIF
 
           IF ( ALLOCATED ( surf_v(l)%qs ) )  THEN
-             CALL wrd_write_string( 'surf_v(' // dum // ')%qs' )  
+             CALL wrd_write_string( 'surf_v(' // dum // ')%qs' )
              WRITE ( 14 )  surf_v(l)%qs
-          ENDIF  
+          ENDIF
 
           IF ( ALLOCATED ( surf_v(l)%ss ) )  THEN
-             CALL wrd_write_string( 'surf_v(' // dum // ')%ss' ) 
+             CALL wrd_write_string( 'surf_v(' // dum // ')%ss' )
              WRITE ( 14 )  surf_v(l)%ss
-          ENDIF  
-          
+          ENDIF
+
           IF ( ALLOCATED ( surf_v(l)%qcs ) )  THEN
-             CALL wrd_write_string( 'surf_v(' // dum // ')%qcs' ) 
+             CALL wrd_write_string( 'surf_v(' // dum // ')%qcs' )
              WRITE ( 14 )  surf_v(l)%qcs
           ENDIF
 
-          IF ( ALLOCATED ( surf_v(l)%ncs ) )  THEN 
+          IF ( ALLOCATED ( surf_v(l)%ncs ) )  THEN
              CALL wrd_write_string( 'surf_v(' // dum // ')%ncs' )
              WRITE ( 14 )  surf_v(l)%ncs
           ENDIF
 
           IF ( ALLOCATED ( surf_v(l)%qrs ) )  THEN
-             CALL wrd_write_string( 'surf_v(' // dum // ')%qrs' )  
+             CALL wrd_write_string( 'surf_v(' // dum // ')%qrs' )
              WRITE ( 14 )  surf_v(l)%qrs
           ENDIF
 
-          IF ( ALLOCATED ( surf_v(l)%nrs ) )  THEN 
-             CALL wrd_write_string( 'surf_v(' // dum // ')%nrs' ) 
+          IF ( ALLOCATED ( surf_v(l)%nrs ) )  THEN
+             CALL wrd_write_string( 'surf_v(' // dum // ')%nrs' )
              WRITE ( 14 )  surf_v(l)%nrs
-          ENDIF  
+          ENDIF
 
           IF ( ALLOCATED ( surf_v(l)%ol ) )  THEN
-             CALL wrd_write_string( 'surf_v(' // dum // ')%ol' )  
+             CALL wrd_write_string( 'surf_v(' // dum // ')%ol' )
              WRITE ( 14 )  surf_v(l)%ol
           ENDIF
 
@@ -2005,72 +2007,72 @@
           IF ( ALLOCATED ( surf_v(l)%pt_surface ) )  THEN
              CALL wrd_write_string( 'surf_v(' // dum // ')%pt_surface' )
              WRITE ( 14 )  surf_v(l)%pt_surface
-          ENDIF 
+          ENDIF
 
           IF ( ALLOCATED ( surf_v(l)%shf ) )  THEN
-             CALL wrd_write_string( 'surf_v(' // dum // ')%shf' )  
+             CALL wrd_write_string( 'surf_v(' // dum // ')%shf' )
              WRITE ( 14 )  surf_v(l)%shf
           ENDIF
 
           IF ( ALLOCATED ( surf_v(l)%qsws ) )  THEN
-             CALL wrd_write_string( 'surf_v(' // dum // ')%qsws' )  
+             CALL wrd_write_string( 'surf_v(' // dum // ')%qsws' )
              WRITE ( 14 )  surf_v(l)%qsws
           ENDIF
 
           IF ( ALLOCATED ( surf_v(l)%ssws ) )  THEN
-             CALL wrd_write_string( 'surf_v(' // dum // ')%ssws' )  
+             CALL wrd_write_string( 'surf_v(' // dum // ')%ssws' )
              WRITE ( 14 )  surf_v(l)%ssws
           ENDIF
 
           IF ( ALLOCATED ( surf_v(l)%css ) )  THEN
-             CALL wrd_write_string( 'surf_v(' // dum // ')%css' )  
+             CALL wrd_write_string( 'surf_v(' // dum // ')%css' )
              WRITE ( 14 )  surf_v(l)%css
           ENDIF
 
           IF ( ALLOCATED ( surf_v(l)%cssws ) )  THEN
-             CALL wrd_write_string( 'surf_v(' // dum // ')%cssws' ) 
+             CALL wrd_write_string( 'surf_v(' // dum // ')%cssws' )
              WRITE ( 14 )  surf_v(l)%cssws
-          ENDIF  
+          ENDIF
 
           IF ( ALLOCATED ( surf_v(l)%qcsws ) )  THEN
-             CALL wrd_write_string( 'surf_v(' // dum // ')%qcsws' ) 
+             CALL wrd_write_string( 'surf_v(' // dum // ')%qcsws' )
              WRITE ( 14 )  surf_v(l)%qcsws
-          ENDIF  
+          ENDIF
 
           IF ( ALLOCATED ( surf_v(l)%ncsws ) )  THEN
-             CALL wrd_write_string( 'surf_v(' // dum // ')%ncsws' ) 
+             CALL wrd_write_string( 'surf_v(' // dum // ')%ncsws' )
              WRITE ( 14 )  surf_v(l)%ncsws
           ENDIF
 
           IF ( ALLOCATED ( surf_v(l)%qrsws ) )  THEN
-             CALL wrd_write_string( 'surf_v(' // dum // ')%qrsws' )  
+             CALL wrd_write_string( 'surf_v(' // dum // ')%qrsws' )
              WRITE ( 14 )  surf_v(l)%qrsws
-          ENDIF  
+          ENDIF
 
           IF ( ALLOCATED ( surf_v(l)%nrsws ) )  THEN
-             CALL wrd_write_string( 'surf_v(' // dum // ')%nrsws' )  
+             CALL wrd_write_string( 'surf_v(' // dum // ')%nrsws' )
              WRITE ( 14 )  surf_v(l)%nrsws
-          ENDIF 
+          ENDIF
 
           IF ( ALLOCATED ( surf_v(l)%sasws ) )  THEN
-             CALL wrd_write_string( 'surf_v(' // dum // ')%sasws' ) 
+             CALL wrd_write_string( 'surf_v(' // dum // ')%sasws' )
              WRITE ( 14 )  surf_v(l)%sasws
           ENDIF
 
           IF ( ALLOCATED ( surf_v(l)%mom_flux_uv ) )  THEN
-             CALL wrd_write_string( 'surf_v(' // dum // ')%mom_uv' )  
+             CALL wrd_write_string( 'surf_v(' // dum // ')%mom_uv' )
              WRITE ( 14 )  surf_v(l)%mom_flux_uv
           ENDIF
 
           IF ( ALLOCATED ( surf_v(l)%mom_flux_w ) )  THEN
-             CALL wrd_write_string( 'surf_v(' // dum // ')%mom_w' ) 
+             CALL wrd_write_string( 'surf_v(' // dum // ')%mom_w' )
              WRITE ( 14 )  surf_v(l)%mom_flux_w
           ENDIF
 
           IF ( ALLOCATED ( surf_v(l)%mom_flux_tke ) )  THEN
-             CALL wrd_write_string( 'surf_v(' // dum // ')%mom_tke' )  
+             CALL wrd_write_string( 'surf_v(' // dum // ')%mom_tke' )
              WRITE ( 14 )  surf_v(l)%mom_flux_tke
-          ENDIF 
+          ENDIF
 
        ENDDO
 
@@ -2082,14 +2084,14 @@
 ! Description:
 ! ------------
 !> Reads surface-related restart data. Please note, restart data for a certain
-!> surface orientation (e.g. horizontal upward-facing) is stored in one 
-!> array, even if surface elements may belong to different surface types 
+!> surface orientation (e.g. horizontal upward-facing) is stored in one
+!> array, even if surface elements may belong to different surface types
 !> natural or urban for example). Surface elements are redistributed into its
-!> respective surface types within this routine. This allows e.g. changing the 
-!> surface type after reading the restart data, which might be required in case 
-!> of cyclic_fill mode. 
+!> respective surface types within this routine. This allows e.g. changing the
+!> surface type after reading the restart data, which might be required in case
+!> of cyclic_fill mode.
 !------------------------------------------------------------------------------!
-    SUBROUTINE surface_rrd_local( ii, kk, nxlf, nxlc, nxl_on_file, nxrf, nxrc, & 
+    SUBROUTINE surface_rrd_local( ii, kk, nxlf, nxlc, nxl_on_file, nxrf, nxrc, &
                                   nxr_on_file, nynf, nync, nyn_on_file, nysf,  &
                                   nysc, nys_on_file, found )
 
@@ -2110,17 +2112,17 @@
        INTEGER(iwp)       ::  ii               !< running index over input files
        INTEGER(iwp)       ::  kk               !< running index over previous input files covering current local domain
        INTEGER(iwp)       ::  nxlc             !< index of left boundary on current subdomain
-       INTEGER(iwp)       ::  nxlf             !< index of left boundary on former subdomain 
-       INTEGER(iwp)       ::  nxl_on_file      !< index of left boundary on former local domain 
+       INTEGER(iwp)       ::  nxlf             !< index of left boundary on former subdomain
+       INTEGER(iwp)       ::  nxl_on_file      !< index of left boundary on former local domain
        INTEGER(iwp)       ::  nxrc             !< index of right boundary on current subdomain
        INTEGER(iwp)       ::  nxrf             !< index of right boundary on former subdomain
-       INTEGER(iwp)       ::  nxr_on_file      !< index of right boundary on former local domain  
+       INTEGER(iwp)       ::  nxr_on_file      !< index of right boundary on former local domain
        INTEGER(iwp)       ::  nync             !< index of north boundary on current subdomain
        INTEGER(iwp)       ::  nynf             !< index of north boundary on former subdomain
-       INTEGER(iwp)       ::  nyn_on_file      !< index of norht boundary on former local domain  
-       INTEGER(iwp)       ::  nysc             !< index of south boundary on current subdomain 
+       INTEGER(iwp)       ::  nyn_on_file      !< index of norht boundary on former local domain
+       INTEGER(iwp)       ::  nysc             !< index of south boundary on current subdomain
        INTEGER(iwp)       ::  nysf             !< index of south boundary on former subdomain
-       INTEGER(iwp)       ::  nys_on_file      !< index of south boundary on former local domain  
+       INTEGER(iwp)       ::  nys_on_file      !< index of south boundary on former local domain
 
        INTEGER(iwp), SAVE  ::  l           !< index variable for surface type
 
@@ -2144,17 +2146,17 @@
                 READ ( 13 )  ns_h_on_file
 
                 IF ( ALLOCATED( surf_h(0)%start_index ) )                      &
-                   CALL deallocate_surface_attributes_h( surf_h(0) )           
+                   CALL deallocate_surface_attributes_h( surf_h(0) )
                 IF ( ALLOCATED( surf_h(1)%start_index ) )                      &
-                   CALL deallocate_surface_attributes_h( surf_h(1) )           
+                   CALL deallocate_surface_attributes_h( surf_h(1) )
                 IF ( ALLOCATED( surf_h(2)%start_index ) )                      &
-                   CALL deallocate_surface_attributes_h_top( surf_h(2) )       
+                   CALL deallocate_surface_attributes_h_top( surf_h(2) )
 
-!--             Allocate memory for number of surface elements on file. 
-!--             Please note, these number is not necessarily the same as 
+!--             Allocate memory for number of surface elements on file.
+!--             Please note, these number is not necessarily the same as
 !--             the final number of surface elements on local domain,
 !--             which is the case if processor topology changes during
-!--             restart runs.  
+!--             restart runs.
 !--             Horizontal upward facing
                 surf_h(0)%ns = ns_h_on_file(0)
                 CALL allocate_surface_attributes_h( surf_h(0),                 &
@@ -2175,11 +2177,11 @@
 
 !
 !--             Initial setting of flags for horizontal and vertical surfaces,
-!--             will be set after start- and end-indices are read. 
+!--             will be set after start- and end-indices are read.
                 horizontal_surface = .FALSE.
                 vertical_surface   = .FALSE.
 
-             ENDIF   
+             ENDIF
 
           CASE ( 'ns_v_on_file' )
              IF ( kk == 1 ) THEN
@@ -2204,554 +2206,554 @@
              IF ( kk == 1 )                                                    &
                 READ ( 13 )  surf_h(0)%start_index
              l = 0
-          CASE ( 'surf_h(0)%end_index' )   
+          CASE ( 'surf_h(0)%end_index' )
              IF ( kk == 1 )                                                    &
                 READ ( 13 )  surf_h(0)%end_index
              horizontal_surface = .TRUE.
              vertical_surface   = .FALSE.
-          CASE ( 'surf_h(0)%us' )         
+          CASE ( 'surf_h(0)%us' )
              IF ( ALLOCATED( surf_h(0)%us )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_h(0)%us
-          CASE ( 'surf_h(0)%ts' )         
+          CASE ( 'surf_h(0)%ts' )
              IF ( ALLOCATED( surf_h(0)%ts )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_h(0)%ts
-          CASE ( 'surf_h(0)%qs' )         
+          CASE ( 'surf_h(0)%qs' )
              IF ( ALLOCATED( surf_h(0)%qs )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_h(0)%qs
-          CASE ( 'surf_h(0)%ss' )         
+          CASE ( 'surf_h(0)%ss' )
              IF ( ALLOCATED( surf_h(0)%ss )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_h(0)%ss
-          CASE ( 'surf_h(0)%qcs' )         
+          CASE ( 'surf_h(0)%qcs' )
              IF ( ALLOCATED( surf_h(0)%qcs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_h(0)%qcs
-          CASE ( 'surf_h(0)%ncs' )         
+          CASE ( 'surf_h(0)%ncs' )
              IF ( ALLOCATED( surf_h(0)%ncs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_h(0)%ncs
-          CASE ( 'surf_h(0)%qrs' )         
+          CASE ( 'surf_h(0)%qrs' )
              IF ( ALLOCATED( surf_h(0)%qrs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_h(0)%qrs
-          CASE ( 'surf_h(0)%nrs' )         
+          CASE ( 'surf_h(0)%nrs' )
              IF ( ALLOCATED( surf_h(0)%nrs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_h(0)%nrs
-          CASE ( 'surf_h(0)%ol' )         
+          CASE ( 'surf_h(0)%ol' )
              IF ( ALLOCATED( surf_h(0)%ol )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_h(0)%ol
-          CASE ( 'surf_h(0)%rib' )         
+          CASE ( 'surf_h(0)%rib' )
              IF ( ALLOCATED( surf_h(0)%rib )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_h(0)%rib
-          CASE ( 'surf_h(0)%pt_surface' )         
+          CASE ( 'surf_h(0)%pt_surface' )
              IF ( ALLOCATED( surf_h(0)%pt_surface )  .AND.  kk == 1 )          &
                 READ ( 13 )  surf_h(0)%pt_surface
-          CASE ( 'surf_h(0)%usws' )         
+          CASE ( 'surf_h(0)%usws' )
              IF ( ALLOCATED( surf_h(0)%usws )  .AND.  kk == 1 )                &
                 READ ( 13 )  surf_h(0)%usws
-          CASE ( 'surf_h(0)%vsws' )         
+          CASE ( 'surf_h(0)%vsws' )
              IF ( ALLOCATED( surf_h(0)%vsws )  .AND.  kk == 1 )                &
                 READ ( 13 )  surf_h(0)%vsws
-          CASE ( 'surf_h(0)%shf' )         
+          CASE ( 'surf_h(0)%shf' )
              IF ( ALLOCATED( surf_h(0)%shf )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_h(0)%shf
-          CASE ( 'surf_h(0)%qsws' )         
+          CASE ( 'surf_h(0)%qsws' )
              IF ( ALLOCATED( surf_h(0)%qsws )  .AND.  kk == 1 )                &
                 READ ( 13 )  surf_h(0)%qsws
-          CASE ( 'surf_h(0)%ssws' )         
+          CASE ( 'surf_h(0)%ssws' )
              IF ( ALLOCATED( surf_h(0)%ssws )  .AND.  kk == 1 )                &
                 READ ( 13 )  surf_h(0)%ssws
           CASE ( 'surf_h(0)%css' )
              IF ( ALLOCATED( surf_h(0)%css )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_h(0)%css
-          CASE ( 'surf_h(0)%cssws' )         
+          CASE ( 'surf_h(0)%cssws' )
              IF ( ALLOCATED( surf_h(0)%cssws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_h(0)%cssws
-          CASE ( 'surf_h(0)%qcsws' )         
+          CASE ( 'surf_h(0)%qcsws' )
              IF ( ALLOCATED( surf_h(0)%qcsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_h(0)%qcsws
-          CASE ( 'surf_h(0)%ncsws' )         
+          CASE ( 'surf_h(0)%ncsws' )
              IF ( ALLOCATED( surf_h(0)%ncsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_h(0)%ncsws
-          CASE ( 'surf_h(0)%qrsws' )         
+          CASE ( 'surf_h(0)%qrsws' )
              IF ( ALLOCATED( surf_h(0)%qrsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_h(0)%qrsws
-          CASE ( 'surf_h(0)%nrsws' )         
+          CASE ( 'surf_h(0)%nrsws' )
              IF ( ALLOCATED( surf_h(0)%nrsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_h(0)%nrsws
-          CASE ( 'surf_h(0)%sasws' )         
+          CASE ( 'surf_h(0)%sasws' )
              IF ( ALLOCATED( surf_h(0)%sasws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_h(0)%sasws
 
-          CASE ( 'surf_h(1)%start_index' )   
+          CASE ( 'surf_h(1)%start_index' )
              IF ( kk == 1 )                                                    &
                 READ ( 13 )  surf_h(1)%start_index
              l = 1
-          CASE ( 'surf_h(1)%end_index' )   
+          CASE ( 'surf_h(1)%end_index' )
              IF ( kk == 1 )                                                    &
                 READ ( 13 )  surf_h(1)%end_index
-          CASE ( 'surf_h(1)%us' )         
+          CASE ( 'surf_h(1)%us' )
              IF ( ALLOCATED( surf_h(1)%us )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_h(1)%us
-          CASE ( 'surf_h(1)%ts' )         
+          CASE ( 'surf_h(1)%ts' )
              IF ( ALLOCATED( surf_h(1)%ts )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_h(1)%ts
-          CASE ( 'surf_h(1)%qs' )         
+          CASE ( 'surf_h(1)%qs' )
              IF ( ALLOCATED( surf_h(1)%qs )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_h(1)%qs
-          CASE ( 'surf_h(1)%ss' )         
+          CASE ( 'surf_h(1)%ss' )
              IF ( ALLOCATED( surf_h(1)%ss )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_h(1)%ss
-          CASE ( 'surf_h(1)%qcs' )         
+          CASE ( 'surf_h(1)%qcs' )
              IF ( ALLOCATED( surf_h(1)%qcs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_h(1)%qcs
-          CASE ( 'surf_h(1)%ncs' )         
+          CASE ( 'surf_h(1)%ncs' )
              IF ( ALLOCATED( surf_h(1)%ncs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_h(1)%ncs
-          CASE ( 'surf_h(1)%qrs' )         
+          CASE ( 'surf_h(1)%qrs' )
              IF ( ALLOCATED( surf_h(1)%qrs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_h(1)%qrs
-          CASE ( 'surf_h(1)%nrs' )         
+          CASE ( 'surf_h(1)%nrs' )
              IF ( ALLOCATED( surf_h(1)%nrs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_h(1)%nrs
-          CASE ( 'surf_h(1)%ol' )         
+          CASE ( 'surf_h(1)%ol' )
              IF ( ALLOCATED( surf_h(1)%ol )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_h(1)%ol
-          CASE ( 'surf_h(1)%rib' )         
+          CASE ( 'surf_h(1)%rib' )
              IF ( ALLOCATED( surf_h(1)%rib )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_h(1)%rib
-          CASE ( 'surf_h(1)%pt_surface' )         
+          CASE ( 'surf_h(1)%pt_surface' )
              IF ( ALLOCATED( surf_h(1)%pt_surface )  .AND.  kk == 1 )          &
                 READ ( 13 )  surf_h(1)%pt_surface
-          CASE ( 'surf_h(1)%usws' )         
+          CASE ( 'surf_h(1)%usws' )
              IF ( ALLOCATED( surf_h(1)%usws )  .AND.  kk == 1 )                &
                 READ ( 13 )  surf_h(1)%usws
-          CASE ( 'surf_h(1)%vsws' )         
+          CASE ( 'surf_h(1)%vsws' )
              IF ( ALLOCATED( surf_h(1)%vsws )  .AND.  kk == 1 )                &
                 READ ( 13 )  surf_h(1)%vsws
-          CASE ( 'surf_h(1)%shf' )         
+          CASE ( 'surf_h(1)%shf' )
              IF ( ALLOCATED( surf_h(1)%shf )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_h(1)%shf
-          CASE ( 'surf_h(1)%qsws' )         
+          CASE ( 'surf_h(1)%qsws' )
              IF ( ALLOCATED( surf_h(1)%qsws )  .AND.  kk == 1 )                &
                 READ ( 13 )  surf_h(1)%qsws
-          CASE ( 'surf_h(1)%ssws' )         
+          CASE ( 'surf_h(1)%ssws' )
              IF ( ALLOCATED( surf_h(1)%ssws )  .AND.  kk == 1 )                &
                 READ ( 13 )  surf_h(1)%ssws
           CASE ( 'surf_h(1)%css' )
              IF ( ALLOCATED( surf_h(1)%css )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_h(1)%css
-          CASE ( 'surf_h(1)%cssws' )         
+          CASE ( 'surf_h(1)%cssws' )
              IF ( ALLOCATED( surf_h(1)%cssws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_h(1)%cssws
-          CASE ( 'surf_h(1)%qcsws' )         
+          CASE ( 'surf_h(1)%qcsws' )
              IF ( ALLOCATED( surf_h(1)%qcsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_h(1)%qcsws
-          CASE ( 'surf_h(1)%ncsws' )         
+          CASE ( 'surf_h(1)%ncsws' )
              IF ( ALLOCATED( surf_h(1)%ncsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_h(1)%ncsws
-          CASE ( 'surf_h(1)%qrsws' )         
+          CASE ( 'surf_h(1)%qrsws' )
              IF ( ALLOCATED( surf_h(1)%qrsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_h(1)%qrsws
-          CASE ( 'surf_h(1)%nrsws' )         
+          CASE ( 'surf_h(1)%nrsws' )
              IF ( ALLOCATED( surf_h(1)%nrsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_h(1)%nrsws
-          CASE ( 'surf_h(1)%sasws' )         
+          CASE ( 'surf_h(1)%sasws' )
              IF ( ALLOCATED( surf_h(1)%sasws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_h(1)%sasws
 
-          CASE ( 'surf_h(2)%start_index' )   
+          CASE ( 'surf_h(2)%start_index' )
              IF ( kk == 1 )                                                    &
                 READ ( 13 )  surf_h(2)%start_index
              l = 2
-          CASE ( 'surf_h(2)%end_index' )   
+          CASE ( 'surf_h(2)%end_index' )
              IF ( kk == 1 )                                                    &
                 READ ( 13 )  surf_h(2)%end_index
-          CASE ( 'surf_h(2)%us' )         
+          CASE ( 'surf_h(2)%us' )
              IF ( ALLOCATED( surf_h(2)%us )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_h(2)%us
-          CASE ( 'surf_h(2)%ts' )         
+          CASE ( 'surf_h(2)%ts' )
              IF ( ALLOCATED( surf_h(2)%ts )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_h(2)%ts
-          CASE ( 'surf_h(2)%qs' )        
+          CASE ( 'surf_h(2)%qs' )
              IF ( ALLOCATED( surf_h(2)%qs )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_h(2)%qs
-          CASE ( 'surf_h(2)%ss' )         
+          CASE ( 'surf_h(2)%ss' )
              IF ( ALLOCATED( surf_h(2)%ss )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_h(2)%ss
-          CASE ( 'surf_h(2)%qcs' )         
+          CASE ( 'surf_h(2)%qcs' )
              IF ( ALLOCATED( surf_h(2)%qcs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_h(2)%qcs
-          CASE ( 'surf_h(2)%ncs' )         
+          CASE ( 'surf_h(2)%ncs' )
              IF ( ALLOCATED( surf_h(2)%ncs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_h(2)%ncs
-          CASE ( 'surf_h(2)%qrs' )         
+          CASE ( 'surf_h(2)%qrs' )
              IF ( ALLOCATED( surf_h(2)%qrs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_h(2)%qrs
-          CASE ( 'surf_h(2)%nrs' )         
+          CASE ( 'surf_h(2)%nrs' )
              IF ( ALLOCATED( surf_h(2)%nrs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_h(2)%nrs
-          CASE ( 'surf_h(2)%ol' )         
+          CASE ( 'surf_h(2)%ol' )
              IF ( ALLOCATED( surf_h(2)%ol )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_h(2)%ol
-          CASE ( 'surf_h(2)%rib' )         
+          CASE ( 'surf_h(2)%rib' )
              IF ( ALLOCATED( surf_h(2)%rib )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_h(2)%rib
-          CASE ( 'surf_h(2)%pt_surface' )         
+          CASE ( 'surf_h(2)%pt_surface' )
              IF ( ALLOCATED( surf_h(2)%pt_surface )  .AND.  kk == 1 )          &
                 READ ( 13 )  surf_h(2)%pt_surface
-          CASE ( 'surf_h(2)%usws' )         
+          CASE ( 'surf_h(2)%usws' )
              IF ( ALLOCATED( surf_h(2)%usws )  .AND.  kk == 1 )                &
                 READ ( 13 )  surf_h(2)%usws
-          CASE ( 'surf_h(2)%vsws' )         
+          CASE ( 'surf_h(2)%vsws' )
              IF ( ALLOCATED( surf_h(2)%vsws )  .AND.  kk == 1 )                &
                 READ ( 13 )  surf_h(2)%vsws
-          CASE ( 'surf_h(2)%shf' )         
+          CASE ( 'surf_h(2)%shf' )
              IF ( ALLOCATED( surf_h(2)%shf )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_h(2)%shf
-          CASE ( 'surf_h(2)%qsws' )         
+          CASE ( 'surf_h(2)%qsws' )
              IF ( ALLOCATED( surf_h(2)%qsws )  .AND.  kk == 1 )                &
                 READ ( 13 )  surf_h(2)%qsws
-          CASE ( 'surf_h(2)%ssws' )         
+          CASE ( 'surf_h(2)%ssws' )
              IF ( ALLOCATED( surf_h(2)%ssws )  .AND.  kk == 1 )                &
                 READ ( 13 )  surf_h(2)%ssws
           CASE ( 'surf_h(2)%css' )
              IF ( ALLOCATED( surf_h(2)%css )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_h(2)%css
-          CASE ( 'surf_h(2)%cssws' )         
+          CASE ( 'surf_h(2)%cssws' )
              IF ( ALLOCATED( surf_h(2)%cssws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_h(2)%cssws
-          CASE ( 'surf_h(2)%qcsws' )         
+          CASE ( 'surf_h(2)%qcsws' )
              IF ( ALLOCATED( surf_h(2)%qcsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_h(2)%qcsws
-          CASE ( 'surf_h(2)%ncsws' )         
+          CASE ( 'surf_h(2)%ncsws' )
              IF ( ALLOCATED( surf_h(2)%ncsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_h(2)%ncsws
-          CASE ( 'surf_h(2)%qrsws' )         
+          CASE ( 'surf_h(2)%qrsws' )
              IF ( ALLOCATED( surf_h(2)%qrsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_h(2)%qrsws
-          CASE ( 'surf_h(2)%nrsws' )         
+          CASE ( 'surf_h(2)%nrsws' )
              IF ( ALLOCATED( surf_h(2)%nrsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_h(2)%nrsws
-          CASE ( 'surf_h(2)%sasws' )         
+          CASE ( 'surf_h(2)%sasws' )
              IF ( ALLOCATED( surf_h(2)%sasws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_h(2)%sasws
 
-          CASE ( 'surf_v(0)%start_index' )   
+          CASE ( 'surf_v(0)%start_index' )
              IF ( kk == 1 )                                                    &
                 READ ( 13 )  surf_v(0)%start_index
              l = 0
              horizontal_surface = .FALSE.
              vertical_surface   = .TRUE.
-          CASE ( 'surf_v(0)%end_index' )   
+          CASE ( 'surf_v(0)%end_index' )
              IF ( kk == 1 )                                                    &
                 READ ( 13 )  surf_v(0)%end_index
-          CASE ( 'surf_v(0)%us' )         
+          CASE ( 'surf_v(0)%us' )
              IF ( ALLOCATED( surf_v(0)%us )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_v(0)%us
-          CASE ( 'surf_v(0)%ts' )         
+          CASE ( 'surf_v(0)%ts' )
              IF ( ALLOCATED( surf_v(0)%ts )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_v(0)%ts
-          CASE ( 'surf_v(0)%qs' )         
+          CASE ( 'surf_v(0)%qs' )
              IF ( ALLOCATED( surf_v(0)%qs )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_v(0)%qs
-          CASE ( 'surf_v(0)%ss' )         
+          CASE ( 'surf_v(0)%ss' )
              IF ( ALLOCATED( surf_v(0)%ss )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_v(0)%ss
-          CASE ( 'surf_v(0)%qcs' )         
+          CASE ( 'surf_v(0)%qcs' )
              IF ( ALLOCATED( surf_v(0)%qcs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(0)%qcs
-          CASE ( 'surf_v(0)%ncs' )         
+          CASE ( 'surf_v(0)%ncs' )
              IF ( ALLOCATED( surf_v(0)%ncs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(0)%ncs
-          CASE ( 'surf_v(0)%qrs' )         
+          CASE ( 'surf_v(0)%qrs' )
              IF ( ALLOCATED( surf_v(0)%qrs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(0)%qrs
-          CASE ( 'surf_v(0)%nrs' )         
+          CASE ( 'surf_v(0)%nrs' )
              IF ( ALLOCATED( surf_v(0)%nrs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(0)%nrs
-          CASE ( 'surf_v(0)%ol' )         
+          CASE ( 'surf_v(0)%ol' )
              IF ( ALLOCATED( surf_v(0)%ol )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_v(0)%ol
-          CASE ( 'surf_v(0)%rib' )         
+          CASE ( 'surf_v(0)%rib' )
              IF ( ALLOCATED( surf_v(0)%rib )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(0)%rib
-          CASE ( 'surf_v(0)%pt_surface' )         
+          CASE ( 'surf_v(0)%pt_surface' )
              IF ( ALLOCATED( surf_v(0)%pt_surface )  .AND.  kk == 1 )          &
                 READ ( 13 )  surf_v(0)%pt_surface
-          CASE ( 'surf_v(0)%shf' )         
+          CASE ( 'surf_v(0)%shf' )
              IF ( ALLOCATED( surf_v(0)%shf )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(0)%shf
-          CASE ( 'surf_v(0)%qsws' )         
+          CASE ( 'surf_v(0)%qsws' )
              IF ( ALLOCATED( surf_v(0)%qsws )  .AND.  kk == 1 )                &
                 READ ( 13 )  surf_v(0)%qsws
-          CASE ( 'surf_v(0)%ssws' )         
+          CASE ( 'surf_v(0)%ssws' )
              IF ( ALLOCATED( surf_v(0)%ssws )  .AND.  kk == 1 )                &
                 READ ( 13 )  surf_v(0)%ssws
-          CASE ( 'surf_v(0)%css' ) 
+          CASE ( 'surf_v(0)%css' )
              IF ( ALLOCATED( surf_v(0)%css )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(0)%css
-          CASE ( 'surf_v(0)%cssws' )         
+          CASE ( 'surf_v(0)%cssws' )
              IF ( ALLOCATED( surf_v(0)%cssws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_v(0)%cssws
-          CASE ( 'surf_v(0)%qcsws' )         
+          CASE ( 'surf_v(0)%qcsws' )
              IF ( ALLOCATED( surf_v(0)%qcsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_v(0)%qcsws
-          CASE ( 'surf_v(0)%ncsws' )         
+          CASE ( 'surf_v(0)%ncsws' )
              IF ( ALLOCATED( surf_v(0)%ncsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_v(0)%ncsws
-          CASE ( 'surf_v(0)%qrsws' )         
+          CASE ( 'surf_v(0)%qrsws' )
              IF ( ALLOCATED( surf_v(0)%qrsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_v(0)%qrsws
-          CASE ( 'surf_v(0)%nrsws' )         
+          CASE ( 'surf_v(0)%nrsws' )
              IF ( ALLOCATED( surf_v(0)%nrsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_v(0)%nrsws
-          CASE ( 'surf_v(0)%sasws' )         
+          CASE ( 'surf_v(0)%sasws' )
              IF ( ALLOCATED( surf_v(0)%sasws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_v(0)%sasws
-          CASE ( 'surf_v(0)%mom_uv' )         
+          CASE ( 'surf_v(0)%mom_uv' )
              IF ( ALLOCATED( surf_v(0)%mom_flux_uv )  .AND.  kk == 1 )         &
                 READ ( 13 )  surf_v(0)%mom_flux_uv
-          CASE ( 'surf_v(0)%mom_w' )         
+          CASE ( 'surf_v(0)%mom_w' )
              IF ( ALLOCATED( surf_v(0)%mom_flux_w )  .AND.  kk == 1 )          &
                 READ ( 13 )  surf_v(0)%mom_flux_w
-          CASE ( 'surf_v(0)%mom_tke' )         
+          CASE ( 'surf_v(0)%mom_tke' )
              IF ( ALLOCATED( surf_v(0)%mom_flux_tke )  .AND.  kk == 1 )        &
                 READ ( 13 )  surf_v(0)%mom_flux_tke
 
-          CASE ( 'surf_v(1)%start_index' )   
+          CASE ( 'surf_v(1)%start_index' )
              IF ( kk == 1 )                                                    &
                 READ ( 13 )  surf_v(1)%start_index
              l = 1
-          CASE ( 'surf_v(1)%end_index' )   
+          CASE ( 'surf_v(1)%end_index' )
              IF ( kk == 1 )                                                    &
                 READ ( 13 )  surf_v(1)%end_index
-          CASE ( 'surf_v(1)%us' )         
+          CASE ( 'surf_v(1)%us' )
              IF ( ALLOCATED( surf_v(1)%us )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_v(1)%us
-          CASE ( 'surf_v(1)%ts' )         
+          CASE ( 'surf_v(1)%ts' )
              IF ( ALLOCATED( surf_v(1)%ts )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_v(1)%ts
-          CASE ( 'surf_v(1)%qs' )         
+          CASE ( 'surf_v(1)%qs' )
              IF ( ALLOCATED( surf_v(1)%qs )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_v(1)%qs
-          CASE ( 'surf_v(1)%ss' )         
+          CASE ( 'surf_v(1)%ss' )
              IF ( ALLOCATED( surf_v(1)%ss )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_v(1)%ss
-          CASE ( 'surf_v(1)%qcs' )         
+          CASE ( 'surf_v(1)%qcs' )
              IF ( ALLOCATED( surf_v(1)%qcs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(1)%qcs
-          CASE ( 'surf_v(1)%ncs' )         
+          CASE ( 'surf_v(1)%ncs' )
              IF ( ALLOCATED( surf_v(1)%ncs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(1)%ncs
-          CASE ( 'surf_v(1)%qrs' )         
+          CASE ( 'surf_v(1)%qrs' )
              IF ( ALLOCATED( surf_v(1)%qrs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(1)%qrs
-          CASE ( 'surf_v(1)%nrs' )         
+          CASE ( 'surf_v(1)%nrs' )
              IF ( ALLOCATED( surf_v(1)%nrs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(1)%nrs
-          CASE ( 'surf_v(1)%ol' )         
+          CASE ( 'surf_v(1)%ol' )
              IF ( ALLOCATED( surf_v(1)%ol )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_v(1)%ol
-          CASE ( 'surf_v(1)%rib' )         
+          CASE ( 'surf_v(1)%rib' )
              IF ( ALLOCATED( surf_v(1)%rib )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(1)%rib
-          CASE ( 'surf_v(1)%pt_surface' )         
+          CASE ( 'surf_v(1)%pt_surface' )
              IF ( ALLOCATED( surf_v(1)%pt_surface )  .AND.  kk == 1 )          &
                 READ ( 13 )  surf_v(1)%pt_surface
-          CASE ( 'surf_v(1)%shf' )         
+          CASE ( 'surf_v(1)%shf' )
              IF ( ALLOCATED( surf_v(1)%shf )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(1)%shf
-          CASE ( 'surf_v(1)%qsws' )         
+          CASE ( 'surf_v(1)%qsws' )
              IF ( ALLOCATED( surf_v(1)%qsws )  .AND.  kk == 1 )                &
                 READ ( 13 )  surf_v(1)%qsws
-          CASE ( 'surf_v(1)%ssws' )         
+          CASE ( 'surf_v(1)%ssws' )
              IF ( ALLOCATED( surf_v(1)%ssws )  .AND.  kk == 1 )                &
                 READ ( 13 )  surf_v(1)%ssws
-          CASE ( 'surf_v(1)%css' ) 
+          CASE ( 'surf_v(1)%css' )
              IF ( ALLOCATED( surf_v(1)%css )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(1)%css
-          CASE ( 'surf_v(1)%cssws' )         
+          CASE ( 'surf_v(1)%cssws' )
              IF ( ALLOCATED( surf_v(1)%cssws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_v(1)%cssws
-          CASE ( 'surf_v(1)%qcsws' )         
+          CASE ( 'surf_v(1)%qcsws' )
              IF ( ALLOCATED( surf_v(1)%qcsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_v(1)%qcsws
-          CASE ( 'surf_v(1)%ncsws' )         
+          CASE ( 'surf_v(1)%ncsws' )
              IF ( ALLOCATED( surf_v(1)%ncsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_v(1)%ncsws
-          CASE ( 'surf_v(1)%qrsws' )         
+          CASE ( 'surf_v(1)%qrsws' )
              IF ( ALLOCATED( surf_v(1)%qrsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_v(1)%qrsws
-          CASE ( 'surf_v(1)%nrsws' )         
+          CASE ( 'surf_v(1)%nrsws' )
              IF ( ALLOCATED( surf_v(1)%nrsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_v(1)%nrsws
-          CASE ( 'surf_v(1)%sasws' )         
+          CASE ( 'surf_v(1)%sasws' )
              IF ( ALLOCATED( surf_v(1)%sasws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_v(1)%sasws
-          CASE ( 'surf_v(1)%mom_uv' )         
+          CASE ( 'surf_v(1)%mom_uv' )
              IF ( ALLOCATED( surf_v(1)%mom_flux_uv )  .AND.  kk == 1 )         &
                 READ ( 13 )  surf_v(1)%mom_flux_uv
-          CASE ( 'surf_v(1)%mom_w' )         
+          CASE ( 'surf_v(1)%mom_w' )
              IF ( ALLOCATED( surf_v(1)%mom_flux_w )  .AND.  kk == 1 )          &
                 READ ( 13 )  surf_v(1)%mom_flux_w
-          CASE ( 'surf_v(1)%mom_tke' )         
+          CASE ( 'surf_v(1)%mom_tke' )
              IF ( ALLOCATED( surf_v(1)%mom_flux_tke )  .AND.  kk == 1 )        &
                 READ ( 13 )  surf_v(1)%mom_flux_tke
 
-          CASE ( 'surf_v(2)%start_index' )   
+          CASE ( 'surf_v(2)%start_index' )
              IF ( kk == 1 )                                                    &
                 READ ( 13 )  surf_v(2)%start_index
              l = 2
-          CASE ( 'surf_v(2)%end_index' )   
+          CASE ( 'surf_v(2)%end_index' )
              IF ( kk == 1 )                                                    &
                 READ ( 13 )  surf_v(2)%end_index
-          CASE ( 'surf_v(2)%us' )         
+          CASE ( 'surf_v(2)%us' )
              IF ( ALLOCATED( surf_v(2)%us )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_v(2)%us
-          CASE ( 'surf_v(2)%ts' )         
+          CASE ( 'surf_v(2)%ts' )
              IF ( ALLOCATED( surf_v(2)%ts )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_v(2)%ts
-          CASE ( 'surf_v(2)%qs' )         
+          CASE ( 'surf_v(2)%qs' )
              IF ( ALLOCATED( surf_v(2)%qs )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_v(2)%qs
-          CASE ( 'surf_v(2)%ss' )         
+          CASE ( 'surf_v(2)%ss' )
              IF ( ALLOCATED( surf_v(2)%ss )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_v(2)%ss
-          CASE ( 'surf_v(2)%qcs' )         
+          CASE ( 'surf_v(2)%qcs' )
              IF ( ALLOCATED( surf_v(2)%qcs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(2)%qcs
-          CASE ( 'surf_v(2)%ncs' )         
+          CASE ( 'surf_v(2)%ncs' )
              IF ( ALLOCATED( surf_v(2)%ncs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(2)%ncs
-          CASE ( 'surf_v(2)%qrs' )         
+          CASE ( 'surf_v(2)%qrs' )
              IF ( ALLOCATED( surf_v(2)%qrs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(2)%qrs
-          CASE ( 'surf_v(2)%nrs' )         
+          CASE ( 'surf_v(2)%nrs' )
              IF ( ALLOCATED( surf_v(2)%nrs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(2)%nrs
-          CASE ( 'surf_v(2)%ol' )         
+          CASE ( 'surf_v(2)%ol' )
              IF ( ALLOCATED( surf_v(2)%ol )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_v(2)%ol
-          CASE ( 'surf_v(2)%rib' )         
+          CASE ( 'surf_v(2)%rib' )
              IF ( ALLOCATED( surf_v(2)%rib )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(2)%rib
-          CASE ( 'surf_v(2)%pt_surface' )         
+          CASE ( 'surf_v(2)%pt_surface' )
              IF ( ALLOCATED( surf_v(2)%pt_surface )  .AND.  kk == 1 )          &
                 READ ( 13 )  surf_v(2)%pt_surface
-          CASE ( 'surf_v(2)%shf' )         
+          CASE ( 'surf_v(2)%shf' )
              IF ( ALLOCATED( surf_v(2)%shf )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(2)%shf
-          CASE ( 'surf_v(2)%qsws' )         
+          CASE ( 'surf_v(2)%qsws' )
              IF ( ALLOCATED( surf_v(2)%qsws )  .AND.  kk == 1 )                &
                 READ ( 13 )  surf_v(2)%qsws
-          CASE ( 'surf_v(2)%ssws' )         
+          CASE ( 'surf_v(2)%ssws' )
              IF ( ALLOCATED( surf_v(2)%ssws )  .AND.  kk == 1 )                &
                 READ ( 13 )  surf_v(2)%ssws
-          CASE ( 'surf_v(2)%css' ) 
+          CASE ( 'surf_v(2)%css' )
              IF ( ALLOCATED( surf_v(2)%css )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(2)%css
-          CASE ( 'surf_v(2)%cssws' )         
+          CASE ( 'surf_v(2)%cssws' )
              IF ( ALLOCATED( surf_v(2)%cssws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_v(2)%cssws
-          CASE ( 'surf_v(2)%qcsws' )         
+          CASE ( 'surf_v(2)%qcsws' )
              IF ( ALLOCATED( surf_v(2)%qcsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_v(2)%qcsws
-          CASE ( 'surf_v(2)%ncsws' )         
+          CASE ( 'surf_v(2)%ncsws' )
              IF ( ALLOCATED( surf_v(2)%ncsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_v(2)%ncsws
-          CASE ( 'surf_v(2)%qrsws' )         
+          CASE ( 'surf_v(2)%qrsws' )
              IF ( ALLOCATED( surf_v(2)%qrsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_v(2)%qrsws
-          CASE ( 'surf_v(2)%nrsws' )         
+          CASE ( 'surf_v(2)%nrsws' )
              IF ( ALLOCATED( surf_v(2)%nrsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_v(2)%nrsws
-          CASE ( 'surf_v(2)%sasws' )         
+          CASE ( 'surf_v(2)%sasws' )
              IF ( ALLOCATED( surf_v(2)%sasws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_v(2)%sasws
-          CASE ( 'surf_v(2)%mom_uv' )         
+          CASE ( 'surf_v(2)%mom_uv' )
              IF ( ALLOCATED( surf_v(2)%mom_flux_uv )  .AND.  kk == 1 )         &
                 READ ( 13 )  surf_v(2)%mom_flux_uv
-          CASE ( 'surf_v(2)%mom_w' )         
+          CASE ( 'surf_v(2)%mom_w' )
              IF ( ALLOCATED( surf_v(2)%mom_flux_w )  .AND.  kk == 1 )          &
                 READ ( 13 )  surf_v(2)%mom_flux_w
-          CASE ( 'surf_v(2)%mom_tke' )         
+          CASE ( 'surf_v(2)%mom_tke' )
              IF ( ALLOCATED( surf_v(2)%mom_flux_tke )  .AND.  kk == 1 )        &
                 READ ( 13 )  surf_v(2)%mom_flux_tke
 
-          CASE ( 'surf_v(3)%start_index' )   
+          CASE ( 'surf_v(3)%start_index' )
              IF ( kk == 1 )                                                    &
                 READ ( 13 )  surf_v(3)%start_index
              l = 3
-          CASE ( 'surf_v(3)%end_index' )   
+          CASE ( 'surf_v(3)%end_index' )
              IF ( kk == 1 )                                                    &
                 READ ( 13 )  surf_v(3)%end_index
-          CASE ( 'surf_v(3)%us' )         
+          CASE ( 'surf_v(3)%us' )
              IF ( ALLOCATED( surf_v(3)%us )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_v(3)%us
-          CASE ( 'surf_v(3)%ts' )         
+          CASE ( 'surf_v(3)%ts' )
              IF ( ALLOCATED( surf_v(3)%ts )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_v(3)%ts
-          CASE ( 'surf_v(3)%qs' )        
+          CASE ( 'surf_v(3)%qs' )
              IF ( ALLOCATED( surf_v(3)%qs )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_v(3)%qs
-          CASE ( 'surf_v(3)%ss' )         
+          CASE ( 'surf_v(3)%ss' )
              IF ( ALLOCATED( surf_v(3)%ss )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_v(3)%ss
-          CASE ( 'surf_v(3)%qcs' )         
+          CASE ( 'surf_v(3)%qcs' )
              IF ( ALLOCATED( surf_v(3)%qcs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(3)%qcs
-          CASE ( 'surf_v(3)%ncs' )         
+          CASE ( 'surf_v(3)%ncs' )
              IF ( ALLOCATED( surf_v(3)%ncs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(3)%ncs
-          CASE ( 'surf_v(3)%qrs' )         
+          CASE ( 'surf_v(3)%qrs' )
              IF ( ALLOCATED( surf_v(3)%qrs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(3)%qrs
-          CASE ( 'surf_v(3)%nrs' )         
+          CASE ( 'surf_v(3)%nrs' )
              IF ( ALLOCATED( surf_v(3)%nrs )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(3)%nrs
-          CASE ( 'surf_v(3)%ol' )         
+          CASE ( 'surf_v(3)%ol' )
              IF ( ALLOCATED( surf_v(3)%ol )  .AND.  kk == 1 )                  &
                 READ ( 13 )  surf_v(3)%ol
-          CASE ( 'surf_v(3)%rib' )         
+          CASE ( 'surf_v(3)%rib' )
              IF ( ALLOCATED( surf_v(3)%rib )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(3)%rib
-          CASE ( 'surf_v(3)%pt_surface' )         
+          CASE ( 'surf_v(3)%pt_surface' )
              IF ( ALLOCATED( surf_v(3)%pt_surface )  .AND.  kk == 1 )          &
                 READ ( 13 )  surf_v(3)%pt_surface
-          CASE ( 'surf_v(3)%shf' )         
+          CASE ( 'surf_v(3)%shf' )
              IF ( ALLOCATED( surf_v(3)%shf )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(3)%shf
-          CASE ( 'surf_v(3)%qsws' )         
-             IF ( ALLOCATED( surf_v(3)%qsws )  .AND.  kk == 1 )                & 
+          CASE ( 'surf_v(3)%qsws' )
+             IF ( ALLOCATED( surf_v(3)%qsws )  .AND.  kk == 1 )                &
                 READ ( 13 )  surf_v(3)%qsws
-          CASE ( 'surf_v(3)%ssws' )         
+          CASE ( 'surf_v(3)%ssws' )
              IF ( ALLOCATED( surf_v(3)%ssws )  .AND.  kk == 1 )                &
                 READ ( 13 )  surf_v(3)%ssws
-          CASE ( 'surf_v(3)%css' ) 
+          CASE ( 'surf_v(3)%css' )
              IF ( ALLOCATED( surf_v(3)%css )  .AND.  kk == 1 )                 &
                 READ ( 13 )  surf_v(3)%css
-          CASE ( 'surf_v(3)%cssws' )         
+          CASE ( 'surf_v(3)%cssws' )
              IF ( ALLOCATED( surf_v(3)%cssws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_v(3)%cssws
-          CASE ( 'surf_v(3)%qcsws' )         
+          CASE ( 'surf_v(3)%qcsws' )
              IF ( ALLOCATED( surf_v(3)%qcsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_v(3)%qcsws
-          CASE ( 'surf_v(3)%ncsws' )         
+          CASE ( 'surf_v(3)%ncsws' )
              IF ( ALLOCATED( surf_v(3)%ncsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_v(3)%ncsws
-          CASE ( 'surf_v(3)%qrsws' )         
+          CASE ( 'surf_v(3)%qrsws' )
              IF ( ALLOCATED( surf_v(3)%qrsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_v(3)%qrsws
-          CASE ( 'surf_v(3)%nrsws' )         
+          CASE ( 'surf_v(3)%nrsws' )
              IF ( ALLOCATED( surf_v(3)%nrsws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_v(3)%nrsws
-          CASE ( 'surf_v(3)%sasws' )         
+          CASE ( 'surf_v(3)%sasws' )
              IF ( ALLOCATED( surf_v(3)%sasws )  .AND.  kk == 1 )               &
                 READ ( 13 )  surf_v(3)%sasws
-          CASE ( 'surf_v(3)%mom_uv' )         
+          CASE ( 'surf_v(3)%mom_uv' )
              IF ( ALLOCATED( surf_v(3)%mom_flux_uv )  .AND.  kk == 1 )         &
                 READ ( 13 )  surf_v(3)%mom_flux_uv
-          CASE ( 'surf_v(3)%mom_w' )         
+          CASE ( 'surf_v(3)%mom_w' )
              IF ( ALLOCATED( surf_v(3)%mom_flux_w )  .AND.  kk == 1 )          &
                 READ ( 13 )  surf_v(3)%mom_flux_w
-          CASE ( 'surf_v(3)%mom_tke' )         
+          CASE ( 'surf_v(3)%mom_tke' )
              IF ( ALLOCATED( surf_v(3)%mom_flux_tke )  .AND.  kk == 1 )        &
                 READ ( 13 )  surf_v(3)%mom_flux_tke
 
@@ -2761,11 +2763,11 @@
 
        END SELECT
 !
-!--    Redistribute surface elements on its respective type. 
+!--    Redistribute surface elements on its respective type.
        IF ( horizontal_surface  .AND.                                          &
             .NOT. INDEX( restart_string(1:length), '%start_index' ) /= 0 )     &
        THEN
-       
+
           ic = nxlc
           DO  i = nxlf, nxrf
              jc = nysc
@@ -2773,7 +2775,7 @@
 
                 surf_match_def  = surf_def_h(l)%end_index(jc,ic) >=            &
                                   surf_def_h(l)%start_index(jc,ic)
-                          
+
                 IF ( surf_match_def )  THEN
                    mm = surf_def_h(l)%start_index(jc,ic)
                    DO  m = surf_h(l)%start_index(j,i),                         &
@@ -2798,7 +2800,7 @@
 
                 surf_match_def  = surf_def_v(l)%end_index(jc,ic) >=            &
                                   surf_def_v(l)%start_index(jc,ic)
-                                 
+
                 IF ( surf_match_def )  THEN
                    mm = surf_def_v(l)%start_index(jc,ic)
                    DO  m = surf_v(l)%start_index(j,i),                         &
@@ -2827,150 +2829,150 @@
 
              IMPLICIT NONE
 
-             INTEGER(iwp)      ::  m_file      !< respective surface-element index of current surface array 
+             INTEGER(iwp)      ::  m_file      !< respective surface-element index of current surface array
              INTEGER(iwp)      ::  m_target    !< respecitve surface-element index of surface array on file
 
              TYPE( surf_type ) ::  surf_target !< target surface type
              TYPE( surf_type ) ::  surf_file   !< surface type on file
 
 
-             IF ( INDEX( restart_string(1:length), '%us' ) /= 0 )  THEN 
+             IF ( INDEX( restart_string(1:length), '%us' ) /= 0 )  THEN
                 IF ( ALLOCATED( surf_target%us )  .AND.                        &
-                     ALLOCATED( surf_file%us   ) )                             & 
+                     ALLOCATED( surf_file%us   ) )                             &
                    surf_target%us(m_target) = surf_file%us(m_file)
              ENDIF
 
-             IF ( INDEX( restart_string(1:length), '%ol' ) /= 0 )  THEN 
+             IF ( INDEX( restart_string(1:length), '%ol' ) /= 0 )  THEN
                 IF ( ALLOCATED( surf_target%ol )  .AND.                        &
-                     ALLOCATED( surf_file%ol   ) )                             & 
+                     ALLOCATED( surf_file%ol   ) )                             &
                    surf_target%ol(m_target) = surf_file%ol(m_file)
              ENDIF
 
-             IF ( INDEX( restart_string(1:length), '%pt_surface' ) /= 0 )  THEN 
+             IF ( INDEX( restart_string(1:length), '%pt_surface' ) /= 0 )  THEN
                 IF ( ALLOCATED( surf_target%pt_surface )  .AND.                &
-                     ALLOCATED( surf_file%pt_surface   ) )                     & 
+                     ALLOCATED( surf_file%pt_surface   ) )                     &
                    surf_target%pt_surface(m_target) = surf_file%pt_surface(m_file)
              ENDIF
 
-             IF ( INDEX( restart_string(1:length), '%usws' ) /= 0 )  THEN 
+             IF ( INDEX( restart_string(1:length), '%usws' ) /= 0 )  THEN
                 IF ( ALLOCATED( surf_target%usws )  .AND.                      &
-                     ALLOCATED( surf_file%usws   ) )                           & 
+                     ALLOCATED( surf_file%usws   ) )                           &
                    surf_target%usws(m_target) = surf_file%usws(m_file)
              ENDIF
 
-             IF ( INDEX( restart_string(1:length), '%vsws' ) /= 0 )  THEN 
+             IF ( INDEX( restart_string(1:length), '%vsws' ) /= 0 )  THEN
                 IF ( ALLOCATED( surf_target%vsws )  .AND.                      &
-                     ALLOCATED( surf_file%vsws   ) )                           & 
+                     ALLOCATED( surf_file%vsws   ) )                           &
                    surf_target%vsws(m_target) = surf_file%vsws(m_file)
              ENDIF
 
-             IF ( INDEX( restart_string(1:length), '%ts' ) /= 0 )  THEN 
+             IF ( INDEX( restart_string(1:length), '%ts' ) /= 0 )  THEN
                 IF ( ALLOCATED( surf_target%ts )  .AND.                        &
-                     ALLOCATED( surf_file%ts   ) )                             & 
+                     ALLOCATED( surf_file%ts   ) )                             &
                    surf_target%ts(m_target) = surf_file%ts(m_file)
              ENDIF
 
-             IF ( INDEX( restart_string(1:length), '%shf' ) /= 0 )  THEN 
+             IF ( INDEX( restart_string(1:length), '%shf' ) /= 0 )  THEN
                 IF ( ALLOCATED( surf_target%shf )  .AND.                       &
-                     ALLOCATED( surf_file%shf   ) )                            & 
+                     ALLOCATED( surf_file%shf   ) )                            &
                    surf_target%shf(m_target) = surf_file%shf(m_file)
              ENDIF
 
-             IF ( INDEX( restart_string(1:length), '%qs' ) /= 0 )  THEN 
+             IF ( INDEX( restart_string(1:length), '%qs' ) /= 0 )  THEN
                 IF ( ALLOCATED( surf_target%qs )  .AND.                        &
-                     ALLOCATED( surf_file%qs   ) )                             & 
+                     ALLOCATED( surf_file%qs   ) )                             &
                    surf_target%qs(m_target) = surf_file%qs(m_file)
              ENDIF
 
-             IF ( INDEX( restart_string(1:length), '%qsws' ) /= 0 )  THEN 
+             IF ( INDEX( restart_string(1:length), '%qsws' ) /= 0 )  THEN
                 IF ( ALLOCATED( surf_target%qsws )  .AND.                      &
-                     ALLOCATED( surf_file%qsws   ) )                           & 
+                     ALLOCATED( surf_file%qsws   ) )                           &
                    surf_target%qsws(m_target) = surf_file%qsws(m_file)
              ENDIF
 
-             IF ( INDEX( restart_string(1:length), '%ss' ) /= 0 )  THEN 
+             IF ( INDEX( restart_string(1:length), '%ss' ) /= 0 )  THEN
                 IF ( ALLOCATED( surf_target%ss )  .AND.                        &
-                     ALLOCATED( surf_file%ss   ) )                             & 
+                     ALLOCATED( surf_file%ss   ) )                             &
                    surf_target%ss(m_target) = surf_file%ss(m_file)
              ENDIF
 
-             IF ( INDEX( restart_string(1:length), '%ssws' ) /= 0 )  THEN 
+             IF ( INDEX( restart_string(1:length), '%ssws' ) /= 0 )  THEN
                 IF ( ALLOCATED( surf_target%ssws )  .AND.                      &
-                     ALLOCATED( surf_file%ssws   ) )                           & 
+                     ALLOCATED( surf_file%ssws   ) )                           &
                    surf_target%ssws(m_target) = surf_file%ssws(m_file)
              ENDIF
 
-             IF ( INDEX( restart_string(1:length), '%qcs' ) /= 0 )  THEN 
+             IF ( INDEX( restart_string(1:length), '%qcs' ) /= 0 )  THEN
                 IF ( ALLOCATED( surf_target%qcs )  .AND.                       &
-                     ALLOCATED( surf_file%qcs   ) )                            & 
+                     ALLOCATED( surf_file%qcs   ) )                            &
                   surf_target%qcs(m_target) = surf_file%qcs(m_file)
              ENDIF
 
-             IF ( INDEX( restart_string(1:length), '%qcsws' ) /= 0 )  THEN 
+             IF ( INDEX( restart_string(1:length), '%qcsws' ) /= 0 )  THEN
                 IF ( ALLOCATED( surf_target%qcsws )  .AND.                     &
-                     ALLOCATED( surf_file%qcsws   ) )                          & 
+                     ALLOCATED( surf_file%qcsws   ) )                          &
                    surf_target%qcsws(m_target) = surf_file%qcsws(m_file)
              ENDIF
 
-             IF ( INDEX( restart_string(1:length), '%ncs' ) /= 0 )  THEN 
+             IF ( INDEX( restart_string(1:length), '%ncs' ) /= 0 )  THEN
                 IF ( ALLOCATED( surf_target%ncs )  .AND.                       &
-                     ALLOCATED( surf_file%ncs   ) )                            & 
+                     ALLOCATED( surf_file%ncs   ) )                            &
                    surf_target%ncs(m_target) = surf_file%ncs(m_file)
              ENDIF
 
-             IF ( INDEX( restart_string(1:length), '%ncsws' ) /= 0 )  THEN 
+             IF ( INDEX( restart_string(1:length), '%ncsws' ) /= 0 )  THEN
                 IF ( ALLOCATED( surf_target%ncsws )  .AND.                     &
-                     ALLOCATED( surf_file%ncsws   ) )                          & 
+                     ALLOCATED( surf_file%ncsws   ) )                          &
                    surf_target%ncsws(m_target) = surf_file%ncsws(m_file)
              ENDIF
 
-             IF ( INDEX( restart_string(1:length), '%qrs' ) /= 0 )  THEN 
+             IF ( INDEX( restart_string(1:length), '%qrs' ) /= 0 )  THEN
                 IF ( ALLOCATED( surf_target%qrs )  .AND.                       &
-                     ALLOCATED( surf_file%qrs   ) )                            & 
+                     ALLOCATED( surf_file%qrs   ) )                            &
                   surf_target%qrs(m_target) = surf_file%qrs(m_file)
              ENDIF
 
-             IF ( INDEX( restart_string(1:length), '%qrsws' ) /= 0 )  THEN 
+             IF ( INDEX( restart_string(1:length), '%qrsws' ) /= 0 )  THEN
                 IF ( ALLOCATED( surf_target%qrsws )  .AND.                     &
-                     ALLOCATED( surf_file%qrsws   ) )                          & 
+                     ALLOCATED( surf_file%qrsws   ) )                          &
                    surf_target%qrsws(m_target) = surf_file%qrsws(m_file)
              ENDIF
 
-             IF ( INDEX( restart_string(1:length), '%nrs' ) /= 0 )  THEN 
+             IF ( INDEX( restart_string(1:length), '%nrs' ) /= 0 )  THEN
                 IF ( ALLOCATED( surf_target%nrs )  .AND.                       &
-                     ALLOCATED( surf_file%nrs   ) )                            & 
+                     ALLOCATED( surf_file%nrs   ) )                            &
                    surf_target%nrs(m_target) = surf_file%nrs(m_file)
              ENDIF
 
-             IF ( INDEX( restart_string(1:length), '%nrsws' ) /= 0 )  THEN 
+             IF ( INDEX( restart_string(1:length), '%nrsws' ) /= 0 )  THEN
                 IF ( ALLOCATED( surf_target%nrsws )  .AND.                     &
-                     ALLOCATED( surf_file%nrsws   ) )                          & 
+                     ALLOCATED( surf_file%nrsws   ) )                          &
                    surf_target%nrsws(m_target) = surf_file%nrsws(m_file)
              ENDIF
 
-             IF ( INDEX( restart_string(1:length), '%sasws' ) /= 0 )  THEN 
+             IF ( INDEX( restart_string(1:length), '%sasws' ) /= 0 )  THEN
                 IF ( ALLOCATED( surf_target%sasws )  .AND.                     &
-                     ALLOCATED( surf_file%sasws   ) )                          & 
+                     ALLOCATED( surf_file%sasws   ) )                          &
                    surf_target%sasws(m_target) = surf_file%sasws(m_file)
              ENDIF
 
-             IF ( INDEX( restart_string(1:length), '%mom_uv' ) /= 0 )  THEN 
+             IF ( INDEX( restart_string(1:length), '%mom_uv' ) /= 0 )  THEN
                 IF ( ALLOCATED( surf_target%mom_flux_uv )  .AND.               &
-                     ALLOCATED( surf_file%mom_flux_uv   ) )                    & 
+                     ALLOCATED( surf_file%mom_flux_uv   ) )                    &
                    surf_target%mom_flux_uv(m_target) =                         &
                                            surf_file%mom_flux_uv(m_file)
              ENDIF
 
-             IF ( INDEX( restart_string(1:length), '%mom_w' ) /= 0 )  THEN 
+             IF ( INDEX( restart_string(1:length), '%mom_w' ) /= 0 )  THEN
                 IF ( ALLOCATED( surf_target%mom_flux_w )  .AND.                &
-                     ALLOCATED( surf_file%mom_flux_w   ) )                     & 
+                     ALLOCATED( surf_file%mom_flux_w   ) )                     &
                    surf_target%mom_flux_w(m_target) =                          &
                                            surf_file%mom_flux_w(m_file)
              ENDIF
 
-             IF ( INDEX( restart_string(1:length), '%mom_tke' ) /= 0 )  THEN 
+             IF ( INDEX( restart_string(1:length), '%mom_tke' ) /= 0 )  THEN
                 IF ( ALLOCATED( surf_target%mom_flux_tke )  .AND.              &
-                     ALLOCATED( surf_file%mom_flux_tke   ) )                   & 
+                     ALLOCATED( surf_file%mom_flux_tke   ) )                   &
                    surf_target%mom_flux_tke(0:1,m_target) =                    &
                                            surf_file%mom_flux_tke(0:1,m_file)
              ENDIF
@@ -2981,11 +2983,11 @@
 
     END SUBROUTINE surface_rrd_local
 
- 
+
 !------------------------------------------------------------------------------!
 ! Description:
 ! ------------
-!> Counts the number of surface elements with the same facing, required for 
+!> Counts the number of surface elements with the same facing, required for
 !> reading and writing restart data.
 !------------------------------------------------------------------------------!
     SUBROUTINE surface_last_actions
@@ -3001,7 +3003,7 @@
        ns_v_on_file(0) = surf_def_v(0)%ns
        ns_v_on_file(1) = surf_def_v(1)%ns
        ns_v_on_file(2) = surf_def_v(2)%ns
-       ns_v_on_file(3) = surf_def_v(3)%ns 
+       ns_v_on_file(3) = surf_def_v(3)%ns
 
     END SUBROUTINE surface_last_actions
 
@@ -3019,15 +3021,15 @@
                                             nxl_on_file,nxr_on_file )
 
        IMPLICIT NONE
-    
+
        INTEGER(iwp) ::  i         !< running index along x-direction, refers to former domain size
        INTEGER(iwp) ::  ic        !< running index along x-direction, refers to current domain size
        INTEGER(iwp) ::  j         !< running index along y-direction, refers to former domain size
-       INTEGER(iwp) ::  jc        !< running index along y-direction, refers to former domain size        
+       INTEGER(iwp) ::  jc        !< running index along y-direction, refers to former domain size
        INTEGER(iwp) ::  m         !< surface-element index on file
        INTEGER(iwp) ::  mm        !< surface-element index on current subdomain
        INTEGER(iwp) ::  nxlc      !< index of left boundary on current subdomain
-       INTEGER(iwp) ::  nxlf      !< index of left boundary on former subdomain 
+       INTEGER(iwp) ::  nxlf      !< index of left boundary on former subdomain
        INTEGER(iwp) ::  nxrf      !< index of right boundary on former subdomain
        INTEGER(iwp) ::  nysc      !< index of north boundary on current subdomain
        INTEGER(iwp) ::  nynf      !< index of north boundary on former subdomain
@@ -3038,12 +3040,12 @@
        INTEGER(iwp) ::  nyn_on_file !< northmost index on file
        INTEGER(iwp) ::  nys_on_file !< southmost index on file
 
-       INTEGER(iwp), DIMENSION(nys:nyn,nxl:nxr) ::  start_index_c             
-       INTEGER(iwp), DIMENSION(nys_on_file:nyn_on_file,nxl_on_file:nxr_on_file) :: & 
+       INTEGER(iwp), DIMENSION(nys:nyn,nxl:nxr) ::  start_index_c
+       INTEGER(iwp), DIMENSION(nys_on_file:nyn_on_file,nxl_on_file:nxr_on_file) :: &
                             start_index_on_file   !< start index of surface elements on file
-       INTEGER(iwp), DIMENSION(nys_on_file:nyn_on_file,nxl_on_file:nxr_on_file) :: & 
+       INTEGER(iwp), DIMENSION(nys_on_file:nyn_on_file,nxl_on_file:nxr_on_file) :: &
                             end_index_on_file     !< end index of surface elements on file
-       
+
        REAL(wp), DIMENSION(:) ::  surf_target !< target surface type
        REAL(wp), DIMENSION(:) ::  surf_file   !< surface type on file
 
@@ -3065,12 +3067,12 @@
 
 
     END SUBROUTINE surface_restore_elements_1d
-   
+
 !------------------------------------------------------------------------------!
 ! Description:
 ! ------------
 !> Routine maps surface data read from file after restart - 2D arrays
-!------------------------------------------------------------------------------! 
+!------------------------------------------------------------------------------!
     SUBROUTINE surface_restore_elements_2d( surf_target, surf_file,            &
                                             start_index_c,                     &
                                             start_index_on_file,               &
@@ -3080,15 +3082,15 @@
                                             nxl_on_file,nxr_on_file )
 
        IMPLICIT NONE
-    
+
        INTEGER(iwp) ::  i         !< running index along x-direction, refers to former domain size
        INTEGER(iwp) ::  ic        !< running index along x-direction, refers to current domain size
        INTEGER(iwp) ::  j         !< running index along y-direction, refers to former domain size
-       INTEGER(iwp) ::  jc        !< running index along y-direction, refers to former domain size        
+       INTEGER(iwp) ::  jc        !< running index along y-direction, refers to former domain size
        INTEGER(iwp) ::  m         !< surface-element index on file
        INTEGER(iwp) ::  mm        !< surface-element index on current subdomain
        INTEGER(iwp) ::  nxlc      !< index of left boundary on current subdomain
-       INTEGER(iwp) ::  nxlf      !< index of left boundary on former subdomain 
+       INTEGER(iwp) ::  nxlf      !< index of left boundary on former subdomain
        INTEGER(iwp) ::  nxrf      !< index of right boundary on former subdomain
        INTEGER(iwp) ::  nysc      !< index of north boundary on current subdomain
        INTEGER(iwp) ::  nynf      !< index of north boundary on former subdomain
@@ -3100,14 +3102,14 @@
        INTEGER(iwp) ::  nys_on_file !< southmost index on file
 
        INTEGER(iwp), DIMENSION(nys:nyn,nxl:nxr) ::  start_index_c !< start index of surface type
-       INTEGER(iwp), DIMENSION(nys_on_file:nyn_on_file,nxl_on_file:nxr_on_file) :: & 
+       INTEGER(iwp), DIMENSION(nys_on_file:nyn_on_file,nxl_on_file:nxr_on_file) :: &
                             start_index_on_file   !< start index of surface elements on file
-       INTEGER(iwp), DIMENSION(nys_on_file:nyn_on_file,nxl_on_file:nxr_on_file) :: & 
+       INTEGER(iwp), DIMENSION(nys_on_file:nyn_on_file,nxl_on_file:nxr_on_file) :: &
                             end_index_on_file     !< end index of surface elements on file
-       
+
        REAL(wp), DIMENSION(:,:) ::  surf_target !< target surface type
        REAL(wp), DIMENSION(:,:) ::  surf_file   !< surface type on file
-       
+
        ic = nxlc
        DO  i = nxlf, nxrf
           jc = nysc

@@ -500,7 +500,7 @@
              statistic_regions, stokes_force, stokes_drift_method,             &
              subs_vertical_gradient,                                           &
              subs_vertical_gradient_level, surface_heatflux, surface_pressure, &
-             surface_scalarflux, surface_waterflux,                            &
+             surface_scalarflux, surface_salinityflux,                            &
              s_surface, s_surface_initial_change, s_vertical_gradient,         &
              s_vertical_gradient_level, time_utc_init, timestep_scheme,        &
              topography, topography_grid_convention, top_heatflux,             &
@@ -579,7 +579,7 @@
              statistic_regions, stokes_force, stokes_drift_method,             &
              subs_vertical_gradient,                                           &
              subs_vertical_gradient_level, surface_heatflux, surface_pressure, &
-             surface_scalarflux, surface_waterflux,                            &
+             surface_scalarflux, surface_salinityflux,                            &
              s_surface, s_surface_initial_change, s_vertical_gradient,         &
              s_vertical_gradient_level, time_utc_init, timestep_scheme,        &
              topography, topography_grid_convention, top_heatflux,             &
@@ -769,7 +769,7 @@
           ENDDO
           BACKSPACE ( 11 )
 
-          
+
 !
 !--       Read namelist
           READ ( 11, runtime_parameters )
@@ -897,5 +897,5 @@
 
     CALL location_message( 'finished', .TRUE. )
 #endif
- 
+
 END SUBROUTINE parin

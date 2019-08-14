@@ -433,10 +433,10 @@
     REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  rho_air_mg     !< air density profiles on the uv grid for multigrid
     REAL(wp), DIMENSION(:,:), ALLOCATABLE ::  rho_air_zw_mg  !< air density profiles on the w grid for multigrid
     REAL(wp), DIMENSION(:), ALLOCATABLE ::  heatflux_input_conversion       !< conversion factor array for heatflux input
-    REAL(wp), DIMENSION(:), ALLOCATABLE ::  waterflux_input_conversion      !< conversion factor array for waterflux input
+    REAL(wp), DIMENSION(:), ALLOCATABLE ::  salinityflux_input_conversion      !< conversion factor array for salinityflux input
     REAL(wp), DIMENSION(:), ALLOCATABLE ::  momentumflux_input_conversion   !< conversion factor array for momentumflux input
     REAL(wp), DIMENSION(:), ALLOCATABLE ::  heatflux_output_conversion      !< conversion factor array for heatflux output
-    REAL(wp), DIMENSION(:), ALLOCATABLE ::  waterflux_output_conversion     !< conversion factor array for waterflux output
+    REAL(wp), DIMENSION(:), ALLOCATABLE ::  salinityflux_output_conversion     !< conversion factor array for salinityflux output
     REAL(wp), DIMENSION(:), ALLOCATABLE ::  momentumflux_output_conversion  !< conversion factor array for momentumflux output
 
 !    SAVE
@@ -802,7 +802,6 @@
     LOGICAL ::  constant_bottom_salinityflux = .TRUE.            !< salinity flux at ocean domain bottom?
     LOGICAL ::  constant_top_scalarflux = .TRUE.                 !< passive-scalar flux at domain top constant?
     LOGICAL ::  constant_scalarflux = .TRUE.                     !< passive-scalar flux at surfaces constant?
-    LOGICAL ::  constant_waterflux = .TRUE.                      !< water flux at all surfaces constant?
     LOGICAL ::  create_disturbances = .TRUE.                     !< namelist parameter
     LOGICAL ::  data_output_during_spinup = .FALSE.              !< namelist parameter
     LOGICAL ::  data_output_2d_on_each_pe = .TRUE.               !< namelist parameter
@@ -1032,7 +1031,7 @@
     REAL(wp) ::  surface_heatflux = 9999999.9_wp               !< namelist parameter
     REAL(wp) ::  surface_pressure = 1013.25_wp                 !< namelist parameter
     REAL(wp) ::  surface_scalarflux = 9999999.9_wp             !< namelist parameter
-    REAL(wp) ::  surface_waterflux = 9999999.9_wp              !< namelist parameter
+    REAL(wp) ::  surface_salinityflux = 9999999.9_wp              !< namelist parameter
     REAL(wp) ::  s_surface = 0.0_wp                            !< namelist parameter
     REAL(wp) ::  s_surface_initial_change = 0.0_wp             !< namelist parameter
     REAL(wp) ::  termination_time_needed = 35.0_wp             !< namelist parameter
