@@ -240,9 +240,9 @@ module palm_mod
       call construct_vertical_grid_const(dzLES,nzb,nzt,zu,zw)
     else
       if (mixed_layer_refine) then
-        call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu,MLD)
+        call construct_vertical_grid_variable_mld(zedge(zeMPASspot),dzLES,nzb,nzt,zu,zw,MLD(iCell))
       else
-        call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu)
+        call construct_vertical_grid_variable(zedge(zeMPASspot),dzLES,nzb,nzt,zu,zw)
       endif
     endif
 
@@ -316,9 +316,9 @@ module palm_mod
       call construct_vertical_grid_const(dzLES,nzb,nzt,zu,zw)
     else
       if (mixed_layer_refine) then
-        call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu,MLD)
+        call construct_vertical_grid_variable_mld(zedge(zeMPASspot),dzLES,nzb,nzt,zu,zw,MLD(iCell))
       else
-        call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu)
+        call construct_vertical_grid_variable(zedge(zeMPASspot),dzLES,nzb,nzt,zu,zw)
       endif
     endif
 
@@ -675,9 +675,9 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
       ! call construct_vertical_grid_const(dzLES,nzLES,zeLES,zedge(zeMPASspot),nzt,nzb,zu,zw)
     else
       if (mixed_layer_refine) then
-        call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu,disturbBot)
+        call construct_vertical_grid_variable_mld(zedge(zeMPASspot),dzLES,nzb,nzt,zu,zw,MLD(iCell))
       else
-        call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu)
+        call construct_vertical_grid_variable(zedge(zeMPASspot),dzLES,nzb,nzt,zu,zw)
       endif
     endif
 
