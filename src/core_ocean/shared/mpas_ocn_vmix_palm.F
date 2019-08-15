@@ -158,7 +158,8 @@ contains
                                     config_flux_attenuation_coefficient_runoff,                &
                                     config_les_disturb_top, config_les_disturb_bottom,         &
                                     config_les_disturb_amplitude, config_les_bottom,           &
-                                    config_les_disturb_energy_limit, config_les_time_avg
+                                    config_les_disturb_energy_limit, config_les_time_avg,      &
+                                    config_les_restoring_strength
 
       integer, pointer :: config_les_nz, config_les_nx, config_les_ny
 
@@ -188,6 +189,8 @@ contains
          call mpas_log_write('Error, superparameterization is not configured for use with BGC',MPAS_LOG_CRIT)
       endif
 
+      call mpas_pool_get_config(ocnConfigs, 'config_les_restoring_strength', &
+                                config_les_restoring_strength)
       call mpas_pool_get_config(ocnConfigs, 'config_flux_attenuation_coefficient',  &
                                config_flux_attenuation_coefficient)
       call mpas_pool_get_config(ocnConfigs, 'config_flux_attenuation_coefficient_runoff',  &
@@ -367,7 +370,7 @@ contains
              velocityMeridionalLES, dt, zLES, config_les_disturb_energy_limit,                &
              config_les_disturb_amplitude, les_disturb_bottom, config_les_disturb_top,        &
              config_les_disturb_nblocks, les_bottom, config_les_time_avg, constant_dz,        &
-             dThreshMLD, mixed_layer_refine)
+             dThreshMLD, mixed_layer_refine,0.0_RKIND)
 
       endif
 
@@ -383,7 +386,7 @@ contains
              velocityMeridionalLES, dt, zLES, config_les_disturb_energy_limit,                &
              config_les_disturb_amplitude, les_disturb_bottom, config_les_disturb_top,        &
              config_les_disturb_nblocks, les_bottom, config_les_time_avg, constant_dz,        &
-             dThreshMLD, mixed_layer_refine)
+             dThreshMLD, mixed_layer_refine, config_les_restoring_strength)
 
       normalVelocityIncrementLES(:,:) = 0.0_RKIND
       !$omp do schedule(runtime)

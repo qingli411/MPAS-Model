@@ -81,7 +81,7 @@
 
        real(wp) :: zeINV(nzb-1:nzt+1), z_facn, dzArray(nzb:nzt+1)
 
-       integer(iwp) :: i, k, knt, iz, il, nzTop, nzBot, nz1, nz2
+       integer(iwp) :: i, k, knt, iz, il, nzTop, nzBot, nz1, nz2, nzb1
 
        if(.not. PRESENT(MLD)) then
          ! construct a stretched stretched grid
@@ -113,6 +113,8 @@
            zeLES(il) = zeLES(nzt-1)*(z_fac**(real(iz,kind=wp)) - 1.0_wp) / (z_fac - 1.0_wp)
            iz = iz + 1
          enddo
+
+         zeLES(nzb) = z_cntr
 
          zeLES(nzb-1) = max(z_cntr,zeLES(nzb) - (zeLES(nzb+1) - zeLES(nzb)))
 
@@ -162,8 +164,9 @@
          enddo
 
          z_facbl = z_fac
-
-         z_fac1 = -(-z_ht - zedgeIN) / (-dz)
+         nzb1 = nz - nzTop + 1
+         z_fac2 = 1.0_wp / REAL(nzb1,kind=wp)
+         z_fac1 = -(z_ht - zedgeIN) / (-dz)
          z_fac = 1.1_wp
          knt = 0
          test = 10.0_wp
@@ -181,27 +184,33 @@
          enddo
 
          zeINV(nzb-1) = dz
-         zeINV(nzb) = -dz
-         do il = nzb+1,nzb+nz1
-            zeINV(il) = zeINV(nzb)*(z_facbl**(il+1) - 1) / (z_facbl - 1)
+         zeINV(nzb) = 0.0_wp
+         zeINV(nzb+1) = -dz
+         do il = nzb+2,nzb+nz1
+            zeINV(il) = zeINV(nzb+1)*(z_facbl**(il) - 1) / (z_facbl - 1)
          enddo
 
          dzArray(nzb) = -dz
          do il = nzb+1, nz1
-           dzArray(i) = zeINV(il-1) - zeINV(il)
+           dzArray(il) = zeINV(il-1) - zeINV(il)
          enddo
+
+         zeINV(nzTop-1) = z_ht
 
          k = nzTop-2
-         do il = nzb,nz2
+         do il = nzb+1,nz2
            zeINV(k) = zeINV(k+1) + dzArray(il)
+           k = k-1
          enddo
 
-         zeINV(nzTop) = zeINV(nzTop) - dz
+         k=2
+         zeINV(nzTop) = zeINV(nzTop-1) - dz
          do il = nzTop+1,nzt
-           zeINV(il) = zeINV(nzb)*(z_fac**(il+1)-1) / (z_fac - 1) + zeINV(nzTop-1)
+           zeINV(il) = zeINV(nzb+1)*(z_fac**(k)-1) / (z_fac - 1) + zeINV(nzTop)
+           k = k+1
          enddo
 
-         k = nzt-1
+         k = nzt
          do il = nzb,nzt
            zeLES(k) = zeINV(il)
            k = k - 1
@@ -209,19 +218,21 @@
 
          zeLES(nzt+1) = dz
          zeLES(nzt) = 0.0_wp
+         zeLES(nzt-1) = -dz
+
          zeLES(nzb-1) = max(zedgeIN,zeLES(nzb) - (zeLES(nzb+1) - zeLES(nzb)))
          do il = nzt,nzb,-1
            zmidOUT(il) = 0.5*(zeLES(il) + zeLES(il-1))
          enddo
          zmidOUT(nzt+1) = dz
-         zeLES(nz+1:nzt) = zmidOUT(nzb+1:nzt)
+         !zeLES(nz+1:nzt) = zmidOUT(nzb+1:nzt)
 
-         zedgeOUT(nzt+1) = dz
-         zedgeOUT(nzt)   = 0.0_wp
-         DO  k = 0, nzt
-           zedgeOUT(k) = ( zmidOUT(k) + zmidOUT(k+1) ) * 0.5_wp
-         ENDDO
-
+         zedgeOUT(nzb:nzt+1) = zeLES(nzb:nzt+1)
+!         zedgeOUT(nzt+1) = dz
+!         zedgeOUT(nzt)   = 0.0_wp
+!         DO  k = 0, nzt-1
+!           zedgeOUT(k) = ( zmidOUT(k) + zmidOUT(k+1) ) * 0.5_wp
+!         ENDDO
 
       endif
 

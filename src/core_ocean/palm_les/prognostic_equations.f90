@@ -411,7 +411,7 @@
     ENDIF
 !
 !-- External pressure gradient
-    !$acc parallel present( dpdxy, dp_smooth_factor )
+    !$acc parallel present( tend, dpdxy, dp_smooth_factor )
     IF ( dp_external )  THEN
        !$acc loop collapse(2)
        DO  i = nxlu, nxr
@@ -424,18 +424,23 @@
        ENDDO
     ENDIF
     !$acc end parallel
+
+!
+!-- Large scale forcing for u-velocity component
+    !$acc parallel present( tend, uLSforcing )
     IF (disturbFactor .gt. 0.0_wp) THEN
+       !$acc loop collapse(2)
        DO  i = nxlu, nxr
           DO  j = nys, nyn
+             !$acc loop seq
              DO  k = nzb+1, nzt
-                ! tend(k,j,i) = tend(k,j,i) - disturbFactor * dt_3d / dt_LS *  &
-                !                              ( u(k,j,i) - uLSforcing(k))
                 tend(k,j,i) = tend(k,j,i) + disturbFactor / dt_LS *  &
                                             uLSforcing(k)
               ENDDO
          ENDDO
        ENDDO
     ENDIF
+    !$acc end parallel
 
 !
 !-- Prognostic equation for u-velocity component
@@ -513,7 +518,7 @@
     ENDIF
 !
 !-- External pressure gradient
-    !$acc parallel present( dpdxy, dp_smooth_factor )
+    !$acc parallel present( tend, dpdxy, dp_smooth_factor )
     IF ( dp_external )  THEN
        !$acc loop collapse(2)
        DO  i = nxl, nxr
@@ -526,18 +531,23 @@
        ENDDO
     ENDIF
     !$acc end parallel
+
+!
+!-- Large scale forcing for v-velocity component
+    !$acc parallel present( tend, vLSforcing )
     IF ( disturbFactor .gt. 0.0_wp )  THEN
+      !$acc loop collapse(2)
        DO  i = nxl, nxr
           DO  j = nysv, nyn
+             !$acc loop seq
              DO  k = nzb+1, nzt
-                ! tend(k,j,i) = tend(k,j,i) -  disturbFactor * dt_3d / dt_LS * (                &
-                !                                 v(k,j,i) - vLSforcing(k))
                 tend(k,j,i) = tend(k,j,i) +  disturbFactor / dt_LS *           &
                                              vLSforcing(k)
              ENDDO
           ENDDO
        ENDDO
     ENDIF
+    !$acc end parallel
 
     !
 !-- Prognostic equation for v-velocity component
@@ -668,8 +678,8 @@
     CALL cpu_log( log_point(13), 'pt-equation', 'start' )
 
 !
-!--    pt-tendency terms with communication
-       sbt = tsc(2)
+!-- pt-tendency terms with communication
+    sbt = tsc(2)
 !
     !$acc parallel present( tend )
     !$acc loop collapse(3)
@@ -683,88 +693,92 @@
     !$acc end parallel
 
 
-       CALL advec_s_ws( pt, 'pt' )
+    CALL advec_s_ws( pt, 'pt' )
 
-       CALL diffusion_s( pt,                                                 &
-                         top_heatflux,                                    &
-                         wb_solar )
+    CALL diffusion_s( pt,                                                 &
+                      top_heatflux,                                    &
+                      wb_solar )
 
 !--    If required, compute Stokes-advection term
-       IF ( ocean .AND. stokes_force ) THEN
-          CALL stokes_force_s( pt )
-       ENDIF
+    IF ( ocean .AND. stokes_force ) THEN
+       CALL stokes_force_s( pt )
+    ENDIF
 
-       IF (disturbFactor .gt. 0.0_wp) THEN
-          DO i = nxl, nxr
-             DO j = nys, nyn
-                DO k = nzb+1, nzt
-                   ! tend(k,j,i) = tend(k,j,i) - disturbFactor * dt_3d / dt_LS *  &
-                   !                              (pt(k,j,i) - tLSforcing(k))
-                   tend(k,j,i) = tend(k,j,i) + disturbFactor / dt_LS *  &
-                                               tLSforcing(k)
-                ENDDO
+!
+!-- Large scale forcing for temperature
+    !$acc parallel present( tend, tLSforcing )
+    IF (disturbFactor .gt. 0.0_wp) THEN
+       !$acc loop collapse(2)
+       DO i = nxl, nxr
+          DO j = nys, nyn
+             !$acc loop seq
+             DO k = nzb+1, nzt
+                tend(k,j,i) = tend(k,j,i) + disturbFactor / dt_LS *  &
+                                            tLSforcing(k)
              ENDDO
           ENDDO
-       ENDIF
+       ENDDO
+    ENDIF
+    !$acc end parallel
 
-!--    Prognostic equation for potential temperature
+!-- Prognostic equation for potential temperature
     !$acc parallel present( tsc, wall_flags_0, rdf_sc ) &
     !$acc present( ptdf_x, ptdf_y ) &
     !$acc present( pt, pt_p, tpt_m, pt_init )
     !$acc loop collapse(2)
-       DO  i = nxl, nxr
-          DO  j = nys, nyn
-          !$acc loop seq
-             DO  k = nzb+1, nzt
-                pt_p(k,j,i) = pt(k,j,i) + ( dt_3d * ( sbt * tend(k,j,i) +      &
-                                                   tsc(3) * tpt_m(k,j,i) )     &
-                      !                           - tsc(5) *                    &
-                      !                             ( pt(k,j,i) - pt_init(k) ) *&
-                      !                    ( rdf_sc(k) + ptdf_x(i) + ptdf_y(j) )&
-                                       )                                      &
-                                * MERGE( 1.0_wp, 0.0_wp,                      &
-                                             BTEST( wall_flags_0(k,j,i), 0 )   &
-                                          )
-             ENDDO
+    DO  i = nxl, nxr
+       DO  j = nys, nyn
+       !$acc loop seq
+          DO  k = nzb+1, nzt
+             pt_p(k,j,i) = pt(k,j,i) + ( dt_3d * ( sbt * tend(k,j,i) +      &
+                                                tsc(3) * tpt_m(k,j,i) )     &
+                   !                           - tsc(5) *                    &
+                   !                             ( pt(k,j,i) - pt_init(k) ) *&
+                   !                    ( rdf_sc(k) + ptdf_x(i) + ptdf_y(j) )&
+                                    )                                      &
+                             * MERGE( 1.0_wp, 0.0_wp,                      &
+                                          BTEST( wall_flags_0(k,j,i), 0 )   &
+                                       )
           ENDDO
        ENDDO
+    ENDDO
     !$acc end parallel
 
 !
 !--    Calculate tendencies for the next Runge-Kutta step
     !$acc parallel present( tpt_m, tend )
-       IF ( timestep_scheme(1:5) == 'runge' )  THEN
-          IF ( intermediate_timestep_count == 1 )  THEN
-          !$acc loop collapse(3)
-             DO  i = nxl, nxr
-                DO  j = nys, nyn
-                   DO  k = nzb+1, nzt
-                      tpt_m(k,j,i) = tend(k,j,i)
-                   ENDDO
+    IF ( timestep_scheme(1:5) == 'runge' )  THEN
+       IF ( intermediate_timestep_count == 1 )  THEN
+       !$acc loop collapse(3)
+          DO  i = nxl, nxr
+             DO  j = nys, nyn
+                DO  k = nzb+1, nzt
+                   tpt_m(k,j,i) = tend(k,j,i)
                 ENDDO
              ENDDO
-          ELSEIF ( intermediate_timestep_count < &
-                   intermediate_timestep_count_max )  THEN
-          !$acc loop collapse(3)
-             DO  i = nxl, nxr
-                DO  j = nys, nyn
-                   DO  k = nzb+1, nzt
-                      tpt_m(k,j,i) =   -9.5625_wp * tend(k,j,i) +              &
-                                        5.3125_wp * tpt_m(k,j,i)
-                   ENDDO
+          ENDDO
+       ELSEIF ( intermediate_timestep_count < &
+                intermediate_timestep_count_max )  THEN
+       !$acc loop collapse(3)
+          DO  i = nxl, nxr
+             DO  j = nys, nyn
+                DO  k = nzb+1, nzt
+                   tpt_m(k,j,i) =   -9.5625_wp * tend(k,j,i) +              &
+                                     5.3125_wp * tpt_m(k,j,i)
                 ENDDO
              ENDDO
-          ENDIF
+          ENDDO
        ENDIF
+    ENDIF
     !$acc end parallel
 
-       CALL cpu_log( log_point(13), 'pt-equation', 'stop' )
+    CALL cpu_log( log_point(13), 'pt-equation', 'stop' )
 
-       CALL cpu_log( log_point(37), 'sa-equation', 'start' )
+    CALL cpu_log( log_point(37), 'sa-equation', 'start' )
 
 !
-!--    sa-tendency terms with communication
-       sbt = tsc(2)
+!-- sa-tendency terms with communication
+    sbt = tsc(2)
 !
     !$acc parallel present( tend )
     !$acc loop collapse(3)
@@ -777,49 +791,53 @@
     ENDDO
     !$acc end parallel
 
-       CALL advec_s_ws( sa, 'sa' )
-       CALL diffusion_s( sa,                                                   &
-                      top_salinityflux)
+    CALL advec_s_ws( sa, 'sa' )
+    CALL diffusion_s( sa,                                                   &
+                   top_salinityflux)
 !
-!--    If required, compute Stokes-advection term
-       IF ( stokes_force ) THEN
-          CALL stokes_force_s( sa )
-       ENDIF
+!-- If required, compute Stokes-advection term
+    IF ( stokes_force ) THEN
+       CALL stokes_force_s( sa )
+    ENDIF
 
-       IF (disturbFactor .gt. 0.0_wp) THEN
-          DO i = nxl, nxr
-             DO j = nys, nyn
-                DO k = nzb+1, nzt
-                   ! tend(k,j,i) = tend(k,j,i) - disturbFactor * dt_3d / dt_LS *  &
-                   !                              (sa(k,j,i) - sLSforcing(k))
-                   tend(k,j,i) = tend(k,j,i) + disturbFactor / dt_LS *  &
-                                               sLSforcing(k)
-                ENDDO
+!
+!-- Large scale forcing for salinity
+    !$acc parallel present( tend, sLSforcing )
+    IF (disturbFactor .gt. 0.0_wp) THEN
+       !$acc loop collapse(2)
+       DO i = nxl, nxr
+          DO j = nys, nyn
+             !$acc loop seq
+             DO k = nzb+1, nzt
+                tend(k,j,i) = tend(k,j,i) + disturbFactor / dt_LS *  &
+                                            sLSforcing(k)
              ENDDO
-         ENDDO
-       ENDIF
+          ENDDO
+      ENDDO
+    ENDIF
+    !$acc end parallel
 !
 !
-!--    Prognostic equation for salinity
+!-- Prognostic equation for salinity
     !$acc parallel present( tsc, wall_flags_0, rdf_sc ) &
     !$acc present( sa, sa_p, tsa_m, sa_init )
     !$acc loop collapse(2)
-       DO  i = nxl, nxr
-          DO  j = nys, nyn
-          !$acc loop seq
-             DO  k = nzb+1, nzt
-                sa_p(k,j,i) = sa(k,j,i) + ( dt_3d * ( sbt * tend(k,j,i) +      &
-                                                   tsc(3) * tsa_m(k,j,i) )     &
-!                                                 - tsc(5) * rdf_sc(k) *        &
-!                                                 ( sa(k,j,i) - sa_init(k) )    &
-                                       )                                    &
-                                * MERGE( 1.0_wp, 0.0_wp,                    &
-                                             BTEST( wall_flags_0(k,j,i), 0 )   &
-                                          )
-                IF ( sa_p(k,j,i) < 0.0_wp )  sa_p(k,j,i) = 0.1_wp * sa(k,j,i)
-             ENDDO
+    DO  i = nxl, nxr
+       DO  j = nys, nyn
+       !$acc loop seq
+          DO  k = nzb+1, nzt
+             sa_p(k,j,i) = sa(k,j,i) + ( dt_3d * ( sbt * tend(k,j,i) +      &
+                                                tsc(3) * tsa_m(k,j,i) )     &
+!                                              - tsc(5) * rdf_sc(k) *        &
+!                                              ( sa(k,j,i) - sa_init(k) )    &
+                                    )                                    &
+                             * MERGE( 1.0_wp, 0.0_wp,                    &
+                                          BTEST( wall_flags_0(k,j,i), 0 )   &
+                                       )
+             IF ( sa_p(k,j,i) < 0.0_wp )  sa_p(k,j,i) = 0.1_wp * sa(k,j,i)
           ENDDO
        ENDDO
+    ENDDO
     !$acc end parallel
 
 !

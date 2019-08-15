@@ -111,7 +111,7 @@ module palm_mod
              uIncrementLES,vIncrementLES,tempLES,    &
              salinityLES, uLESout, vLESout, dtLS, zLES, &
              disturbMax, disturbAmp, disturbBot, disturbTop, disturbNblocks, &
-             botDepth, timeAv, constant_dz, MLD, mixed_layer_refine)
+             botDepth, timeAv, constant_dz, MLD, mixed_layer_refine, restore_strength)
 
 !
 ! -- Variables from MPAS
@@ -128,7 +128,7 @@ module palm_mod
    Real(wp),dimension(nVertLevels,nCells),intent(in)      :: lt_mpas
    Real(wp),dimension(nCells) :: wtflux, wsflux, uwflux, vwflux, disturbBot
    Real(wp),dimension(nCells) :: botDepth,wtflux_solar, lat_mpas, MLD
-   Real(wp) :: dxLES, dyLES, dzLES, z_fac, z_frst, z_cntr
+   Real(wp) :: dxLES, dyLES, dzLES, z_fac, z_frst, z_cntr, restore_strength
    real(wp) :: z_fac1, z_fac2, z_facn, tol, test, fac, dep1, dep2
    real(wp) :: dtDisturb, endTime, thickDiff, disturbMax, disturbAmp
    real(wp) :: disturbTop, timeAv
@@ -146,6 +146,7 @@ module palm_mod
 
    ! call init_control_parameters
 
+   disturbFactor = restore_strength
    dt_disturb = dtDisturb
    end_time = 3600.0_wp
    ideal_solar_division = fac
@@ -293,26 +294,26 @@ module palm_mod
 
     zedge(nvertLevels+1) = zedge(nVertLevels) - lt_mpas(maxLevels(iCell),iCell)
 
-    do il=1,maxLevels(iCell)
-      if(zmid(il) < botDepth(iCell)) then
-        zmMPASspot = il
-        nzMPAS = il
-        exit
-      endif
-    enddo
+   do il=1,maxLevels(iCell)
+     if(zmid(il) < botDepth(iCell)) then
+       zmMPASspot = il-1
+       nzMPAS = il-1
+       exit
+     endif
+   enddo
 
-    do il=1,nVertLevels
-      if(zedge(il) < botDepth(iCell)) then
-        zeMPASspot = il
-        exit
-      endif
-    enddo
+   do il=1,nVertLevels
+     if(zedge(il) < botDepth(iCell)) then
+       zeMPASspot = il-1
+       exit
+     endif
+   enddo
 
     if (constant_dz) then
       call construct_vertical_grid_const(dzLES,nzb,nzt,zu,zw)
     else
       if (mixed_layer_refine) then
-        call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu,disturbBot)
+        call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu,MLD)
       else
         call construct_vertical_grid_variable(zedge(zeMPASspot),zeLES,nCells,dzLES,nzLES,nzb,nzt,zw,zu)
       endif
@@ -585,7 +586,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
              uIncrementLES,vIncrementLES,tempLES,    &
              salinityLES, uLESout, vLESout, dtLS, zLES, &
              disturbMax, disturbAmp, disturbBot, disturbTop, disturbNblocks, &
-             botDepth, timeAv, constant_dz, MLD, mixed_layer_refine)
+             botDepth, timeAv, constant_dz, MLD, mixed_layer_refine, restore_strength)
 !
 ! -- Variables from MPAS
    logical,intent(in) :: mixed_layer_refine, constant_dz
@@ -601,7 +602,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
    Real(wp),dimension(nVertLevels,nCells),intent(in)      :: lt_mpas
    Real(wp),dimension(nCells) :: wtflux, wsflux, uwflux, vwflux, disturbBot
    Real(wp),dimension(nCells) :: botDepth, wtflux_solar, lat_mpas, MLD
-   Real(wp) :: dxLES, dyLES, dzLES, z_fac, z_frst, z_cntr
+   Real(wp) :: dxLES, dyLES, dzLES, z_fac, z_frst, z_cntr, restore_strength
    real(wp) :: z_fac1, z_fac2, z_facn, tol, test, fac, dep1, dep2
    real(wp) :: dtDisturb, endTime, thickDiff, disturbMax, disturbAmp
    real(wp) :: disturbTop, timeAv
@@ -634,6 +635,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
    dt_ls = dtLS
    dt_avg = timeAv
 
+   disturbFactor = restore_strength
    disturbance_level_t = disturbTop
    disturbance_amplitude = disturbAmp
    disturbance_energy_limit = disturbMax
@@ -653,15 +655,15 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
 
    do il=1,maxLevels(iCell)
      if(zmid(il) < botDepth(iCell)) then
-       zmMPASspot = il
-       nzMPAS = il
+       zmMPASspot = il-1
+       nzMPAS = il-1
        exit
      endif
    enddo
 
    do il=1,nVertLevels
      if(zedge(il) < botDepth(iCell)) then
-       zeMPASspot = il
+       zeMPASspot = il-1
        exit
      endif
    enddo
