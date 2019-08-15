@@ -133,7 +133,7 @@ module palm_mod
    real(wp) :: dtDisturb, endTime, thickDiff, disturbMax, disturbAmp
    real(wp) :: disturbTop, timeAv
    real(wp) :: sumValT, sumValS, sumValU, sumValV, thickVal
-   real(wp) :: fLES(ndof, nvar, nzLES+1)
+   real(wp) :: fLES(ndof, nvar, nzLES)
    real(wp) :: fMPAS(ndof, nvar, nVertLevels)
    CHARACTER(LEN=128) :: format
 !-- this specifies options for the method, here is quartic interp
@@ -186,19 +186,22 @@ module palm_mod
 
    ! find the index of bottom
    do il=1,nVertLevels
-     if(zmid(il) < minval(botDepth)) then
-       zmMPASspot = il
-       nzMPAS = il
+     if(zmid(il) < minval(botDepth) - 1.0e-6_wp) then
+       zmMPASspot = il-1
+       nzMPAS = il-1
        exit
      endif
    enddo
 
    do il=1,nVertLevels
-     if(zedge(il) < minval(botDepth)) then
-       zeMPASspot = il
+     if(zedge(il) < minval(botDepth) - 1.0e-6_wp) then
+       zeMPASspot = il-1
        exit
      endif
    enddo
+   print *, minval(botDepth)
+   print *, zedge(zeMPASspot)
+   print *, zmid(zmMPASspot)
 
 #if defined( __parallel )
 !
@@ -230,7 +233,7 @@ module palm_mod
     CALL init_pegrid
     allocate(zu(nzb:nzt+1),zw(nzb:nzt+1))
     allocate(Tles(0:nz+1),Sles(0:nz+1),Ules(0:nz+1),Vles(0:nz+1))
-    allocate(zeLES(nzb-1:nzt+1), zeLESinv(1:nz+2))
+    allocate(zeLES(nzb-1:nzt+1), zeLESinv(1:nz+1))
     ALLOCATE( hyp(nzb:nzt+1) )
 
     if (constant_dz) then
@@ -295,7 +298,7 @@ module palm_mod
     zedge(nvertLevels+1) = zedge(nVertLevels) - lt_mpas(maxLevels(iCell),iCell)
 
    do il=1,maxLevels(iCell)
-     if(zmid(il) < botDepth(iCell)) then
+     if(zmid(il) < botDepth(iCell) - 1.0e-6_wp) then
        zmMPASspot = il-1
        nzMPAS = il-1
        exit
@@ -303,7 +306,7 @@ module palm_mod
    enddo
 
    do il=1,nVertLevels
-     if(zedge(il) < botDepth(iCell)) then
+     if(zedge(il) < botDepth(iCell) - 1.0e-6_wp) then
        zeMPASspot = il-1
        exit
      endif
@@ -373,11 +376,11 @@ module palm_mod
       zeLESinv(jl) = zw(il)
       jl = jl + 1
     enddo
-    zeLESinv(nzt+2) = zedge(nzMPAS+1)
+    ! zeLESinv(nzt+2) = zedge(nzMPAS+1)
 
     call ws_init2
-    call rmap1d(nzMPAS+1,nz+2,nvar,ndof,abs(zedge(1:nzMPAS+1)),abs(zeLESinv(1:nz+2)), &
-                fMPAS(:,:,:nzMPAS), fLES, bc_l, bc_r, work, opts)
+    call rmap1d(nzMPAS+1,nz+1,nvar,ndof,abs(zedge(1:nzMPAS+1)),abs(zeLESinv(1:nz+1)), &
+                fMPAS(:,:,1:nzMPAS), fLES, bc_l, bc_r, work, opts)
 
     if (iCell == 1) then
     format = "(6x, F10.3, F10.3, F10.3, F10.3, F10.3)"
@@ -496,10 +499,9 @@ v_p = v
       fLES(1,4,jl) = (Vles(il) - vProfileInit(il)) / dtLS
       jl = jl+1
     enddo
-    fLES(:,:,nz+1) = fLES(:,:,nz)
 
-    call rmap1d(nz+2,nzMPAS+1,nvar,ndof,abs(zeLESinv(1:nz+2)),abs(zedge(1:nzMPAS+1)), &
-                fLES,fMPAS(:,:,:nzMPAS),bc_l,bc_r,work,opts)
+    call rmap1d(nz+1,nzMPAS+1,nvar,ndof,abs(zeLESinv(1:nz+1)),abs(zedge(1:nzMPAS+1)), &
+                fLES,fMPAS(:,:,1:nzMPAS),bc_l,bc_r,work,opts)
 
     idx_cutoff = nzMPAS
     do il=1,nVertLevels
@@ -607,7 +609,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
    real(wp) :: dtDisturb, endTime, thickDiff, disturbMax, disturbAmp
    real(wp) :: disturbTop, timeAv
    real(wp) :: sumValT, sumValS, sumValU, sumValV, thickVal
-   real(wp) :: fLES(ndof, nvar, nzLES+1)
+   real(wp) :: fLES(ndof, nvar, nzLES)
    real(wp) :: fMPAS(ndof, nvar, nVertLevels)
    CHARACTER(LEN=128) :: format
 !-- this specifies options for the method, here is quartic interp
@@ -654,7 +656,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
    zedge(nvertLevels+1) = zedge(nVertLevels) - lt_mpas(maxLevels(iCell),iCell)
 
    do il=1,maxLevels(iCell)
-     if(zmid(il) < botDepth(iCell)) then
+     if(zmid(il) < botDepth(iCell) - 1.0e-6_wp) then
        zmMPASspot = il-1
        nzMPAS = il-1
        exit
@@ -662,7 +664,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
    enddo
 
    do il=1,nVertLevels
-     if(zedge(il) < botDepth(iCell)) then
+     if(zedge(il) < botDepth(iCell) - 1.0e-6_wp) then
        zeMPASspot = il-1
        exit
      endif
@@ -720,9 +722,8 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
       zeLESinv(jl) = zw(il)
       jl = jl + 1
     enddo
-    zeLESinv(nzt+2) = zedge(nzMPAS+1)
 
-    call rmap1d(nzMPAS+1,nz+2,nvar,ndof,abs(zedge(1:nzMPAS+1)),abs(zeLESinv(1:nzLES+2)), &
+    call rmap1d(nzMPAS+1,nz+1, nvar,ndof,abs(zedge(1:nzMPAS+1)),abs(zeLESinv(1:nzLES+1)), &
                 fMPAS(:,:,:nzMPAS), fLES, bc_l, bc_r, work, opts)
 
     if (iCell == 1) then
@@ -862,7 +863,6 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
       fLES(1,4,jl) = Vles(il)
       jl = jl+1
     enddo
-    fLES(:,:,nz+1) = fLES(:,:,nz)
     format = "(6x, F10.3, F10.3, F10.3, F10.3, F10.3)"
     print *, 'fLES1         Z         T         S         U         V'
     sumValT = 0.0_wp
@@ -878,7 +878,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
     enddo
     print *, '  Sum         Z         T         S         U         V'
     write(*,format) 0.0_wp, sumValT, sumValS, sumValU, sumValV
-    call rmap1d(nz+2,nzMPAS+1,nvar,ndof,abs(zeLESinv(1:nzLES+2)),abs(zedge(1:nzMPAS+1)), &
+    call rmap1d(nz+1,nzMPAS+1,nvar,ndof,abs(zeLESinv(1:nzLES+1)),abs(zedge(1:nzMPAS+1)), &
                 fLES,fMPAS(:,:,:nzMPAS),bc_l,bc_r,work,opts)
     sumValT = 0.0_wp
     sumValS = 0.0_wp
@@ -895,7 +895,7 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
     print *, '  Sum         Z         T         S         U         V'
     write(*,format) 0.0_wp, sumValT, sumValS, sumValU, sumValV
 
-    call rmap1d(nzMPAS+1,nz+2,nvar,ndof,abs(zedge(1:nzMPAS+1)),abs(zeLESinv(1:nzLES+2)), &
+    call rmap1d(nzMPAS+1,nz+1,nvar,ndof,abs(zedge(1:nzMPAS+1)),abs(zeLESinv(1:nzLES+1)), &
                 fMPAS(:,:,:nzMPAS), fLES, bc_l, bc_r, work, opts)
     print *, 'fLES2         Z         T         S         U         V'
     sumValT = 0.0_wp
@@ -921,9 +921,8 @@ subroutine palm_main(nCells,nVertLevels,T_mpas,S_mpas,U_mpas,V_mpas,lt_mpas, &
       fLES(1,4,jl) = (Vles(il) - vProfileInit(il)) / dtLS
       jl = jl+1
     enddo
-    fLES(:,:,nz+1) = fLES(:,:,nz)
 
-    call rmap1d(nz+2,nzMPAS+1,nvar,ndof,abs(zeLESinv(1:nzLES+2)),abs(zedge(1:nzMPAS+1)), &
+    call rmap1d(nz+1,nzMPAS+1,nvar,ndof,abs(zeLESinv(1:nzLES+1)),abs(zedge(1:nzMPAS+1)), &
                 fLES,fMPAS(:,:,:nzMPAS),bc_l,bc_r,work,opts)
 
     idx_cutoff = nzMPAS
