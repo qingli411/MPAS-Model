@@ -142,6 +142,7 @@ pgi-lanl:
 	"CFLAGS_OPT = -O3" \
 	"CXXFLAGS_OPT = -O3" \
 	"LDFLAGS_OPT = -O3" \
+	"USE_FFTW = true" \
 	"FFLAGS_DEBUG = -fpic -O0 -g -Mbounds -Mchkptr -byteswapio -Mfree -Ktrap=divz,fp,inv,ovf -traceback" \
 	"CFLAGS_DEBUG = -O0 -g -traceback" \
 	"CXXFLAGS_DEBUG = -O0 -g -traceback" \
@@ -149,6 +150,35 @@ pgi-lanl:
 	"FFLAGS_OMP = -mp" \
 	"CFLAGS_OMP = -mp" \
 	"LES_COPT = -Mpreprocess -D__netcdf -D__nopointers -D__lc" \
+	"CORE = $(CORE)" \
+	"DEBUG = $(DEBUG)" \
+	"USE_PAPI = $(USE_PAPI)" \
+	"OPENMP = $(OPENMP)" \
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI -DUNDERSCORE" )
+
+pgi-lanl-gpu:
+	( $(MAKE) all \
+	"FC_PARALLEL = mpif90" \
+	"CC_PARALLEL = mpicc" \
+	"CXX_PARALLEL = mpicxx" \
+	"FC_SERIAL = pgf90" \
+	"CC_SERIAL = pgcc" \
+	"CXX_SERIAL = pgc++" \
+	"FFLAGS_PROMOTION = -r8" \
+	"FFLAGS_OPT = -O3 -byteswapio -Mfree" \
+	"CFLAGS_OPT = -O3 " \
+	"CXXFLAGS_OPT = -O3 " \
+	"LDFLAGS_OPT = -O3 -acc -Minfo=accel -Mcuda" \
+	"LES_FFLAGS_OPT = -acc -ta=tesla:cc75,deepcopy -Minfo=accel -Mcuda" \
+	"LES_LDFLAGS_OPT = -acc -Minfo=accel -Mcuda" \
+	"USE_CUDA = true" \
+	"FFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -byteswapio -Mfree -Ktrap=divz,fp,inv,ovf -traceback" \
+	"CFLAGS_DEBUG = -O0 -g -traceback" \
+	"CXXFLAGS_DEBUG = -O0 -g -traceback" \
+	"LDFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -Ktrap=divz,fp,inv,ovf -traceback" \
+	"FFLAGS_OMP = -mp" \
+	"CFLAGS_OMP = -mp" \
+	"LES_COPT = -Mpreprocess -D__netcdf -D__nopointers -D__lc -D__GPU" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
@@ -609,10 +639,19 @@ ifneq "$(PNETCDF)" ""
 	LIBS += -L$(PNETCDF)/lib -lpnetcdf
 endif
 
-ifneq "$(FFTW)" ""
+ifeq "$(USE_FFTW)" "true"
 	CPPINCLUDES += -I$(FFTW)/include
 	FCINCLUDES += -I$(FFTW)/include
 	LIBS += -L$(FFTW)/lib -lfftw3
+endif
+
+ifeq "$(USE_CUDA)" "true"
+	CPPINCLUDES += -I$(CUDA)/include -I$(PGI)/include
+	FCINCLUDES += -I$(CUDA)/include -I$(PGI)/include
+	LIBS += -L$(CUDA)/lib64 -lcufft -L$(PGI)/lib
+	# LDFLAGS_OPT += -Mcuda
+	# FFLAGS_OPT += -Mcuda
+	# CFLAGS_OPT += -Mcuda
 endif
 
 RM = rm -f
