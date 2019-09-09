@@ -77,7 +77,8 @@
                use_single_reference_value, uv_exposure, u_gtrans, v_gtrans,    &
                virtual_flight, wind_turbine, ws_scheme_mom, ws_scheme_sca,     &
                stokes_force, disturbFactor, uProfileInit, vProfileInit,        &
-               tProfileInit, sProfileInit, dt_LS, dpdxy
+               tProfileInit, sProfileInit, dt_LS, dpdxy, &
+               uLSforcing, vLSforcing, tLSforcing, sLSforcing
 
     USE cpulog,                                                                &
         ONLY:  cpu_log, log_point, log_point_s
@@ -159,6 +160,7 @@
 !$acc      copyin( u_stk, v_stk ) &
 !$acc      copyin( u_init, v_init ) &
 !$acc      copyin( pt_init, sa_init ) &
+!$acc      copyin( uLSforcing, vLSforcing, tLSforcing, sLSforcing) &
 !$acc      copyin( u, u_p, tu_m ) &
 !$acc      copyin( v, v_p, tv_m ) &
 !$acc      copyin( w, w_p, tw_m ) &
