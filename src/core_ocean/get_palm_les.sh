@@ -1,66 +1,66 @@
 #!/bin/bash
 
-## CVMix Tag for build
-CVMIX_TAG=bb146a6
-## Subdirectory in CVMix repo to use
-CVMIX_SUBDIR=trunk/SOURCE
+## LES Tag for build
+LES_TAG=b73654b
+## Subdirectory in LES repo to use
+LES_SUBDIR=trunk/SOURCE
 
-## Available protocols for acquiring CVMix source code
-CVMIX_GIT_HTTP_ADDRESS=https://github.com/vanroekel/palm_les_lanl.git
-CVMIX_GIT_SSH_ADDRESS=git@github.com:vanroekel/palm_les_lanl.git
+## Available protocols for acquiring LES source code
+LES_GIT_HTTP_ADDRESS=https://github.com/qingli411/palm_les_lanl.git
+LES_GIT_SSH_ADDRESS=git@github.com:qingli411/palm_les_lanl.git
 
 GIT=`which git`
 PROTOCOL=""
 
-# CVMix exists. Check to see if it is the correct version.
+# LES exists. Check to see if it is the correct version.
 # Otherwise, flush the directory to ensure it's updated.
-if [ -d les ]; then
+if [ -d palm_les ]; then
 
 	if [ -d .les_all/.git ]; then
 		cd .les_all
 		CURR_TAG=$(git rev-parse --short HEAD)
 		cd ../
-		if [ "${CURR_TAG}" == "${CVMIX_TAG}" ]; then
+		if [ "${CURR_TAG}" == "${LES_TAG}" ]; then
 			echo "PALM LES version is current. Skip update"
 		else
-			unlink les
+			unlink palm_les
 			rm -rf .les_all
 		fi
 	else
-		unlink les
+		unlink palm_les
 		rm -rf .les_all
 	fi
 fi
 
 
-# CVmix Doesn't exist, need to acquire souce code
+# LES Doesn't exist, need to acquire souce code
 # If might have been flushed from the above if, in the case where it was svn or wget that acquired the source.
-if [ ! -d les ]; then 
+if [ ! -d palm_les ]; then
 	if [ -d .les_all ]; then
 		rm -rf .les_all
 	fi
 
 		echo " ** Using git to acquire LES source. ** "
 		PROTOCOL="git ssh"
-		git clone ${CVMIX_GIT_SSH_ADDRESS} .les_all &> /dev/null
-		if [ -d .les_all ]; then 
-			cd .les_all 
-			git checkout ${CVMIX_TAG} &> /dev/null
-			cd ../ 
-			ln -sf .les_all/${CVMIX_SUBDIR} les 
-		else 
-			git clone ${CVMIX_GIT_HTTP_ADDRESS} .les_all &> /dev/null
+		git clone ${LES_GIT_SSH_ADDRESS} .les_all &> /dev/null
+		if [ -d .les_all ]; then
+			cd .les_all
+			git checkout ${LES_TAG} &> /dev/null
+			cd ../
+			ln -sf .les_all/${LES_SUBDIR} palm_les
+		else
+			git clone ${LES_GIT_HTTP_ADDRESS} .les_all &> /dev/null
 			PROTOCOL="git http"
-			if [ -d .les_all ]; then 
-				cd .les_all 
-				git checkout ${CVMIX_TAG} &> /dev/null
-				cd ../ 
-				ln -sf .les_all/${CVMIX_SUBDIR} cvmix 
-			fi 
-		fi 
+			if [ -d .les_all ]; then
+				cd .les_all
+				git checkout ${LES_TAG} &> /dev/null
+				cd ../
+				ln -sf .les_all/${LES_SUBDIR} palm_les
+			fi
+		fi
 fi
 
-if [ ! -d les ]; then
+if [ ! -d palm_les ]; then
 	echo " ****************************************************** "
 	echo " ERROR: Build failed to acquire LES source."
 	echo ""

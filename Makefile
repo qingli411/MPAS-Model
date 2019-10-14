@@ -178,7 +178,7 @@ pgi-lanl-gpu:
 	"LDFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -Ktrap=divz,fp,inv,ovf -traceback" \
 	"FFLAGS_OMP = -mp" \
 	"CFLAGS_OMP = -mp" \
-	"LES_COPT = -Mpreprocess -D__netcdf -D__nopointers -D__lc -D__GPU" \
+	"LES_COPT = -Mpreprocess -D__netcdf -D__nopointers -D__lc -D__GPU -D__SP -D__DEBUG_PALMLIB" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \

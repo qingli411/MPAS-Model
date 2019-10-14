@@ -35,7 +35,6 @@ module ocn_vmix_LES
    !
    !-------------------------------------------------------------------
 
-   logical :: first = .true.
    integer, parameter :: num_water_types = 5
    real (kind=RKIND), dimension(num_water_types) ::                       &
       rfac   = (/ 0.58_RKIND, 0.62_RKIND, 0.67_RKIND, 0.77_RKIND, 0.78_RKIND /), &
@@ -101,8 +100,6 @@ contains
 
       real(KIND=RKIND), intent(in) :: dt
 
-!      logical, intent(in) :: first
-
       !-----------------------------------------------------------------
       !
       ! output variables
@@ -117,13 +114,14 @@ contains
       !
       !-----------------------------------------------------------------
 
+      logical, save :: first_palm = .true.
       integer, dimension(:), pointer :: maxLevelCell
 
       real (kind=RKIND), dimension(:), pointer :: &
         stressX, stressY, stressZ, stressZonal, stressMeridional, fCell, &
         surfaceStress, surfaceStressMagnitude,   &
         penetrativeTemperatureFlux, angleEdge, surfaceThicknessFlux, &
-        surfaceThicknessFluxRunoff, dThreshMLD
+        surfaceThicknessFluxRunoff, dThreshMLD, latCell
 
       real (kind=RKIND), dimension(:,:), pointer :: &
         layerThickness, velocityZonal, velocityMeridional, &
@@ -132,14 +130,14 @@ contains
         tracerGroupSurfaceFlux, tracerGroupSurfaceFluxRunoff, &
         tracerGroupSurfaceFluxRemoved, temperatureLES, zLES, &
         salinityLES, velocityZonalLES, velocityMeridionalLES, &
-        zMid
+        zMid, zTop
 
       real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
       integer, pointer :: indexTemperature, indexSalinity, config_jerlov_water_type
       integer, dimension(:,:), pointer :: cellsOnEdge
 
       integer :: k, i, iCell, timeLevel, iEdge, nCells, nEdges
-      integer :: nLevs, edgeCount, cell1, cell2
+      integer :: nLevs, edgeCount, cell1, cell2, nzMPAS
       integer, pointer :: nVertLevels, config_les_disturb_nblocks
       integer, dimension(:), pointer :: nCellsArray, nEdgesArray
 
@@ -168,6 +166,8 @@ contains
 
       real (kind=RKIND) :: fac, dep1, dep2, fracAbsorbed, fracAbsorbedRunoff,  &
                            etime
+
+      real (kind=RKIND), dimension(:,:), allocatable :: LSF_tMPAS, LSF_sMPAS, LSF_uMPAS, LSF_vMPAS
 
       err=0
 
@@ -238,6 +238,7 @@ contains
       call mpas_pool_get_array(forcingPool, "surfaceThicknessFlux", surfaceThicknessFlux)
       call mpas_pool_get_array(forcingPool, "surfaceThicknessFluxRunoff", surfaceThicknessFluxRunoff)
       call mpas_pool_get_array(meshPool, 'fCell', fCell)
+      call mpas_pool_get_array(meshPool, 'latCell', latCell)
       call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
       call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, timeLevel)
 
@@ -249,6 +250,7 @@ contains
       call mpas_pool_get_array(diagnosticsPool, 'velocityZonal', velocityZonal)
       call mpas_pool_get_array(diagnosticsPool, 'velocityMeridional', velocityMeridional)
       call mpas_pool_get_array(diagnosticsPool, 'zMid', zMid)
+      call mpas_pool_get_array(diagnosticsPool, 'zTop', zTop)
 
       call mpas_pool_get_array(mixedLayerDepthsAMPool, 'dThreshMLD', dThreshMLD)
       call mpas_pool_get_array(diagnosticsPool, 'zLES', zLES)
@@ -280,6 +282,8 @@ contains
 
       allocate(uw_sfc(nCells), vw_sfc(nCells), ws_sfc(nCells), wt_sfc(nCells))
       allocate(les_disturb_bottom(nCells), les_bottom(nCells),latVal(nCells))
+      allocate(LSF_tMPAS(nVertLevels, nCells), LSF_sMPAS(nVertLevels, nCells))
+      allocate(LSF_uMPAS(nVertLevels, nCells), LSF_vMPAS(nVertLevels, nCells))
       !$omp do schedule(runtime)
       do iEdge=1,nEdges
          surfaceStress(iEdge) = 0.0_RKIND
@@ -358,35 +362,71 @@ contains
      enddo
      !$omp end do
 
-      if(first) then
+     iCell = 1
+     nzMPAS = 20
+     if ( first_palm ) then
 
-        call palm_init(nCells, nVertLevels, activeTracers(1,:,:), activeTracers(2,:,:),              &
-             velocityZonal, velocityMeridional, layerThickness, latVal,                       &
-             maxLevelCell, -wt_sfc, penetrativeTemperatureFlux, ws_sfc,                       &
-             -uw_sfc, -vw_sfc, fac, dep1, dep2, config_les_dx, config_les_dy, config_les_dz,  &
+        call palm_init( -wt_sfc(iCell), ws_sfc(iCell), -uw_sfc(iCell), -vw_sfc(iCell),            &
+             .FALSE., penetrativeTemperatureFlux(iCell), fac, dep1, dep2,    &
+             nzMPAS, activeTracers(1,1:nzMPAS,iCell)+273.15_RKIND, activeTracers(2,1:nzMPAS,iCell),        &
+             velocityZonal(1:nzMPAS,iCell), velocityMeridional(1:nzMPAS,iCell), zTop(1:nzMPAS+1,iCell),    &
              config_les_nx, config_les_ny, config_les_nz,                 &
-             etime, config_les_dt_disturb, tIncrementLES, sIncrementLES, uIncrementLES,       &
-             vIncrementLES, temperatureLES, salinityLES, velocityZonalLES,                    &
-             velocityMeridionalLES, dt, zLES, config_les_disturb_energy_limit,                &
-             config_les_disturb_amplitude, les_disturb_bottom, config_les_disturb_top,        &
-             config_les_disturb_nblocks, les_bottom, config_les_time_avg, constant_dz,        &
-             dThreshMLD, mixed_layer_refine,0.0_RKIND)
+             config_les_dx, config_les_dy,   &
+             temperatureLES(:,iCell), salinityLES(:,iCell), velocityZonalLES(:,iCell),        &
+             velocityMeridionalLES(:,iCell), zLES(:,iCell),      &
+             tIncrementLES(1:nzMPAS,iCell), sIncrementLES(1:nzMPAS,iCell),                    &
+             uIncrementLES(1:nzMPAS,iCell), vIncrementLES(1:nzMPAS,iCell),                    &
+             dt, etime, latCell(iCell))
 
-      endif
+             ! config_les_dt_disturb,
+             ! config_les_disturb_energy_limit,                &
+             ! config_les_disturb_amplitude, les_disturb_bottom, config_les_disturb_top,        &
+             ! config_les_disturb_nblocks, les_bottom, config_les_time_avg, constant_dz,        &
+             ! dThreshMLD, mixed_layer_refine,0.0_RKIND)
 
-      etime = dt
+     else
 
-      call palm_main(nCells, nVertLevels, activeTracers(1,:,:), activeTracers(2,:,:),              &
-             velocityZonal, velocityMeridional, layerThickness, latVal,                       &
-             maxLevelCell, -wt_sfc, penetrativeTemperatureFlux, ws_sfc,                       &
-             -uw_sfc, -vw_sfc, fac, dep1, dep2, config_les_dx, config_les_dy, config_les_dz,  &
-             config_les_nx, config_les_ny, config_les_nz,                 &
-             etime, config_les_dt_disturb, tIncrementLES, sIncrementLES, uIncrementLES,       &
-             vIncrementLES, temperatureLES, salinityLES, velocityZonalLES,                    &
-             velocityMeridionalLES, dt, zLES, config_les_disturb_energy_limit,                &
-             config_les_disturb_amplitude, les_disturb_bottom, config_les_disturb_top,        &
-             config_les_disturb_nblocks, les_bottom, config_les_time_avg, constant_dz,        &
-             dThreshMLD, mixed_layer_refine, config_les_restoring_strength)
+        LSF_tMPAS = 0.0_RKIND
+        LSF_sMPAS = 0.0_RKIND
+        LSF_uMPAS = 0.0_RKIND
+        LSF_vMPAS = 0.0_RKIND
+
+        call palm_main( -wt_sfc(iCell), ws_sfc(iCell), -uw_sfc(iCell), -vw_sfc(iCell),             &
+             .FALSE., penetrativeTemperatureFlux(iCell), fac, dep1, dep2,     &
+             nzMPAS, LSF_tMPAS(1:nzMPAS,iCell), LSF_sMPAS(1:nzMPAS,iCell),        &
+             LSF_uMPAS(1:nzMPAS,iCell), LSF_vMPAS(1:nzMPAS,iCell), zTop(1:nzMPAS+1,iCell),    &
+             config_les_nz,     &
+             temperatureLES(:,iCell), salinityLES(:,iCell), velocityZonalLES(:,iCell),        &
+             velocityMeridionalLES(:,iCell), zLES(:,iCell),      &
+             tIncrementLES(1:nzMPAS,iCell), sIncrementLES(1:nzMPAS,iCell),                    &
+             uIncrementLES(1:nzMPAS,iCell), vIncrementLES(1:nzMPAS,iCell), dt)
+
+          ! config_les_dt_disturb,
+        ! nCells, nVertLevels, activeTracers(1,:,:), activeTracers(2,:,:),              &
+          !    velocityZonal, velocityMeridional, layerThickness, latVal,                       &
+          !    maxLevelCell, -wt_sfc, penetrativeTemperatureFlux, ws_sfc,                       &
+          !    -uw_sfc, -vw_sfc, fac, dep1, dep2, config_les_dx, config_les_dy, config_les_dz,  &
+          !    config_les_nx, config_les_ny, config_les_nz,                 &
+          !    etime, config_les_dt_disturb, tIncrementLES, sIncrementLES, uIncrementLES,       &
+          !    vIncrementLES, temperatureLES, salinityLES, velocityZonalLES,                    &
+          !    velocityMeridionalLES, dt, zLES, config_les_disturb_energy_limit,                &
+          !    config_les_disturb_amplitude, les_disturb_bottom, config_les_disturb_top,        &
+          !    config_les_disturb_nblocks, les_bottom, config_les_time_avg, constant_dz,        &
+          !    dThreshMLD, mixed_layer_refine, config_les_restoring_strength)
+     endif
+
+     do iCell = 2, nCells
+        tIncrementLES(:,iCell) = tIncrementLES(:,1)
+        sIncrementLES(:,iCell) = sIncrementLES(:,1)
+        uIncrementLES(:,iCell) = uIncrementLES(:,1)
+        vIncrementLES(:,iCell) = vIncrementLES(:,1)
+        temperatureLES(:,iCell) = temperatureLES(:,1)
+        salinityLES(:,iCell) = salinityLES(:,1)
+        velocityZonalLES(:,iCell) = velocityZonalLES(:,1)
+        velocityMeridionalLES(:,iCell) = velocityMeridionalLES(:,1)
+        zLES(:,iCell) = zLES(:,1)
+     enddo
+
 
       normalVelocityIncrementLES(:,:) = 0.0_RKIND
       !$omp do schedule(runtime)
@@ -403,7 +443,7 @@ contains
       end do
       !$omp end do
 
-      if(first) first = .false.
+      if ( first_palm ) first_palm = .false.
 
       deallocate(uw_sfc, vw_sfc, ws_sfc, wt_sfc)
       deallocate(les_disturb_bottom, les_bottom,latVal)
