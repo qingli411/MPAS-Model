@@ -167,8 +167,6 @@ contains
       real (kind=RKIND) :: fac, dep1, dep2, fracAbsorbed, fracAbsorbedRunoff,  &
                            etime
 
-      real (kind=RKIND), dimension(:,:), allocatable :: LSF_tMPAS, LSF_sMPAS, LSF_uMPAS, LSF_vMPAS
-
       err=0
 
       if (present(timeLevelIn)) then
@@ -281,9 +279,7 @@ contains
       nEdges = nEdgesArray( 1 )
 
       allocate(uw_sfc(nCells), vw_sfc(nCells), ws_sfc(nCells), wt_sfc(nCells))
-      allocate(les_disturb_bottom(nCells), les_bottom(nCells),latVal(nCells))
-      allocate(LSF_tMPAS(nVertLevels, nCells), LSF_sMPAS(nVertLevels, nCells))
-      allocate(LSF_uMPAS(nVertLevels, nCells), LSF_vMPAS(nVertLevels, nCells))
+      allocate(les_disturb_bottom(nCells), les_bottom(nCells), latVal(nCells))
       !$omp do schedule(runtime)
       do iEdge=1,nEdges
          surfaceStress(iEdge) = 0.0_RKIND
@@ -385,13 +381,8 @@ contains
 
      else
 
-        LSF_tMPAS = 0.0_RKIND
-        LSF_sMPAS = 0.0_RKIND
-        LSF_uMPAS = 0.0_RKIND
-        LSF_vMPAS = 0.0_RKIND
-
-        call palm_main(nzMPAS, zTop(1:nzMPAS+1,iCell), LSF_tMPAS(1:nzMPAS,iCell), LSF_sMPAS(1:nzMPAS,iCell),     &
-             LSF_uMPAS(1:nzMPAS,iCell), LSF_vMPAS(1:nzMPAS,iCell),                                               &
+        call palm_main(nzMPAS, zTop(1:nzMPAS+1,iCell), activeTracers(1,1:nzMPAS,iCell)+273.15_RKIND,             &
+             activeTracers(2,1:nzMPAS,iCell), velocityZonal(1:nzMPAS,iCell), velocityMeridional(1:nzMPAS,iCell), &
              config_les_nz, zLES(:,iCell), temperatureLES(:,iCell), salinityLES(:,iCell),                        &
              velocityZonalLES(:,iCell), velocityMeridionalLES(:,iCell),                                          &
              tIncrementLES(1:nzMPAS,iCell), sIncrementLES(1:nzMPAS,iCell),                                       &
