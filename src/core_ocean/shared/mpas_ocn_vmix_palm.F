@@ -366,17 +366,16 @@ contains
      nzMPAS = 20
      if ( first_palm ) then
 
-        call palm_init( -wt_sfc(iCell), ws_sfc(iCell), -uw_sfc(iCell), -vw_sfc(iCell),            &
-             .FALSE., penetrativeTemperatureFlux(iCell), fac, dep1, dep2,    &
-             nzMPAS, activeTracers(1,1:nzMPAS,iCell)+273.15_RKIND, activeTracers(2,1:nzMPAS,iCell),        &
-             velocityZonal(1:nzMPAS,iCell), velocityMeridional(1:nzMPAS,iCell), zTop(1:nzMPAS+1,iCell),    &
-             config_les_nx, config_les_ny, config_les_nz,                 &
-             config_les_dx, config_les_dy,   &
-             temperatureLES(:,iCell), salinityLES(:,iCell), velocityZonalLES(:,iCell),        &
-             velocityMeridionalLES(:,iCell), zLES(:,iCell),      &
-             tIncrementLES(1:nzMPAS,iCell), sIncrementLES(1:nzMPAS,iCell),                    &
-             uIncrementLES(1:nzMPAS,iCell), vIncrementLES(1:nzMPAS,iCell),                    &
-             dt, etime, latCell(iCell))
+        call palm_init(nzMPAS, zTop(1:nzMPAS+1,iCell), activeTracers(1,1:nzMPAS,iCell)+273.15_RKIND,             &
+             activeTracers(2,1:nzMPAS,iCell), velocityZonal(1:nzMPAS,iCell), velocityMeridional(1:nzMPAS,iCell), &
+             config_les_nz, zLES(:,iCell), temperatureLES(:,iCell), salinityLES(:,iCell),                        &
+             velocityZonalLES(:,iCell), velocityMeridionalLES(:,iCell),                                          &
+             tIncrementLES(1:nzMPAS,iCell), sIncrementLES(1:nzMPAS,iCell),                                       &
+             uIncrementLES(1:nzMPAS,iCell), vIncrementLES(1:nzMPAS,iCell),                                       &
+             -wt_sfc(iCell), ws_sfc(iCell), -uw_sfc(iCell), -vw_sfc(iCell),                                      &
+             .FALSE., penetrativeTemperatureFlux(iCell), fac, dep1, dep2,                                        &
+             dt, config_les_nx, config_les_ny, config_les_dx, config_les_dy,                                     &
+             etime, latCell(iCell))
 
              ! config_les_dt_disturb,
              ! config_les_disturb_energy_limit,                &
@@ -391,28 +390,16 @@ contains
         LSF_uMPAS = 0.0_RKIND
         LSF_vMPAS = 0.0_RKIND
 
-        call palm_main( -wt_sfc(iCell), ws_sfc(iCell), -uw_sfc(iCell), -vw_sfc(iCell),             &
-             .FALSE., penetrativeTemperatureFlux(iCell), fac, dep1, dep2,     &
-             nzMPAS, LSF_tMPAS(1:nzMPAS,iCell), LSF_sMPAS(1:nzMPAS,iCell),        &
-             LSF_uMPAS(1:nzMPAS,iCell), LSF_vMPAS(1:nzMPAS,iCell), zTop(1:nzMPAS+1,iCell),    &
-             config_les_nz,     &
-             temperatureLES(:,iCell), salinityLES(:,iCell), velocityZonalLES(:,iCell),        &
-             velocityMeridionalLES(:,iCell), zLES(:,iCell),      &
-             tIncrementLES(1:nzMPAS,iCell), sIncrementLES(1:nzMPAS,iCell),                    &
-             uIncrementLES(1:nzMPAS,iCell), vIncrementLES(1:nzMPAS,iCell), dt)
+        call palm_main(nzMPAS, zTop(1:nzMPAS+1,iCell), LSF_tMPAS(1:nzMPAS,iCell), LSF_sMPAS(1:nzMPAS,iCell),     &
+             LSF_uMPAS(1:nzMPAS,iCell), LSF_vMPAS(1:nzMPAS,iCell),                                               &
+             config_les_nz, zLES(:,iCell), temperatureLES(:,iCell), salinityLES(:,iCell),                        &
+             velocityZonalLES(:,iCell), velocityMeridionalLES(:,iCell),                                          &
+             tIncrementLES(1:nzMPAS,iCell), sIncrementLES(1:nzMPAS,iCell),                                       &
+             uIncrementLES(1:nzMPAS,iCell), vIncrementLES(1:nzMPAS,iCell),                                       &
+             -wt_sfc(iCell), ws_sfc(iCell), -uw_sfc(iCell), -vw_sfc(iCell),                                      &
+             .FALSE., penetrativeTemperatureFlux(iCell), fac, dep1, dep2,                                        &
+             dt)
 
-          ! config_les_dt_disturb,
-        ! nCells, nVertLevels, activeTracers(1,:,:), activeTracers(2,:,:),              &
-          !    velocityZonal, velocityMeridional, layerThickness, latVal,                       &
-          !    maxLevelCell, -wt_sfc, penetrativeTemperatureFlux, ws_sfc,                       &
-          !    -uw_sfc, -vw_sfc, fac, dep1, dep2, config_les_dx, config_les_dy, config_les_dz,  &
-          !    config_les_nx, config_les_ny, config_les_nz,                 &
-          !    etime, config_les_dt_disturb, tIncrementLES, sIncrementLES, uIncrementLES,       &
-          !    vIncrementLES, temperatureLES, salinityLES, velocityZonalLES,                    &
-          !    velocityMeridionalLES, dt, zLES, config_les_disturb_energy_limit,                &
-          !    config_les_disturb_amplitude, les_disturb_bottom, config_les_disturb_top,        &
-          !    config_les_disturb_nblocks, les_bottom, config_les_time_avg, constant_dz,        &
-          !    dThreshMLD, mixed_layer_refine, config_les_restoring_strength)
      endif
 
      do iCell = 2, nCells
