@@ -380,6 +380,35 @@ gfortran:
 	"OPENMP = $(OPENMP)" \
 	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
 
+gfortran-lanl:
+	( $(MAKE) all \
+	"FC_PARALLEL = mpif90" \
+	"CC_PARALLEL = mpicc" \
+	"CXX_PARALLEL = mpicxx" \
+	"FC_SERIAL = gfortran" \
+	"CC_SERIAL = gcc" \
+	"CXX_SERIAL = g++" \
+	"FFLAGS_PROMOTION = -fdefault-real-8 -fdefault-double-8" \
+	"FFLAGS_OPT = -O3 -m64 -ffree-line-length-none -fconvert=big-endian -ffree-form" \
+	"CFLAGS_OPT = -O3 -m64" \
+	"CXXFLAGS_OPT = -O3 -m64" \
+	"LDFLAGS_OPT = -O3 -m64" \
+	"USE_FFTW = true" \
+	"LES_LDFLAGS_OPT = -O3 -m64" \
+	"FFLAGS_DEBUG = -g -m64 -ffree-line-length-none -fconvert=big-endian -ffree-form -fbounds-check -fbacktrace -ffpe-trap=invalid,zero,overflow" \
+	"CFLAGS_DEBUG = -g -m64" \
+	"CXXFLAGS_DEBUG = -g -m64" \
+	"LDFLAGS_DEBUG = -g -m64" \
+	"FFLAGS_OMP = -fopenmp" \
+	"CFLAGS_OMP = -fopenmp" \
+	"LES_COPT = -cpp -D__netcdf -D__nopointers -D__lc -D__SP" \
+	"CORE = $(CORE)" \
+	"DEBUG = $(DEBUG)" \
+	"KOKKOS = $(KOKKOS)" \
+	"USE_PAPI = $(USE_PAPI)" \
+	"OPENMP = $(OPENMP)" \
+	"CPPFLAGS = $(MODEL_FORMULATION) -D_MPI" )
+
 gfortran-clang:
 	( $(MAKE) all \
 	"FC_PARALLEL = mpif90" \
