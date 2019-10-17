@@ -369,7 +369,7 @@ contains
              tIncrementLES(1:nzMPAS,iCell), sIncrementLES(1:nzMPAS,iCell),                                       &
              uIncrementLES(1:nzMPAS,iCell), vIncrementLES(1:nzMPAS,iCell),                                       &
              -wt_sfc(iCell), ws_sfc(iCell), -uw_sfc(iCell), -vw_sfc(iCell),                                      &
-             .FALSE., penetrativeTemperatureFlux(iCell), fac, dep1, dep2,                                        &
+             .FALSE., -penetrativeTemperatureFlux(iCell), fac, dep1, dep2,                                       &
              dt, config_les_nx, config_les_ny, config_les_dx, config_les_dy,                                     &
              etime, latCell(iCell))
 
@@ -388,8 +388,7 @@ contains
              tIncrementLES(1:nzMPAS,iCell), sIncrementLES(1:nzMPAS,iCell),                                       &
              uIncrementLES(1:nzMPAS,iCell), vIncrementLES(1:nzMPAS,iCell),                                       &
              -wt_sfc(iCell), ws_sfc(iCell), -uw_sfc(iCell), -vw_sfc(iCell),                                      &
-             .FALSE., penetrativeTemperatureFlux(iCell), fac, dep1, dep2,                                        &
-             dt)
+             .FALSE., -penetrativeTemperatureFlux(iCell), dt)
 
      endif
 
