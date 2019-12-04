@@ -116,6 +116,7 @@ contains
 
       logical, save :: first_palm = .true.
       integer, dimension(:), pointer :: maxLevelCell
+      integer, dimension(:), pointer :: lesCell
 
       real (kind=RKIND), dimension(:), pointer :: &
         stressX, stressY, stressZ, stressZonal, stressMeridional, fCell, &
@@ -223,6 +224,7 @@ contains
       call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocity, timeLevel)
       call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
       call mpas_pool_get_array(meshPool, 'angleEdge', angleEdge)
+      call mpas_pool_get_array(meshPool, 'lesCell', lesCell)
 
       call mpas_pool_get_subpool(forcingPool, 'tracersSurfaceFlux', tracersSurfaceFluxPool)
       call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
@@ -355,55 +357,71 @@ contains
 
          latVal(iCell) = ASIN(fCell(iCell) / (2.0_RKIND*7.292E-5_RKIND))
 
-     enddo
-     !$omp end do
+      enddo
+      !$omp end do
 
-     iCell = 1
-     nzMPAS = 20
-     if ( first_palm ) then
+      nzMPAS = 30
+      write(*,*) lesCell
+      if ( first_palm ) then
 
-        call palm_init(nzMPAS, zTop(1:nzMPAS+1,iCell), activeTracers(1,1:nzMPAS,iCell)+273.15_RKIND,             &
-             activeTracers(2,1:nzMPAS,iCell), velocityZonal(1:nzMPAS,iCell), velocityMeridional(1:nzMPAS,iCell), &
-             config_les_nz, zLES(:,iCell), temperatureLES(:,iCell), salinityLES(:,iCell),                        &
-             velocityZonalLES(:,iCell), velocityMeridionalLES(:,iCell),                                          &
-             tIncrementLES(1:nzMPAS,iCell), sIncrementLES(1:nzMPAS,iCell),                                       &
-             uIncrementLES(1:nzMPAS,iCell), vIncrementLES(1:nzMPAS,iCell),                                       &
-             -wt_sfc(iCell), ws_sfc(iCell), -uw_sfc(iCell), -vw_sfc(iCell),                                      &
-             .FALSE., -penetrativeTemperatureFlux(iCell), fac, dep1, dep2,                                       &
-             dt, config_les_nx, config_les_ny, config_les_dx, config_les_dy,                                     &
-             etime, latCell(iCell))
+         do iCell = 1, nCells
+            if ( lesCell(iCell) == 1 ) then
+               call palm_init(nzMPAS, zTop(1:nzMPAS+1,iCell), activeTracers(1,1:nzMPAS,iCell)+273.15_RKIND,             &
+                    activeTracers(2,1:nzMPAS,iCell), velocityZonal(1:nzMPAS,iCell), velocityMeridional(1:nzMPAS,iCell), &
+                    config_les_nz, zLES(:,iCell), temperatureLES(:,iCell), salinityLES(:,iCell),                        &
+                    velocityZonalLES(:,iCell), velocityMeridionalLES(:,iCell),                                          &
+                    tIncrementLES(1:nzMPAS,iCell), sIncrementLES(1:nzMPAS,iCell),                                       &
+                    uIncrementLES(1:nzMPAS,iCell), vIncrementLES(1:nzMPAS,iCell),                                       &
+                    -wt_sfc(iCell), ws_sfc(iCell), -uw_sfc(iCell), -vw_sfc(iCell),                                      &
+                    .FALSE., -penetrativeTemperatureFlux(iCell), fac, dep1, dep2,                                       &
+                    dt, config_les_nx, config_les_ny, config_les_dx, config_les_dy,                                     &
+                    etime, latCell(iCell))
 
-             ! config_les_dt_disturb,
-             ! config_les_disturb_energy_limit,                &
-             ! config_les_disturb_amplitude, les_disturb_bottom, config_les_disturb_top,        &
-             ! config_les_disturb_nblocks, les_bottom, config_les_time_avg, constant_dz,        &
-             ! dThreshMLD, mixed_layer_refine,0.0_RKIND)
+                    ! config_les_dt_disturb,
+                    ! config_les_disturb_energy_limit,                &
+                    ! config_les_disturb_amplitude, les_disturb_bottom, config_les_disturb_top,        &
+                    ! config_les_disturb_nblocks, les_bottom, config_les_time_avg, constant_dz,        &
+                    ! dThreshMLD, mixed_layer_refine,0.0_RKIND)
 
-     else
+            else
+               tIncrementLES(:,iCell) = 0.0_RKIND
+               sIncrementLES(:,iCell) = 0.0_RKIND
+               uIncrementLES(:,iCell) = 0.0_RKIND
+               vIncrementLES(:,iCell) = 0.0_RKIND
+               temperatureLES(:,iCell) = 0.0_RKIND
+               salinityLES(:,iCell) = 0.0_RKIND
+               velocityZonalLES(:,iCell) = 0.0_RKIND
+               velocityMeridionalLES(:,iCell) = 0.0_RKIND
+               zLES(:,iCell) = 0.0_RKIND
+            endif
+         enddo
 
-        call palm_main(nzMPAS, zTop(1:nzMPAS+1,iCell), activeTracers(1,1:nzMPAS,iCell)+273.15_RKIND,             &
-             activeTracers(2,1:nzMPAS,iCell), velocityZonal(1:nzMPAS,iCell), velocityMeridional(1:nzMPAS,iCell), &
-             config_les_nz, zLES(:,iCell), temperatureLES(:,iCell), salinityLES(:,iCell),                        &
-             velocityZonalLES(:,iCell), velocityMeridionalLES(:,iCell),                                          &
-             tIncrementLES(1:nzMPAS,iCell), sIncrementLES(1:nzMPAS,iCell),                                       &
-             uIncrementLES(1:nzMPAS,iCell), vIncrementLES(1:nzMPAS,iCell),                                       &
-             -wt_sfc(iCell), ws_sfc(iCell), -uw_sfc(iCell), -vw_sfc(iCell),                                      &
-             .FALSE., -penetrativeTemperatureFlux(iCell), dt)
+      else
 
-     endif
+         do iCell = 1, nCells
+            if ( lesCell(iCell) == 1 ) then
+               call palm_main(nzMPAS, zTop(1:nzMPAS+1,iCell), activeTracers(1,1:nzMPAS,iCell)+273.15_RKIND,             &
+                    activeTracers(2,1:nzMPAS,iCell), velocityZonal(1:nzMPAS,iCell), velocityMeridional(1:nzMPAS,iCell), &
+                    config_les_nz, zLES(:,iCell), temperatureLES(:,iCell), salinityLES(:,iCell),                        &
+                    velocityZonalLES(:,iCell), velocityMeridionalLES(:,iCell),                                          &
+                    tIncrementLES(1:nzMPAS,iCell), sIncrementLES(1:nzMPAS,iCell),                                       &
+                    uIncrementLES(1:nzMPAS,iCell), vIncrementLES(1:nzMPAS,iCell),                                       &
+                    -wt_sfc(iCell), ws_sfc(iCell), -uw_sfc(iCell), -vw_sfc(iCell),                                      &
+                    .FALSE., -penetrativeTemperatureFlux(iCell), dt)
+            else
+               tIncrementLES(:,iCell) = 0.0_RKIND
+               sIncrementLES(:,iCell) = 0.0_RKIND
+               uIncrementLES(:,iCell) = 0.0_RKIND
+               vIncrementLES(:,iCell) = 0.0_RKIND
+               temperatureLES(:,iCell) = 0.0_RKIND
+               salinityLES(:,iCell) = 0.0_RKIND
+               velocityZonalLES(:,iCell) = 0.0_RKIND
+               velocityMeridionalLES(:,iCell) = 0.0_RKIND
+               zLES(:,iCell) = 0.0_RKIND
+            endif
+         enddo
 
-     do iCell = 2, nCells
-        tIncrementLES(:,iCell) = tIncrementLES(:,1)
-        sIncrementLES(:,iCell) = sIncrementLES(:,1)
-        uIncrementLES(:,iCell) = uIncrementLES(:,1)
-        vIncrementLES(:,iCell) = vIncrementLES(:,1)
-        temperatureLES(:,iCell) = temperatureLES(:,1)
-        salinityLES(:,iCell) = salinityLES(:,1)
-        velocityZonalLES(:,iCell) = velocityZonalLES(:,1)
-        velocityMeridionalLES(:,iCell) = velocityMeridionalLES(:,1)
-        zLES(:,iCell) = zLES(:,1)
-     enddo
-
+      endif
 
       normalVelocityIncrementLES(:,:) = 0.0_RKIND
       !$omp do schedule(runtime)
@@ -495,8 +513,8 @@ contains
       logical,pointer :: config_use_les_for_vmix, config_use_ecosysTracers
 
       call mpas_pool_get_config(ocnConfigs, 'config_use_les_for_vmix', config_use_les_for_vmix)
-      call mpas_pool_get_config(ocnConfigs, 'config_use_ecosysTracers', config_use_ecosysTracers)
       if ( .not. config_use_les_for_vmix ) return
+      call mpas_pool_get_config(ocnConfigs, 'config_use_ecosysTracers', config_use_ecosysTracers)
       if (config_use_ecosysTracers) then
          call mpas_log_write('Error, superparameterization is not configured for use with BGC',MPAS_LOG_CRIT)
       endif
@@ -525,8 +543,8 @@ contains
          do k=1,maxLevelCell(iCell)
              activeTracers(indexTemperature,k,iCell) = activeTracers(indexTemperature,k,iCell) + &
                                                       dt*tIncrementLES(k,iCell)
-            activeTracers(indexSalinity,k,iCell) = activeTracers(indexSalinity,k,iCell) +       &
-                                                   dt*sIncrementLES(k,iCell)
+             activeTracers(indexSalinity,k,iCell) = activeTracers(indexSalinity,k,iCell) +       &
+                                                      dt*sIncrementLES(k,iCell)
          end do
       end do
       !$omp end do

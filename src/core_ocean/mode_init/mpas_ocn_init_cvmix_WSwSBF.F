@@ -93,6 +93,7 @@ contains
       integer, pointer :: index_temperature, index_salinity, index_tracer1
 
       integer, dimension(:), pointer :: maxLevelCell
+      integer, dimension(:), pointer :: lesCell
       real (kind=RKIND), dimension(:), pointer :: refBottomDepth, refZMid, vertCoordMovementWeights
       real (kind=RKIND), dimension(:), pointer :: windStressZonal, windStressMeridional
       real (kind=RKIND), dimension(:), pointer :: latentHeatFlux, sensibleHeatFlux, shortWaveHeatFlux
@@ -225,6 +226,8 @@ contains
         call mpas_pool_get_array(meshPool, 'fCell', fCell)
         call mpas_pool_get_array(meshPool, 'fEdge', fEdge)
         call mpas_pool_get_array(meshPool, 'fVertex', fVertex)
+
+        call mpas_pool_get_array(meshPool, 'lesCell', lesCell)
 
         call mpas_pool_get_array(verticalMeshPool, 'refZMid', refZMid)
         call mpas_pool_get_array(verticalMeshPool, 'restingThickness', restingThickness)
@@ -400,6 +403,13 @@ contains
 
         ! Set maxLevelCell
         maxLevelCell(iCell) = nVertLevels
+
+        ! Set lesCell
+        if ( iCell == 1 ) then
+           lesCell(iCell) = 1.0_RKIND
+        else
+           lesCell(iCell) = 0.0_RKIND
+        end if
 
      end do  ! do iCell
 

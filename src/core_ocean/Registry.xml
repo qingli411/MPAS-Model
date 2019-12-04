@@ -540,7 +540,7 @@
 		<nml_option name="config_les_disturb_nblocks" type="integer" default_value="1" units="NA"
 			                description="number of blocks for initial disturbance"
 					possible_values="integers >= 1"
-		/>			
+		/>
 	  <nml_option name="config_les_bottom" type="real" default_value="-64.0" units="m"
 					description="bottom of LES domain in m, will be clipped if deeper than bottomDepth"
 					possible_values="negative real numbers"
@@ -565,7 +565,7 @@
           description="strength of restoring of LES to MPAS results"
           possible_values="real values b/w zero and one"
     />
-	</nml_record>	
+	</nml_record>
 	<nml_record name="cvmix" mode="forward">
 		<nml_option name="config_use_cvmix" type="logical" default_value=".false." units="NA"
 					description="If true, use the Community Vertical MIXing routines to compute vertical diffusivity and viscosity"
@@ -1524,6 +1524,7 @@
 			<var name="vertCoordMovementWeights"/>
 			<var name="edgeMask"/>
 			<var name="cullCell"/>
+			<var name="lesCell"/>
 			<var name="effectiveDensityInLandIce"/>
 			<var_struct name="ecosysAuxiliary"/>
 			<var name="landIceMask"/>
@@ -1614,6 +1615,7 @@
 			<var name="fCell"/>
 			<var name="bottomDepth"/>
 			<var name="maxLevelCell"/>
+			<var name="lesCell"/>
 			<var name="refBottomDepth" packages="forwardMode;analysisMode"/>
 			<var name="restingThickness" packages="forwardMode;analysisMode"/>
 		</stream>
@@ -2339,6 +2341,9 @@
 		<var name="cullCell" type="integer" dimensions="nCells" units="unitless"
 			 description="Array to hold integers that represent logicals determining if a cell should be culled or not by the MpasCellCuller tool."
 			 packages="cullCells"
+		/>
+		<var name="lesCell" type="integer" dimensions="nCells" units="unitless"
+			 description="Array to hold integers that represent logicals determining if a cell should have an embedded LES."
 		/>
 	</var_struct>
 	<var_struct name="verticalMesh" time_levs="1">
