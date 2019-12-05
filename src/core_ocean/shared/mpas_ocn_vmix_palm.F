@@ -368,7 +368,7 @@ contains
                     -wt_sfc, ws_sfc, -uw_sfc, -vw_sfc,                                                                  &
                     .FALSE., -penetrativeTemperatureFlux(iCell), fac, dep1, dep2,                                       &
                     dt, config_les_nx, config_les_ny, config_les_dx, config_les_dy,                                     &
-                    etime, latVal)
+                    etime, latVal, iCell)
 
                     ! config_les_dt_disturb,
                     ! config_les_disturb_energy_limit,                &

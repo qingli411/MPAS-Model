@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ## LES Tag for build
-LES_TAG=4c65140
+LES_TAG=3684349
 ## Subdirectory in LES repo to use
 LES_SUBDIR=trunk/SOURCE
 
