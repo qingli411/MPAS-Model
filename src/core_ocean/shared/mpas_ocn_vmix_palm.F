@@ -115,6 +115,7 @@ contains
       !-----------------------------------------------------------------
 
       logical, save :: first_palm = .true.
+      integer, save :: nzMPAS
       integer, dimension(:), pointer :: maxLevelCell
       integer, dimension(:), pointer :: lesCell
 
@@ -122,7 +123,7 @@ contains
         stressX, stressY, stressZ, stressZonal, stressMeridional, fCell, &
         surfaceStress, surfaceStressMagnitude,   &
         penetrativeTemperatureFlux, angleEdge, surfaceThicknessFlux, &
-        surfaceThicknessFluxRunoff, dThreshMLD, latCell
+        surfaceThicknessFluxRunoff, dThreshMLD
 
       real (kind=RKIND), dimension(:,:), pointer :: &
         layerThickness, velocityZonal, velocityMeridional, &
@@ -138,7 +139,7 @@ contains
       integer, dimension(:,:), pointer :: cellsOnEdge
 
       integer :: k, i, iCell, timeLevel, iEdge, nCells, nEdges
-      integer :: nLevs, edgeCount, cell1, cell2, nzMPAS
+      integer :: nLevs, edgeCount, cell1, cell2
       integer, pointer :: nVertLevels, config_les_disturb_nblocks
       integer, dimension(:), pointer :: nCellsArray, nEdgesArray
 
@@ -162,11 +163,10 @@ contains
 
       integer, pointer :: config_les_nz, config_les_nx, config_les_ny
 
-      real (kind=RKIND), dimension(:), allocatable :: zonalAverage, meridionalAverage, uw_sfc, &
-                           vw_sfc, latVal, ws_sfc, wt_sfc, les_disturb_bottom, les_bottom
+      real (kind=RKIND), dimension(:), allocatable :: zonalAverage, meridionalAverage, les_disturb_bottom
 
       real (kind=RKIND) :: fac, dep1, dep2, fracAbsorbed, fracAbsorbedRunoff,  &
-                           etime
+                           etime, les_bottom, uw_sfc, vw_sfc, wt_sfc, ws_sfc, latVal
 
       err=0
 
@@ -238,7 +238,6 @@ contains
       call mpas_pool_get_array(forcingPool, "surfaceThicknessFlux", surfaceThicknessFlux)
       call mpas_pool_get_array(forcingPool, "surfaceThicknessFluxRunoff", surfaceThicknessFluxRunoff)
       call mpas_pool_get_array(meshPool, 'fCell', fCell)
-      call mpas_pool_get_array(meshPool, 'latCell', latCell)
       call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
       call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, timeLevel)
 
@@ -280,8 +279,7 @@ contains
       nCells = nCellsArray( 2 )
       nEdges = nEdgesArray( 1 )
 
-      allocate(uw_sfc(nCells), vw_sfc(nCells), ws_sfc(nCells), wt_sfc(nCells))
-      allocate(les_disturb_bottom(nCells), les_bottom(nCells), latVal(nCells))
+      allocate(les_disturb_bottom(nCells))
       !$omp do schedule(runtime)
       do iEdge=1,nEdges
          surfaceStress(iEdge) = 0.0_RKIND
@@ -327,101 +325,91 @@ contains
 
       !$omp do schedule(runtime)
       do iCell = 1, nCells
-         les_bottom(iCell) = max(zMid(maxLevelCell(iCell),iCell), config_les_bottom)
-
-         if(config_AM_mixedLayerDepths_enable) then
-            les_disturb_bottom(iCell) = -2.0_RKIND*dThreshMLD(iCell)
-            ! les_disturb_bottom(iCell) = -dThreshMLD(iCell)
-         else
-            les_disturb_bottom(iCell) = config_les_disturb_bottom
-         endif
-
-         fracAbsorbed = 1.0_RKIND - exp( max(-layerThickness(1, iCell) / config_flux_attenuation_coefficient, -100.0_RKIND) )
-         fracAbsorbedRunoff = 1.0_RKIND - exp( max(-layerThickness(1, iCell) / config_flux_attenuation_coefficient_runoff, &
+         ! only run LES where lesCell == 1
+         if ( lesCell(iCell) == 1 ) then
+            ! set surface forcing
+            fracAbsorbed = 1.0_RKIND - exp( max(-layerThickness(1, iCell) / config_flux_attenuation_coefficient, -100.0_RKIND) )
+            fracAbsorbedRunoff = 1.0_RKIND - exp( max(-layerThickness(1, iCell) / config_flux_attenuation_coefficient_runoff, &
                               -100.0_RKIND) )
 
-         wt_sfc(iCell) = tracerGroupSurfaceFlux(indexTemperature, iCell) - fracAbsorbed * surfaceThicknessFlux(iCell) * &
-                        activeTracers(indexTemperature,1,iCell) + tracerGroupSurfaceFluxRunoff(indexTemperature,iCell) * &
-                        fracAbsorbedRunoff
+            wt_sfc = tracerGroupSurfaceFlux(indexTemperature, iCell) - fracAbsorbed * surfaceThicknessFlux(iCell) * &
+                     activeTracers(indexTemperature,1,iCell) + tracerGroupSurfaceFluxRunoff(indexTemperature,iCell) * &
+                     fracAbsorbedRunoff
 
-         ws_sfc(iCell) = tracerGroupSurfaceFlux(indexSalinity, iCell) - fracAbsorbed * surfaceThicknessFlux(iCell) *  &
-                        activeTracers(indexSalinity,1,iCell)
+            ws_sfc = tracerGroupSurfaceFlux(indexSalinity, iCell) - fracAbsorbed * surfaceThicknessFlux(iCell) *  &
+                     activeTracers(indexSalinity,1,iCell)
 
-         uw_sfc(iCell) = stressZonal(iCell) / rho_sw
+            uw_sfc = stressZonal(iCell) / rho_sw
 
-         if(abs(stressMeridional(iCell)) < 1e-6_RKIND) then
-                 stressMeridional(iCell) = 0.0_RKIND
-         endif
+            vw_sfc = stressMeridional(iCell) / rho_sw
 
-         vw_sfc(iCell) = stressMeridional(iCell) / rho_sw
+            ! latitude in degree
+            latVal = ASIN(fCell(iCell) / (2.0_RKIND*7.272E-5_RKIND))*180.0_RKIND/3.14159_RKIND
 
-         latVal(iCell) = ASIN(fCell(iCell) / (2.0_RKIND*7.292E-5_RKIND))
+            ! run PALM
+            if ( first_palm ) then
 
-      enddo
-      !$omp end do
+               ! find the MPAS level that corresponds to the LES bottom
+               les_bottom = max(zMid(maxLevelCell(iCell),iCell), config_les_bottom)
+               do k = 1, maxLevelCell(iCell)
+                  if ( zMid(k,iCell) - les_bottom <= 0.0_RKIND ) then
+                     nzMPAS = k
+                     exit
+                  endif
+               enddo
 
-      nzMPAS = 30
-      write(*,*) lesCell
-      if ( first_palm ) then
-
-         do iCell = 1, nCells
-            if ( lesCell(iCell) == 1 ) then
+               ! initial step of PALM, longer initialization
                call palm_init(nzMPAS, zTop(1:nzMPAS+1,iCell), activeTracers(1,1:nzMPAS,iCell)+273.15_RKIND,             &
                     activeTracers(2,1:nzMPAS,iCell), velocityZonal(1:nzMPAS,iCell), velocityMeridional(1:nzMPAS,iCell), &
                     config_les_nz, zLES(:,iCell), temperatureLES(:,iCell), salinityLES(:,iCell),                        &
                     velocityZonalLES(:,iCell), velocityMeridionalLES(:,iCell),                                          &
                     tIncrementLES(1:nzMPAS,iCell), sIncrementLES(1:nzMPAS,iCell),                                       &
                     uIncrementLES(1:nzMPAS,iCell), vIncrementLES(1:nzMPAS,iCell),                                       &
-                    -wt_sfc(iCell), ws_sfc(iCell), -uw_sfc(iCell), -vw_sfc(iCell),                                      &
+                    -wt_sfc, ws_sfc, -uw_sfc, -vw_sfc,                                                                  &
                     .FALSE., -penetrativeTemperatureFlux(iCell), fac, dep1, dep2,                                       &
                     dt, config_les_nx, config_les_ny, config_les_dx, config_les_dy,                                     &
-                    etime, latCell(iCell))
+                    etime, latVal)
 
                     ! config_les_dt_disturb,
                     ! config_les_disturb_energy_limit,                &
                     ! config_les_disturb_amplitude, les_disturb_bottom, config_les_disturb_top,        &
                     ! config_les_disturb_nblocks, les_bottom, config_les_time_avg, constant_dz,        &
                     ! dThreshMLD, mixed_layer_refine,0.0_RKIND)
-
             else
-               tIncrementLES(:,iCell) = 0.0_RKIND
-               sIncrementLES(:,iCell) = 0.0_RKIND
-               uIncrementLES(:,iCell) = 0.0_RKIND
-               vIncrementLES(:,iCell) = 0.0_RKIND
-               temperatureLES(:,iCell) = 0.0_RKIND
-               salinityLES(:,iCell) = 0.0_RKIND
-               velocityZonalLES(:,iCell) = 0.0_RKIND
-               velocityMeridionalLES(:,iCell) = 0.0_RKIND
-               zLES(:,iCell) = 0.0_RKIND
-            endif
-         enddo
-
-      else
-
-         do iCell = 1, nCells
-            if ( lesCell(iCell) == 1 ) then
+               ! continue PALM
                call palm_main(nzMPAS, zTop(1:nzMPAS+1,iCell), activeTracers(1,1:nzMPAS,iCell)+273.15_RKIND,             &
                     activeTracers(2,1:nzMPAS,iCell), velocityZonal(1:nzMPAS,iCell), velocityMeridional(1:nzMPAS,iCell), &
                     config_les_nz, zLES(:,iCell), temperatureLES(:,iCell), salinityLES(:,iCell),                        &
                     velocityZonalLES(:,iCell), velocityMeridionalLES(:,iCell),                                          &
                     tIncrementLES(1:nzMPAS,iCell), sIncrementLES(1:nzMPAS,iCell),                                       &
                     uIncrementLES(1:nzMPAS,iCell), vIncrementLES(1:nzMPAS,iCell),                                       &
-                    -wt_sfc(iCell), ws_sfc(iCell), -uw_sfc(iCell), -vw_sfc(iCell),                                      &
+                    -wt_sfc, ws_sfc, -uw_sfc, -vw_sfc,                                                                  &
                     .FALSE., -penetrativeTemperatureFlux(iCell), dt)
-            else
-               tIncrementLES(:,iCell) = 0.0_RKIND
-               sIncrementLES(:,iCell) = 0.0_RKIND
-               uIncrementLES(:,iCell) = 0.0_RKIND
-               vIncrementLES(:,iCell) = 0.0_RKIND
-               temperatureLES(:,iCell) = 0.0_RKIND
-               salinityLES(:,iCell) = 0.0_RKIND
-               velocityZonalLES(:,iCell) = 0.0_RKIND
-               velocityMeridionalLES(:,iCell) = 0.0_RKIND
-               zLES(:,iCell) = 0.0_RKIND
             endif
-         enddo
 
-      endif
+         else
+            tIncrementLES(:,iCell) = 0.0_RKIND
+            sIncrementLES(:,iCell) = 0.0_RKIND
+            uIncrementLES(:,iCell) = 0.0_RKIND
+            vIncrementLES(:,iCell) = 0.0_RKIND
+            temperatureLES(:,iCell) = 0.0_RKIND
+            salinityLES(:,iCell) = 0.0_RKIND
+            velocityZonalLES(:,iCell) = 0.0_RKIND
+            velocityMeridionalLES(:,iCell) = 0.0_RKIND
+            zLES(:,iCell) = 0.0_RKIND
+         endif
+
+
+         ! if(config_AM_mixedLayerDepths_enable) then
+         !    les_disturb_bottom(iCell) = -2.0_RKIND*dThreshMLD(iCell)
+         !    ! les_disturb_bottom(iCell) = -dThreshMLD(iCell)
+         ! else
+         !    les_disturb_bottom(iCell) = config_les_disturb_bottom
+         ! endif
+
+
+      enddo
+      !$omp end do
 
       normalVelocityIncrementLES(:,:) = 0.0_RKIND
       !$omp do schedule(runtime)
@@ -440,8 +428,7 @@ contains
 
       if ( first_palm ) first_palm = .false.
 
-      deallocate(uw_sfc, vw_sfc, ws_sfc, wt_sfc)
-      deallocate(les_disturb_bottom, les_bottom,latVal)
+      deallocate(les_disturb_bottom)
 
       deallocate(zonalAverage)
       deallocate(meridionalAverage)
