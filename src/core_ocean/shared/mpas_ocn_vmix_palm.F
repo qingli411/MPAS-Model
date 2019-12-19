@@ -117,7 +117,7 @@ contains
       logical, save :: first_palm = .true.
       integer, save :: nzMPAS
       integer, dimension(:), pointer :: maxLevelCell
-      integer, dimension(:), pointer :: lesCell
+      integer, dimension(:), pointer :: lesCell, indexToCellID
 
       real (kind=RKIND), dimension(:), pointer :: &
         stressX, stressY, stressZ, stressZonal, stressMeridional, fCell, &
@@ -225,6 +225,7 @@ contains
       call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
       call mpas_pool_get_array(meshPool, 'angleEdge', angleEdge)
       call mpas_pool_get_array(meshPool, 'lesCell', lesCell)
+      call mpas_pool_get_array(meshPool, 'indexToCellID', indexToCellID)
 
       call mpas_pool_get_subpool(forcingPool, 'tracersSurfaceFlux', tracersSurfaceFluxPool)
       call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
@@ -276,7 +277,7 @@ contains
 
       allocate(zonalAverage(nVertLevels),meridionalAverage(nVertLevels))
 
-      nCells = nCellsArray( 2 )
+      nCells = nCellsArray( 1 )
       nEdges = nEdgesArray( 1 )
 
       allocate(les_disturb_bottom(nCells))
@@ -325,7 +326,6 @@ contains
 
       !$omp do schedule(runtime)
       do iCell = 1, nCells
-         write(*,*) iCell, lesCell(iCell)
          ! only run LES where lesCell == 1
          if ( lesCell(iCell) == 1 ) then
             ! set surface forcing
@@ -369,7 +369,7 @@ contains
                     -wt_sfc, ws_sfc, -uw_sfc, -vw_sfc,                                                                  &
                     .FALSE., -penetrativeTemperatureFlux(iCell), fac, dep1, dep2,                                       &
                     dt, config_les_nx, config_les_ny, config_les_dx, config_les_dy,                                     &
-                    etime, latVal, iCell)
+                    etime, latVal, indexToCellID(iCell))
 
                     ! config_les_dt_disturb,
                     ! config_les_disturb_energy_limit,                &

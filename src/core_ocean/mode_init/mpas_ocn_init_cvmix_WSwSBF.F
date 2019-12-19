@@ -405,7 +405,7 @@ contains
         maxLevelCell(iCell) = nVertLevels
 
         ! Set lesCell
-        if ( iCell == 2 ) then
+        if ( iCell == 2 .or. iCell == 11 ) then
            lesCell(iCell) = 1
         else
            lesCell(iCell) = 0
