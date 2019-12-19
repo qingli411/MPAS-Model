@@ -325,6 +325,7 @@ contains
 
       !$omp do schedule(runtime)
       do iCell = 1, nCells
+         write(*,*) iCell, lesCell(iCell)
          ! only run LES where lesCell == 1
          if ( lesCell(iCell) == 1 ) then
             ! set surface forcing
@@ -412,7 +413,7 @@ contains
       !$omp end do
 
       normalVelocityIncrementLES(:,:) = 0.0_RKIND
-      !$omp do schedule(runtime)
+      !$omp do schedule(runtime) private(cell1, cell2)
       do iEdge = 1, nEdges
          cell1 = cellsOnEdge(1, iEdge)
          cell2 = cellsOnEdge(2, iEdge)

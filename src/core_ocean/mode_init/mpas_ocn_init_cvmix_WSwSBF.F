@@ -405,10 +405,10 @@ contains
         maxLevelCell(iCell) = nVertLevels
 
         ! Set lesCell
-        if ( iCell == 1 ) then
-           lesCell(iCell) = 1.0_RKIND
+        if ( iCell == 2 ) then
+           lesCell(iCell) = 1
         else
-           lesCell(iCell) = 0.0_RKIND
+           lesCell(iCell) = 0
         end if
 
      end do  ! do iCell
