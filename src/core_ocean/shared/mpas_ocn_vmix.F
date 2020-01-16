@@ -497,9 +497,11 @@ contains
       real (kind=RKIND), dimension(:,:,:), allocatable :: nonLocalFluxTend
       real (kind=RKIND), dimension(:,:,:), pointer :: activeTracerVertMixTendency
       integer, dimension(:), pointer :: maxLevelCell, maxLevelEdgeTop
+      integer, dimension(:), pointer :: lesCell
       integer, dimension(:,:), pointer :: cellsOnEdge
       logical, pointer :: config_use_cvmix,config_compute_active_tracer_budgets
       logical, pointer :: config_cvmix_kpp_nonlocal_with_implicit_mix
+      logical, pointer :: config_use_les_for_vmix
 
       type (mpas_pool_iterator_type) :: groupItr
 
@@ -518,6 +520,7 @@ contains
       end if
 
       call mpas_pool_get_subpool(forcingPool, 'tracersSurfaceFlux', tracersSurfaceFluxPool)
+      call mpas_pool_get_config(ocnConfigs, 'config_use_les_for_vmix', config_use_les_for_vmix)
       call mpas_pool_get_config(ocnConfigs, 'config_use_cvmix', config_use_cvmix)
       call mpas_pool_get_config(ocnConfigs, 'config_cvmix_kpp_nonlocal_with_implicit_mix', &
                                 config_cvmix_kpp_nonlocal_with_implicit_mix)
@@ -548,6 +551,20 @@ contains
 
       nCells = nCellsArray(1)
       call mpas_pool_get_array(diagnosticsPool, 'vertNonLocalFlux', vertNonLocalFlux)
+
+      ! if using LES for vmix, need to update the turbulent viscosity and diffusivity, as well as
+      ! the non-local flux to exclude cells that use LES
+      if ( config_use_les_for_vmix ) then
+         call mpas_pool_get_dimension(meshPool, 'lesCell', lesCell)
+         do iCell=1,nCells
+            if ( lesCell(iCell) == 1 ) then
+               vertDiffTopOfCell(:,iCell) = 0.0_RKIND
+               vertViscTopOfCell(:,iCell) = 0.0_RKIND
+               vertNonLocalFlux(:,:,iCell) = 0.0_RKIND
+            end if
+         end do
+      end if
+
       ! if using CVMix, then viscosity has to be averaged from cell centers to cell edges
       if ( config_use_cvmix ) then
 

@@ -131,7 +131,6 @@ module ocn_forward_mode
       type (MPAS_TimeInterval_type) :: alarmTimeStep
 
       logical, pointer :: config_do_restart, config_read_nearest_restart, config_filter_btr_mode, config_conduct_tests
-      logical, pointer :: config_use_les_for_vmix
       character (len=StrKIND), pointer :: config_vert_coord_movement, config_pressure_gradient_type
       character (len=StrKIND), pointer :: config_surface_salinity_monthly_restoring_compute_interval
 
@@ -149,7 +148,6 @@ module ocn_forward_mode
       ! Setup ocean config pool
       call ocn_constants_init(domain % configs, domain % packages)
 
-      call mpas_pool_get_config(domain % configs, 'config_use_les_for_vmix', config_use_les_for_vmix)
       call mpas_pool_get_config(domain % configs, 'config_do_restart', config_do_restart)
       call mpas_pool_get_config(domain % configs, 'config_read_nearest_restart', config_read_nearest_restart)
       call mpas_pool_get_config(domain % configs, 'config_vert_coord_movement', config_vert_coord_movement)
@@ -352,11 +350,6 @@ module ocn_forward_mode
          call mpas_set_time(simulationStartTime_timeType, dateTimeString=simulationStartTime)
          call mpas_get_timeInterval(xtime_timeType - simulationStartTime_timeType,dt=daysSinceStartOfSim)
          daysSinceStartOfSim = daysSinceStartOfSim*days_per_second
-! init LES
-!         if (config_use_les_for_vmix) then
-!            call ocn_vmix_LES_interface(meshPool, statePool, forcingPool, &
-!                                        diagnosticsPool, dt, err_tmp, 2, .true.)
-!         endif
          block => block % next
       end do
 
@@ -735,8 +728,10 @@ module ocn_forward_mode
 
       integer :: ierr
 
+      logical, pointer :: config_run_les
       logical, pointer :: config_use_les_for_vmix
 
+      call mpas_pool_get_config(domain % configs, 'config_run_les', config_run_les)
       call mpas_pool_get_config(domain % configs, 'config_use_les_for_vmix', config_use_les_for_vmix)
       call mpas_dmpar_exch_group_destroy_reusable_buffers(domain, 'subcycleFields')
 
@@ -746,7 +741,7 @@ module ocn_forward_mode
 
       call mpas_decomp_destroy_decomp_list(domain % decompositions)
 
-      if (config_use_les_for_vmix) call palm_finalize()
+      if (config_run_les .or. config_use_les_for_vmix) call palm_finalize()
 
    end function ocn_forward_mode_finalize!}}}
 

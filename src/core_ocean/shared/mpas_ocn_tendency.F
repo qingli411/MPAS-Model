@@ -319,10 +319,10 @@ contains
       !
       ! velocity tendency: nonlinear Coriolis term and grad of kinetic energy
       !
-      if (.not. config_use_les_for_vmix) then
-        call ocn_vel_hadv_coriolis_tend(meshPool, normalizedRelativeVorticityEdge, normalizedPlanetaryVorticityEdge, layerThicknessEdge, &
-         normalVelocity, kineticEnergyCell, tend_normalVelocity, err)
-      endif
+      ! TODO: need to modify the Coriolis term to avoid double counting in LES, note that LES is running only on selected cells and
+      ! near the surface <20200116, Qing Li> !
+      call ocn_vel_hadv_coriolis_tend(meshPool, normalizedRelativeVorticityEdge, normalizedPlanetaryVorticityEdge, layerThicknessEdge, &
+           normalVelocity, kineticEnergyCell, tend_normalVelocity, err)
       !
       ! velocity tendency: vertical advection term -w du/dz
       !
@@ -353,8 +353,8 @@ contains
          tend_normalVelocity, err)
 
 
-      if (.not. config_use_les_for_vmix) then
-         !If LES option is enabled, surface forcing is computed with LES
+      ! TODO: need to modify the surface forcing to avoid double counting in LES <20200116, Qing Li> !
+      !If LES option is enabled, surface forcing is computed with LES
 
       !
       ! velocity tendency: zero if drying
@@ -364,31 +364,30 @@ contains
          tend_normalVelocity(:, iEdge) = tend_normalVelocity(:, iEdge) * (1.0_RKIND - wettingVelocity(:, iEdge))
       end do
       !$omp end do
-         !$omp do schedule(runtime)
-         do iEdge = 1, nEdges
-            surfaceStress(iEdge) = 0.0_RKIND
-         end do
-         !$omp end do
+      !$omp do schedule(runtime)
+      do iEdge = 1, nEdges
+         surfaceStress(iEdge) = 0.0_RKIND
+      end do
+      !$omp end do
 
-         !$omp do schedule(runtime)
-         do iCell = 1, nCells
-            surfaceStressMagnitude(iCell) = 0.0_RKIND
-         end do
-         !$omp end do
+      !$omp do schedule(runtime)
+      do iCell = 1, nCells
+         surfaceStressMagnitude(iCell) = 0.0_RKIND
+      end do
+      !$omp end do
 
-         ! Build bulk forcing suface stress
-         call ocn_surface_bulk_forcing_vel(meshPool, forcingPool, surfaceStress, surfaceStressMagnitude, err)
+      ! Build bulk forcing suface stress
+      call ocn_surface_bulk_forcing_vel(meshPool, forcingPool, surfaceStress, surfaceStressMagnitude, err)
 
-         ! Add top drag to suface stress
-         call ocn_surface_land_ice_fluxes_vel(meshPool, diagnosticsPool, surfaceStress, surfaceStressMagnitude, err)
+      ! Add top drag to suface stress
+      call ocn_surface_land_ice_fluxes_vel(meshPool, diagnosticsPool, surfaceStress, surfaceStressMagnitude, err)
 
-         !
-         ! velocity tendency: forcing and bottom_drag
-         !
-         call ocn_vel_forcing_tend(meshPool, normalVelocity, surfaceFluxAttenuationCoefficient, &
-                 surfaceStress, kineticEnergyCell, layerThicknessEdge, &
-                                   tend_normalVelocity, err)
-      end if
+      !
+      ! velocity tendency: forcing and bottom_drag
+      !
+      call ocn_vel_forcing_tend(meshPool, normalVelocity, surfaceFluxAttenuationCoefficient, &
+              surfaceStress, kineticEnergyCell, layerThicknessEdge, &
+                                tend_normalVelocity, err)
 
       !
       ! velocity tendency: vertical mixing d/dz( nu_v du/dz))
@@ -870,11 +869,10 @@ contains
                   endif
                endif
 
-               if (.not. config_use_les_for_vmix) then
-                  call ocn_tracer_surface_flux_tend(meshPool, fractionAbsorbed, fractionAbsorbedRunoff, layerThickness, &
+               ! TODO: need to modify the surface tracer flux to avoid double counting in LES <20200116, Qing Li> !
+               call ocn_tracer_surface_flux_tend(meshPool, fractionAbsorbed, fractionAbsorbedRunoff, layerThickness, &
                                                  tracerGroupSurfaceFlux, tracerGroupSurfaceFluxRunoff,  &
                                                  tracerGroupTend, err)
-               endif
 
                !
                ! Performing shortwave absorption

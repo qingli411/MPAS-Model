@@ -106,7 +106,7 @@ module ocn_time_integration_split
       type (mpas_pool_type), pointer :: tracersTendPool
       type (mpas_pool_type), pointer :: forcingPool
       type (mpas_pool_type), pointer :: scratchPool
-      type (mpas_pool_type), pointer :: swForcingPool  
+      type (mpas_pool_type), pointer :: swForcingPool
       type (mpas_pool_type), pointer :: mixedLayerDepthsAMPool
 
       type (dm_info) :: dminfo
@@ -124,7 +124,7 @@ module ocn_time_integration_split
       real (kind=RKIND), dimension(:), allocatable:: uTemp
       real (kind=RKIND), dimension(:), pointer :: btrvel_temp
       type (field1DReal), pointer :: btrvel_tempField
-      logical :: activeTracersOnly ! if true only compute tendencies for active tracers  
+      logical :: activeTracersOnly ! if true only compute tendencies for active tracers
       integer :: tsIter
       integer :: edgeHaloComputeCounter, cellHaloComputeCounter
       integer :: neededHalos
@@ -134,8 +134,8 @@ module ocn_time_integration_split
       integer, pointer :: config_n_bcl_iter_mid, config_n_bcl_iter_beg, config_n_bcl_iter_end
       integer, pointer :: config_n_ts_iter, config_btr_subcycle_loop_factor
       integer, pointer :: config_n_btr_cor_iter, config_num_halos
-      logical, pointer :: config_use_standardGM, config_use_les_for_vmix
-
+      logical, pointer :: config_use_standardGM
+      logical, pointer :: config_run_les, config_use_les_for_vmix
       logical, pointer :: config_use_freq_filtered_thickness, config_btr_solve_SSH2, config_filter_btr_mode
       logical, pointer :: config_vel_correction, config_prescribe_velocity, config_prescribe_thickness
       logical, pointer :: config_disable_thick_all_tend
@@ -259,6 +259,7 @@ module ocn_time_integration_split
 
       call mpas_pool_get_config(domain % configs, 'config_num_halos', config_num_halos)
 
+      call mpas_pool_get_config(domain % configs, 'config_run_les', config_run_les)
       call mpas_pool_get_config(domain % configs, 'config_use_les_for_vmix', config_use_les_for_vmix)
       call mpas_pool_get_config(domain % configs, 'config_compute_active_tracer_budgets', config_compute_active_tracer_budgets)
       allocate(n_bcl_iter(config_n_ts_iter))
@@ -392,9 +393,10 @@ module ocn_time_integration_split
       n_bcl_iter(1) = config_n_bcl_iter_beg
       n_bcl_iter(config_n_ts_iter) = config_n_bcl_iter_end
 
-      if (config_use_les_for_vmix) then
+      ! run LES
+      if (config_run_les .or. config_use_les_for_vmix) then
           call mpas_pool_get_subpool(domain % blocklist % structs,       &
-              'mixedLayerDepthsAM', mixedLayerDepthsAMPool)    
+              'mixedLayerDepthsAM', mixedLayerDepthsAMPool)
           call ocn_vmix_LES_interface(meshPool, statePool, forcingPool,  &
                                         diagnosticsPool, mixedLayerDepthsAMPool, dt, err, 2)
       endif
@@ -1795,9 +1797,13 @@ module ocn_time_integration_split
         if (config_use_standardGM) then
            call ocn_gm_compute_Bolus_velocity(diagnosticsPool, meshPool, scratchPool)
         end if
-        if ( .not. config_use_les_for_vmix) then
-           call ocn_vmix_implicit(dt, meshPool, diagnosticsPool, statePool, forcingPool, scratchPool, err, 2)
-        else
+        ! Vertical mixing
+        call ocn_vmix_implicit(dt, meshPool, diagnosticsPool, statePool, forcingPool, scratchPool, err, 2)
+        ! Apply tendency terms from LES if using the LES for vmix
+        ! Double counting is avoided by using the LES mask lesCell. Since the normal velocity is on edges,
+        ! when running LES only on selected cells whose neighbor cell is not running LES, the velocity tendency
+        ! is the average of the tendency from LES and that from the turbuelnt viscosity.
+        if (config_use_les_for_vmix) then
            call ocn_vmix_LES_apply_tend(dt, meshPool, statePool, forcingPool, diagnosticsPool, 2)
         end if
 

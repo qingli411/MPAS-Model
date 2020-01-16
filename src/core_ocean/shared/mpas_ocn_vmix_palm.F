@@ -145,13 +145,13 @@ contains
 
       character(len=strKind), pointer :: config_dt
 
-      logical, pointer :: config_use_les_for_vmix, config_use_ecosysTracers,    &
+      logical, pointer :: config_use_ecosysTracers,                             &
                           config_use_activeTracers_surface_bulk_forcing,        &
                           config_AM_mixedLayerDepths_enable,                    &
                           constant_dz, mixed_layer_refine
 
       real (kind=RKIND), pointer :: config_les_dz, config_les_dx, config_les_dy,               &
-                                    config_les_dt_data_output,   &
+                                    config_les_dt_data_output,                                 &
                                     config_les_dt_disturb, config_les_dt_data_output_av,       &
                                     config_les_dt_dopr, config_les_end_time,                   &
                                     config_les_dt_dots, config_flux_attenuation_coefficient,   &
@@ -177,12 +177,9 @@ contains
       end if
 
       call mpas_pool_get_config(ocnConfigs, 'config_dt', config_dt)
-      call mpas_pool_get_config(ocnConfigs, 'config_use_les_for_vmix', config_use_les_for_vmix)
       call mpas_pool_get_config(ocnConfigs, 'config_use_ecosysTracers', config_use_ecosysTracers)
       call mpas_pool_get_config(ocnConfigs, 'config_use_activeTracers_surface_bulk_forcing', config_use_activeTracers_surface_bulk_forcing)
       call mpas_pool_get_config(ocnConfigs, 'config_AM_mixedLayerDepths_enable', config_AM_mixedLayerDepths_enable)
-
-      if ( .not. config_use_les_for_vmix ) return
 
       if (config_use_ecosysTracers) then
          call mpas_log_write('Error, superparameterization is not configured for use with BGC',MPAS_LOG_CRIT)
@@ -412,6 +409,7 @@ contains
       enddo
       !$omp end do
 
+      ! TODO: if LES is running on sellected cells, how to update the velocity tendencies which are on edges? <20200116, Qing Li> !
       normalVelocityIncrementLES(:,:) = 0.0_RKIND
       !$omp do schedule(runtime) private(cell1, cell2)
       do iEdge = 1, nEdges
@@ -498,10 +496,8 @@ contains
 
       integer :: iCell, iEdge, k, nEdges, nCells
 
-      logical,pointer :: config_use_les_for_vmix, config_use_ecosysTracers
+      logical,pointer :: config_use_ecosysTracers
 
-      call mpas_pool_get_config(ocnConfigs, 'config_use_les_for_vmix', config_use_les_for_vmix)
-      if ( .not. config_use_les_for_vmix ) return
       call mpas_pool_get_config(ocnConfigs, 'config_use_ecosysTracers', config_use_ecosysTracers)
       if (config_use_ecosysTracers) then
          call mpas_log_write('Error, superparameterization is not configured for use with BGC',MPAS_LOG_CRIT)
