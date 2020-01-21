@@ -319,8 +319,6 @@ contains
       !
       ! velocity tendency: nonlinear Coriolis term and grad of kinetic energy
       !
-      ! TODO: need to modify the Coriolis term to avoid double counting in LES, note that LES is running only on selected cells and
-      ! near the surface <20200116, Qing Li> !
       call ocn_vel_hadv_coriolis_tend(meshPool, normalizedRelativeVorticityEdge, normalizedPlanetaryVorticityEdge, layerThicknessEdge, &
            normalVelocity, kineticEnergyCell, tend_normalVelocity, err)
       !
