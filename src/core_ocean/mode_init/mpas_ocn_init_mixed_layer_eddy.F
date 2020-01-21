@@ -81,7 +81,7 @@ contains
       type (domain_type), intent(inout) :: domain
       integer, intent(out) :: iErr
       real (kind=RKIND) :: yMin, yMax, xMin, xMax, dcEdgeMin, dcEdgeMinGlobal
-      real (kind=RKIND) :: yMinGlobal, yMaxGlobal, yMidGlobal, xMinGlobal, xMaxGlobal
+      real (kind=RKIND) :: yMinGlobal, yMaxGlobal, yMidGlobal, xMinGlobal, xMaxGlobal, xMidGlobal
       real (kind=RKIND) :: temperature, randomPerturbation
 
       type (block_type), pointer :: block_ptr
@@ -121,6 +121,7 @@ contains
 
       ! Define variable pointers
       integer, dimension(:), pointer :: maxLevelCell
+      integer, dimension(:), pointer :: lesCell
       real (kind=RKIND), dimension(:), pointer :: xCell, yCell,refBottomDepth, refZMid, &
                                                   vertCoordMovementWeights, bottomDepth, &
                                                   fCell, fEdge, fVertex, dcEdge
@@ -215,6 +216,7 @@ contains
       call mpas_dmpar_max_real(domain % dminfo, xMax, xMaxGlobal)
       call mpas_dmpar_min_real(domain % dminfo, dcEdgeMin, dcEdgeMinGlobal)
 
+      xMidGlobal = (xMinGlobal + xMaxGlobal) * 0.5_RKIND
       yMidGlobal = (yMinGlobal + yMaxGlobal) * 0.5_RKIND
 
       block_ptr => domain % blocklist
@@ -241,6 +243,8 @@ contains
         call mpas_pool_get_array(meshPool, 'fCell', fCell)
         call mpas_pool_get_array(meshPool, 'fEdge', fEdge)
         call mpas_pool_get_array(meshPool, 'fVertex', fVertex)
+
+        call mpas_pool_get_array(meshPool, 'lesCell', lesCell)
 
         call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, 1)
         call mpas_pool_get_array(tracersPool, 'debugTracers', debugTracers, 1)
@@ -345,12 +349,22 @@ contains
 
            ! Set maxLevelCell
            maxLevelCell(iCell) = nVertLevels
+
         end do
 
         ! Set Coriolis parameters
         fCell(:) = config_mixed_layer_eddy_coriolis_parameter
         fEdge(:) = config_mixed_layer_eddy_coriolis_parameter
         fVertex(:) = config_mixed_layer_eddy_coriolis_parameter
+
+        ! Set LES mask
+        lesCell(:) = 0
+        ! Compute target locations
+        ! x = xMidGlobal, y = yMidGlobal +- [0, 0.5, 1, 2]*front_width
+        ! Find the list of cells
+        ! do iCell = 1, nCellsSolve
+
+        ! end do
 
         block_ptr => block_ptr % next
       end do
