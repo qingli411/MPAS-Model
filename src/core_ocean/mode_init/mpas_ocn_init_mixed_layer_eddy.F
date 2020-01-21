@@ -82,7 +82,7 @@ contains
       integer, intent(out) :: iErr
       real (kind=RKIND) :: yMin, yMax, xMin, xMax, dcEdgeMin, dcEdgeMinGlobal
       real (kind=RKIND) :: yMinGlobal, yMaxGlobal, yMidGlobal, xMinGlobal, xMaxGlobal
-      real (kind=RKIND) :: temperature
+      real (kind=RKIND) :: temperature, randomPerturbation
 
       type (block_type), pointer :: block_ptr
 
@@ -107,6 +107,7 @@ contains
                                     config_mixed_layer_eddy_temperature_stratification_interior, &
                                     config_mixed_layer_eddy_temperature_horizontal_gradient, &
                                     config_mixed_layer_eddy_temperature_front_width, &
+                                    config_mixed_layer_eddy_temperature_perturbation_magnitude, &
                                     config_mixed_layer_eddy_salinity, &
                                     config_mixed_layer_eddy_coriolis_parameter,    &
                                     config_mixed_layer_eddy_wind_stress_zonal,     &
@@ -153,6 +154,8 @@ contains
                                 config_mixed_layer_eddy_temperature_horizontal_gradient)
       call mpas_pool_get_config(ocnConfigs, 'config_mixed_layer_eddy_temperature_front_width', &
                                 config_mixed_layer_eddy_temperature_front_width)
+      call mpas_pool_get_config(ocnConfigs, 'config_mixed_layer_eddy_temperature_perturbation_magnitude', &
+                                config_mixed_layer_eddy_temperature_perturbation_magnitude)
       call mpas_pool_get_config(ocnConfigs, 'config_mixed_layer_eddy_salinity', config_mixed_layer_eddy_salinity)
       call mpas_pool_get_config(ocnConfigs, 'config_mixed_layer_eddy_coriolis_parameter', &
                                 config_mixed_layer_eddy_coriolis_parameter)
@@ -271,7 +274,12 @@ contains
         ! Set vertCoordMovementWeights
         vertCoordMovementWeights(:) = 1.0_RKIND
 
+        ! Initialize random number generator
+        call random_seed()
+
+        ! Loop over cells
         do iCell = 1, nCellsSolve
+           ! Set surface forcing
            sensibleHeatFlux(iCell) = config_mixed_layer_eddy_heat_flux
            evaporationFlux(iCell) = config_mixed_layer_eddy_evaporation_flux
            windStressZonal(iCell) = config_mixed_layer_eddy_wind_stress_zonal
@@ -308,6 +316,15 @@ contains
                                      config_mixed_layer_eddy_temperature_front_width )
                  activeTracers(idx, k, iCell) = temperature
               end do
+
+              ! Random perturbation [0,1)
+              call random_number(randomPerturbation)
+              ! [0,1) to [-1,1)
+              randomPerturbation = 2.0_RKIND * randomPerturbation - 1.0_RKIND
+              ! Add random perturbation, constant in z
+              activeTracers(idx, :, iCell) = activeTracers(idx, :, iCell) &
+                             + config_mixed_layer_eddy_temperature_perturbation_magnitude &
+                             * randomPerturbation
 
               ! Set salinity
               idx = index_salinity

@@ -15,7 +15,7 @@
 			description="Temperature at the base of the mixed layer."
 			possible_values="Any real number"
 		/>
-        <nml_option name="config_mixed_layer_eddy_temperature_stratification_mixed_layer" type="real" default_value="1e-3" units="deg C m^{-1}"
+        <nml_option name="config_mixed_layer_eddy_temperature_stratification_mixed_layer" type="real" default_value="1e-4" units="deg C m^{-1}"
 			description="Stratification due to temperature in the mixed layer."
 			possible_values="Any real number"
 		/>
@@ -23,12 +23,16 @@
 			description="Stratification due to temperature in the interior."
 			possible_values="Any real number"
 		/>
-        <nml_option name="config_mixed_layer_eddy_temperature_horizontal_gradient" type="real" default_value="1e-5" units="deg C m^{-1}"
+        <nml_option name="config_mixed_layer_eddy_temperature_horizontal_gradient" type="real" default_value="2e-5" units="deg C m^{-1}"
 			description="Horizontal temperature gradient in the mixed layer."
 			possible_values="Any real number"
 		/>
 		<nml_option name="config_mixed_layer_eddy_temperature_front_width" type="real" default_value="10e3" units="m"
 			description="Width of the temperature front."
+			possible_values="Any positive real number."
+		/>
+		<nml_option name="config_mixed_layer_eddy_temperature_perturbation_magnitude" type="real" default_value="1e-5" units="deg C"
+			description="Magnitude of random perturbation in temperature."
 			possible_values="Any positive real number."
 		/>
 		<nml_option name="config_mixed_layer_eddy_salinity" type="real" default_value="35.0" units="psu"
