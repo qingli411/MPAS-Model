@@ -221,17 +221,17 @@ pgi-summit-gpu:
 	"CC_SERIAL = pgcc" \
 	"CXX_SERIAL = pgc++" \
 	"FFLAGS_PROMOTION = -r8" \
-	"FFLAGS_OPT = -O3 -byteswapio -Mfree" \
+	"FFLAGS_OPT = -fpic -O3 -byteswapio -Mfree" \
 	"CFLAGS_OPT = -O3 " \
 	"CXXFLAGS_OPT = -O3 " \
 	"LDFLAGS_OPT = -O3 -acc -Minfo=accel -Mcuda" \
 	"LES_FFLAGS_OPT = -acc -ta=tesla:cc70,deepcopy -Minfo=accel -Mcuda" \
 	"LES_LDFLAGS_OPT = -acc -Minfo=accel -Mcuda" \
 	"USE_CUDA = true" \
-	"FFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -byteswapio -Mfree -Ktrap=divz,fp,inv,ovf" \
+	"FFLAGS_DEBUG = -fpic -O0 -g -Mbounds -byteswapio -Mfree -Ktrap=divz,fp,inv,ovf" \
 	"CFLAGS_DEBUG = -O0 -g" \
 	"CXXFLAGS_DEBUG = -O0 -g" \
-	"LDFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -Ktrap=divz,fp,inv,ovf" \
+	"LDFLAGS_DEBUG = -O0 -g -acc -Minfo=accel -Mcuda -Mbounds -Ktrap=divz,fp,inv,ovf" \
 	"FFLAGS_OMP = -mp" \
 	"CFLAGS_OMP = -mp" \
 	"LES_COPT = -Mpreprocess -D__netcdf -D__nopointers -D__lc -D__GPU -D__SP -D__DEBUG_PALMLIB" \

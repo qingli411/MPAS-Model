@@ -41,12 +41,15 @@ module ocn_init_mixed_layer_eddy
    !
    !--------------------------------------------------------------------
 
-   integer, parameter :: nLES = 8
+   integer, parameter :: nLES = 2
+   ! real (kind=RKIND), dimension(nLES) ::                               &
+   !    xLESFrac = (/ 0.2_RKIND, 0.2_RKIND, 0.2_RKIND, 0.5_RKIND,        &
+   !                  0.7_RKIND, 0.7_RKIND, 0.9_RKIND, 0.9_RKIND /),     &
+   !    yLESFrac = (/ 0.2_RKIND, 0.5_RKIND, 0.8_RKIND, 0.5_RKIND,        &
+   !                  0.3_RKIND, 0.7_RKIND, 0.4_RKIND, 0.6_RKIND/)
    real (kind=RKIND), dimension(nLES) ::                               &
-      xLESFrac = (/ 0.5_RKIND, 0.5_RKIND, 0.5_RKIND, 0.5_RKIND,        &
-                    0.5_RKIND, 0.5_RKIND, 0.5_RKIND, 0.7_RKIND /),     &
-      yLESFrac = (/ 0.2_RKIND, 0.3_RKIND, 0.4_RKIND, 0.5_RKIND,        &
-                    0.6_RKIND, 0.7_RKIND, 0.8_RKIND, 0.5_RKIND/)
+      xLESFrac = (/ 0.3_RKIND, 0.6_RKIND /),                           &
+      yLESFrac = (/ 0.5_RKIND, 0.3_RKIND /)
 
    !--------------------------------------------------------------------
    !
