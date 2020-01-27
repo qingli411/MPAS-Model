@@ -555,7 +555,7 @@ contains
       ! if using LES for vmix, need to update the turbulent viscosity and diffusivity, as well as
       ! the non-local flux to exclude cells that use LES
       if ( config_use_les_for_vmix ) then
-         call mpas_pool_get_dimension(meshPool, 'lesCell', lesCell)
+         call mpas_pool_get_array(meshPool, 'lesCell', lesCell)
          do iCell=1,nCells
             if ( lesCell(iCell) == 1 ) then
                vertDiffTopOfCell(:,iCell) = 0.0_RKIND
