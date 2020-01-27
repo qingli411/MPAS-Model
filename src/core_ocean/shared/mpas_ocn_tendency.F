@@ -458,7 +458,7 @@ contains
       !
       real (kind=RKIND), dimension(:), pointer :: penetrativeTemperatureFlux, penetrativeTemperatureFluxOBL
       real (kind=RKIND), dimension(:), pointer :: tracerGroupExponentialDecayRate, latCell
-      integer, dimension(:), pointer :: maxLevelCell
+      integer, dimension(:), pointer :: maxLevelCell, lesCell
 
       !
       ! two dimensional pointers
@@ -562,6 +562,7 @@ contains
       call mpas_pool_get_array(forcingPool, 'fractionAbsorbedRunoff', fractionAbsorbedRunoff)
       call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
       call mpas_pool_get_array(meshPool, 'latCell', latCell)
+      call mpas_pool_get_array(meshPool, 'lesCell', lesCell)
 
       call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
       call mpas_pool_get_dimension(meshPool, 'nEdges', nEdges)
@@ -866,6 +867,16 @@ contains
                      !$omp end do
                   endif
                endif
+
+               if (config_use_les_for_vmix) then
+                  if ( trim(groupItr % memberName) == 'activeTracers' ) then
+                     do iCell = 1, nCells
+                        if (lesCell(iCell) == 1) then
+                           tracerGroupSurfaceFlux(:,iCell) = 0.0_RKIND
+                        end if
+                     end do
+                  end if
+               end if
 
                ! TODO: need to modify the surface tracer flux to avoid double counting in LES <20200116, Qing Li> !
                call ocn_tracer_surface_flux_tend(meshPool, fractionAbsorbed, fractionAbsorbedRunoff, layerThickness, &
