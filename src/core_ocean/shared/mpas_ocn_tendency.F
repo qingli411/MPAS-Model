@@ -235,8 +235,10 @@ contains
 
       integer :: timeLevel
 
-      integer :: err, iEdge, iCell
+      integer :: err, iEdge, iCell, cell1, cell2
       integer, pointer :: indexTemperature, indexSalinity, nEdges, nCells
+      integer, dimension(:), pointer :: lesCell
+      integer, dimension(:,:), pointer :: cellsOnEdge
 
       logical, pointer :: config_disable_vel_all_tend
       logical, pointer :: config_use_wetting_drying
@@ -380,6 +382,22 @@ contains
       ! Add top drag to suface stress
       call ocn_surface_land_ice_fluxes_vel(meshPool, diagnosticsPool, surfaceStress, surfaceStressMagnitude, err)
 
+      ! When using LES for vertical mixing, wind stress is added to the velocity tendency.
+      ! If LES is only running on selected cells, half of the velocity tendency due to wind stress
+      ! is already applied to edges that connect the cell running LES and the neigboring cells that don't run LES,
+      ! so only half is needed here
+      if (config_use_les_for_vmix) then
+         call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
+         call mpas_pool_get_array(meshPool, 'lesCell', lesCell)
+         !$omp do schedule(runtime)
+         do iEdge = 1, nEdges
+            cell1 = cellsOnEdge(1,iEdge)
+            cell2 = cellsOnEdge(2,iEdge)
+            surfaceStress(iEdge) = ( 1.0_RKIND - 0.5_RKIND * ( REAL(lesCell(cell1), RKIND) + REAL(lesCell(cell2), RKIND) ) ) &
+                                 * surfaceStress(iEdge)
+         end do
+         !$omp end do
+      end if
       !
       ! velocity tendency: forcing and bottom_drag
       !
@@ -868,17 +886,18 @@ contains
                   endif
                endif
 
-               if (config_use_les_for_vmix) then
-                  if ( trim(groupItr % memberName) == 'activeTracers' ) then
+               ! set surface fluxes of temperature and salinity to zero at cells that run LES
+               if ( trim(groupItr % memberName) == 'activeTracers' ) then
+                  if (config_use_les_for_vmix) then
                      do iCell = 1, nCells
                         if (lesCell(iCell) == 1) then
                            tracerGroupSurfaceFlux(:,iCell) = 0.0_RKIND
+                           tracerGroupSurfaceFluxRunoff(:,iCell) = 0.0_RKIND
                         end if
                      end do
                   end if
                end if
 
-               ! TODO: need to modify the surface tracer flux to avoid double counting in LES <20200116, Qing Li> !
                call ocn_tracer_surface_flux_tend(meshPool, fractionAbsorbed, fractionAbsorbedRunoff, layerThickness, &
                                                  tracerGroupSurfaceFlux, tracerGroupSurfaceFluxRunoff,  &
                                                  tracerGroupTend, err)
@@ -898,6 +917,7 @@ contains
                      !$omp end do
                   endif
 
+                  ! TODO: penetrative short wave absorption is currently off, will need speciall treatment in this subroutine if on <20200127, Qing Li> !
                   call ocn_tracer_short_wave_absorption_tend(meshPool, swForcingPool, forcingPool, indexTemperature, &
                            layerThickness, penetrativeTemperatureFlux, penetrativeTemperatureFluxOBL, tracerGroupTend, err)
 
