@@ -469,10 +469,6 @@
 		/>
 	</nml_record>
 	<nml_record name="superParameterization" mode="forward">
-		<nml_option name="config_run_les" type="logical" default_value=".false." units="NA"
-					description="If true, a large eddy simulation model will be run but not used for mixing tendencies."
-					possible_values=".true. or .false."
-		/>
 		<nml_option name="config_use_les_for_vmix" type="logical" default_value=".false." units="NA"
 					description="If true, a large eddy simulation model will be used for mixing tendencies."
 					possible_values=".true. or .false."
