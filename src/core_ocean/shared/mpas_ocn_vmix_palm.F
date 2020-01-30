@@ -359,11 +359,7 @@ contains
                ! initial step of PALM, longer initialization
                call palm_init(nzMPAS, zTop(1:nzMPAS+1,iCell), activeTracers(1,1:nzMPAS,iCell)+273.15_RKIND,             &
                     activeTracers(2,1:nzMPAS,iCell), velocityZonal(1:nzMPAS,iCell), velocityMeridional(1:nzMPAS,iCell), &
-                    config_les_nz, zLES(:,iCell), temperatureLES(:,iCell), salinityLES(:,iCell),                        &
-                    velocityZonalLES(:,iCell), velocityMeridionalLES(:,iCell),                                          &
-                    tIncrementLES(1:nzMPAS,iCell), sIncrementLES(1:nzMPAS,iCell),                                       &
-                    uIncrementLES(1:nzMPAS,iCell), vIncrementLES(1:nzMPAS,iCell),                                       &
-                    -wt_sfc, ws_sfc, -uw_sfc, -vw_sfc,                                                                  &
+                    config_les_nz, -wt_sfc, ws_sfc, -uw_sfc, -vw_sfc,                                                   &
                     .FALSE., -penetrativeTemperatureFlux(iCell), fac, dep1, dep2,                                       &
                     dt, config_les_nx, config_les_ny, config_les_dx, config_les_dy,                                     &
                     etime, latVal, indexToCellID(iCell))
@@ -373,17 +369,16 @@ contains
                     ! config_les_disturb_amplitude, les_disturb_bottom, config_les_disturb_top,        &
                     ! config_les_disturb_nblocks, les_bottom, config_les_time_avg, constant_dz,        &
                     ! dThreshMLD, mixed_layer_refine,0.0_RKIND)
-            else
-               ! continue PALM
-               call palm_main(nzMPAS, zTop(1:nzMPAS+1,iCell), activeTracers(1,1:nzMPAS,iCell)+273.15_RKIND,             &
-                    activeTracers(2,1:nzMPAS,iCell), velocityZonal(1:nzMPAS,iCell), velocityMeridional(1:nzMPAS,iCell), &
-                    config_les_nz, zLES(:,iCell), temperatureLES(:,iCell), salinityLES(:,iCell),                        &
-                    velocityZonalLES(:,iCell), velocityMeridionalLES(:,iCell),                                          &
-                    tIncrementLES(1:nzMPAS,iCell), sIncrementLES(1:nzMPAS,iCell),                                       &
-                    uIncrementLES(1:nzMPAS,iCell), vIncrementLES(1:nzMPAS,iCell),                                       &
-                    -wt_sfc, ws_sfc, -uw_sfc, -vw_sfc,                                                                  &
-                    .FALSE., -penetrativeTemperatureFlux(iCell), dt)
             endif
+            ! continue PALM
+            call palm_main(nzMPAS, zTop(1:nzMPAS+1,iCell), activeTracers(1,1:nzMPAS,iCell)+273.15_RKIND,             &
+                 activeTracers(2,1:nzMPAS,iCell), velocityZonal(1:nzMPAS,iCell), velocityMeridional(1:nzMPAS,iCell), &
+                 config_les_nz, zLES(:,iCell), temperatureLES(:,iCell), salinityLES(:,iCell),                        &
+                 velocityZonalLES(:,iCell), velocityMeridionalLES(:,iCell),                                          &
+                 tIncrementLES(1:nzMPAS,iCell), sIncrementLES(1:nzMPAS,iCell),                                       &
+                 uIncrementLES(1:nzMPAS,iCell), vIncrementLES(1:nzMPAS,iCell),                                       &
+                 -wt_sfc, ws_sfc, -uw_sfc, -vw_sfc,                                                                  &
+                 .FALSE., -penetrativeTemperatureFlux(iCell), dt)
 
          else
             tIncrementLES(:,iCell) = 0.0_RKIND

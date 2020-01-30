@@ -1121,31 +1121,6 @@ contains
 
       !DWJ: ADD OMP (Only needed for split explicit)
 
-      ! When using LES for vertical mixing, Coriolis term is added to the velocity tendency.
-      ! If LES is only running on selected cells, half of the Coriolis tendency is already applied
-      ! to edges that connect the cell running LES and the neigboring cells that don't run LES,
-      ! so only half is needed here
-      if (config_use_les_for_vmix) then
-         call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
-         call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCellsSolve)
-         call mpas_pool_get_array(meshPool, 'lesCell', lesCell)
-         call mpas_pool_get_array(meshPool, 'fCell', fCell)
-         !$omp do schedule(runtime)
-         do iCell = 1, nCellsSolve
-            if (lesCell(iCell) == 1) then
-               fCell(iCell) = 0.0_RKIND
-            end if
-         end do
-         !$omp end do
-         !$omp do schedule(runtime)
-         do iEdge = 1, nEdgesSolve
-            cell1 = cellsOnEdge(1,iEdge)
-            cell2 = cellsOnEdge(2,iEdge)
-            fEdge(iEdge) = 0.5_RKIND * ( fCell(cell1) + fCell(cell2) )
-         end do
-         !$omp end do
-      end if
-      !
       ! Put f*normalBaroclinicVelocity^{perp} in u as a work variable
       !
       !$omp do schedule(runtime) private(k, eoe)
