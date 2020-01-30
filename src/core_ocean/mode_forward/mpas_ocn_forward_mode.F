@@ -728,8 +728,10 @@ module ocn_forward_mode
 
       integer :: ierr
 
+      logical, pointer :: config_run_les
       logical, pointer :: config_use_les_tracer_vmix, config_use_les_vel_vmix
 
+      call mpas_pool_get_config(domain % configs, 'config_run_les', config_run_les)
       call mpas_pool_get_config(domain % configs, 'config_use_les_tracer_vmix', config_use_les_tracer_vmix)
       call mpas_pool_get_config(domain % configs, 'config_use_les_vel_vmix', config_use_les_vel_vmix)
       call mpas_dmpar_exch_group_destroy_reusable_buffers(domain, 'subcycleFields')
@@ -740,7 +742,7 @@ module ocn_forward_mode
 
       call mpas_decomp_destroy_decomp_list(domain % decompositions)
 
-      if (config_use_les_tracer_vmix .or. config_use_les_vel_vmix) call palm_finalize()
+      if (config_run_les .or. config_use_les_tracer_vmix .or. config_use_les_vel_vmix) call palm_finalize()
 
    end function ocn_forward_mode_finalize!}}}
 

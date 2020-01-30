@@ -135,7 +135,7 @@ module ocn_time_integration_split
       integer, pointer :: config_n_ts_iter, config_btr_subcycle_loop_factor
       integer, pointer :: config_n_btr_cor_iter, config_num_halos
       logical, pointer :: config_use_standardGM
-      logical, pointer :: config_use_les_tracer_vmix, config_use_les_vel_vmix
+      logical, pointer :: config_run_les, config_use_les_tracer_vmix, config_use_les_vel_vmix
       logical, pointer :: config_use_freq_filtered_thickness, config_btr_solve_SSH2, config_filter_btr_mode
       logical, pointer :: config_vel_correction, config_prescribe_velocity, config_prescribe_thickness
       logical, pointer :: config_disable_thick_all_tend
@@ -259,6 +259,7 @@ module ocn_time_integration_split
 
       call mpas_pool_get_config(domain % configs, 'config_num_halos', config_num_halos)
 
+      call mpas_pool_get_config(domain % configs, 'config_run_les', config_run_les)
       call mpas_pool_get_config(domain % configs, 'config_use_les_tracer_vmix', config_use_les_tracer_vmix)
       call mpas_pool_get_config(domain % configs, 'config_use_les_vel_vmix', config_use_les_vel_vmix)
       call mpas_pool_get_config(domain % configs, 'config_compute_active_tracer_budgets', config_compute_active_tracer_budgets)
@@ -394,7 +395,7 @@ module ocn_time_integration_split
       n_bcl_iter(config_n_ts_iter) = config_n_bcl_iter_end
 
       ! run LES
-      if (config_use_les_tracer_vmix .or. config_use_les_vel_vmix) then
+      if (config_run_les .or. config_use_les_tracer_vmix .or. config_use_les_vel_vmix) then
           call mpas_pool_get_subpool(domain % blocklist % structs,       &
               'mixedLayerDepthsAM', mixedLayerDepthsAMPool)
           call ocn_vmix_LES_interface(meshPool, statePool, forcingPool,  &
