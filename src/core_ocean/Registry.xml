@@ -469,8 +469,12 @@
 		/>
 	</nml_record>
 	<nml_record name="superParameterization" mode="forward">
-		<nml_option name="config_use_les_for_vmix" type="logical" default_value=".false." units="NA"
-					description="If true, a large eddy simulation model will be used for mixing tendencies."
+		<nml_option name="config_use_les_tracer_vmix" type="logical" default_value=".false." units="NA"
+					description="If true, a large eddy simulation model will be used for tracer vertical mixing tendencies."
+					possible_values=".true. or .false."
+		/>
+		<nml_option name="config_use_les_vel_vmix" type="logical" default_value=".false." units="NA"
+					description="If true, a large eddy simulation model will be used for velocity vertical mixing tendencies."
 					possible_values=".true. or .false."
 		/>
 		<nml_option name="config_les_dx" type="real" default_value="1.0" units="m"

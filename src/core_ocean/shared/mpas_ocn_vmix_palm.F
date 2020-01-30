@@ -48,7 +48,8 @@ module ocn_vmix_LES
    !--------------------------------------------------------------------
 
    public :: ocn_vmix_LES_interface, &
-             ocn_vmix_LES_apply_tend
+             ocn_vmix_LES_tracer_tend, &
+             ocn_vmix_LES_vel_tend
 
 !***********************************************************************
 
@@ -59,7 +60,7 @@ contains
 !  routine ocn_vmix_LES_interface
 !
 !> \brief   Compute mixing tendency due to LES
-!> \author  Luke Van Roekel
+!> \author  Luke Van Roekel, Qing Li
 !> \date    09 January 2019
 !> \details
 !>  This routine computes the sub grid mixing tendencies
@@ -431,17 +432,17 @@ contains
 
 !***********************************************************************
 !
-!  routine ocn_vmix_LES_apply_tend
+!  routine ocn_vmix_LES_tracer_tend
 !
-!> \brief   Updates fields due to tends from LES
-!> \author  Luke Van Roekel
+!> \brief   Updates fields due to tends from LES for tracers
+!> \author  Luke Van Roekel, Qing Li
 !> \date    09 January 2019
 !> \details
-!>  This routine updates state fields due to LES tendencies.
+!>  This routine updates tracer state fields due to LES tendencies.
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_vmix_LES_apply_tend(dt, meshPool, statePool, forcingPool, diagnosticsPool, timeLevelIn)!{{{
+   subroutine ocn_vmix_LES_tracer_tend(dt, meshPool, statePool, diagnosticsPool, timeLevelIn)!{{{
 
       !-----------------------------------------------------------------
       !
@@ -466,9 +467,6 @@ contains
       type (mpas_pool_type), intent(inout) :: &
          diagnosticsPool   !< Input/Output: diagnostic information
 
-      type (mpas_pool_type), intent(inout) :: &
-         forcingPool   !< Input/Output: forcing information
-
       type (mpas_pool_type), pointer :: tracersPool
 
       real (kind=RKIND) :: dt
@@ -479,17 +477,17 @@ contains
       !-----------------------------------------------------------------
 
       real (kind=RKIND), dimension(:,:), pointer :: &
-              normalVelocity, tIncrementLES, sIncrementLES, normalVelocityIncrementLES
+              tIncrementLES, sIncrementLES
 
       real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
 
       integer, pointer :: indexTemperature, indexSalinity
 
-      integer, dimension(:), pointer :: nCellsArray, nEdgesArray
+      integer, dimension(:), pointer :: nCellsArray
 
-      integer, dimension(:), pointer :: maxLevelCell, maxLevelEdge
+      integer, dimension(:), pointer :: maxLevelCell
 
-      integer :: iCell, iEdge, k, nEdges, nCells
+      integer :: iCell, k, nCells
 
       logical,pointer :: config_use_ecosysTracers
 
@@ -504,17 +502,12 @@ contains
       call mpas_pool_get_dimension(tracersPool, 'index_salinity', indexSalinity)
 
       call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
-      call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdge)
 
       call mpas_pool_get_array(diagnosticsPool, 'tIncrementLES', tIncrementLES)
       call mpas_pool_get_array(diagnosticsPool, 'sIncrementLES', sIncrementLES)
-      call mpas_pool_get_array(diagnosticsPool, 'normalVelocityIncrementLES', normalVelocityIncrementLES)
 
       call mpas_pool_get_dimension(meshPool, 'nCellsArray', nCellsArray)
-      call mpas_pool_get_dimension(meshPool, 'nEdgesArray', nEdgesArray)
-      call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocity, timeLevelIn)
 
-      nEdges = nEdgesArray(1)
       nCells = nCellsArray(1)
 
       !$omp do schedule(runtime)
@@ -528,6 +521,70 @@ contains
       end do
       !$omp end do
 
+   end subroutine ocn_vmix_LES_tracer_tend!}}}
+
+
+!***********************************************************************
+!
+!  routine ocn_vmix_LES_vel_tend
+!
+!> \brief   Updates fields due to tends from LES for the velocity
+!> \author  Luke Van Roekel, Qing Li
+!> \date    09 January 2019
+!> \details
+!>  This routine updates the velocity due to LES tendencies.
+!
+!-----------------------------------------------------------------------
+
+   subroutine ocn_vmix_LES_vel_tend(dt, meshPool, statePool, diagnosticsPool, timeLevelIn)!{{{
+
+      !-----------------------------------------------------------------
+      !
+      ! input variables
+      !
+      !-----------------------------------------------------------------
+
+      type (mpas_pool_type), intent(in) :: &
+         meshPool          !< Input: mesh information
+
+      integer, intent(in), optional :: timeLevelIn !< Input: time level for state pool
+
+      !-----------------------------------------------------------------
+      !
+      ! input/output variables
+      !
+      !-----------------------------------------------------------------
+
+      type (mpas_pool_type), intent(inout) :: &
+         statePool         !< Input/Output: state information
+
+      type (mpas_pool_type), intent(inout) :: &
+         diagnosticsPool   !< Input/Output: diagnostic information
+
+      real (kind=RKIND) :: dt
+      !-----------------------------------------------------------------
+      !
+      ! output variables
+      !
+      !-----------------------------------------------------------------
+
+      real (kind=RKIND), dimension(:,:), pointer :: &
+              normalVelocity, normalVelocityIncrementLES
+
+      integer, dimension(:), pointer :: nEdgesArray
+
+      integer, dimension(:), pointer :: maxLevelEdge
+
+      integer :: iEdge, k, nEdges
+
+      call mpas_pool_get_array(meshPool, 'maxLevelEdgeTop', maxLevelEdge)
+
+      call mpas_pool_get_array(diagnosticsPool, 'normalVelocityIncrementLES', normalVelocityIncrementLES)
+
+      call mpas_pool_get_dimension(meshPool, 'nEdgesArray', nEdgesArray)
+      call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocity, timeLevelIn)
+
+      nEdges = nEdgesArray(1)
 
       !$omp do schedule(runtime)
       do iEdge=1,nEdges
@@ -537,7 +594,7 @@ contains
       end do
       !$omp end do
 
-   end subroutine ocn_vmix_LES_apply_tend!}}}
+   end subroutine ocn_vmix_LES_vel_tend!}}}
 
 end module ocn_vmix_LES
 

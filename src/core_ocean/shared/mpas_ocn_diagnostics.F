@@ -1085,7 +1085,6 @@ contains
       type (mpas_pool_type), intent(in) :: meshPool !< Input: mesh information
       integer, intent(in), optional :: timeLevelIn !< Input: Input time level for state pool
 
-      logical,pointer :: config_use_les_for_vmix
       integer :: iEdge, iCell, cell1, cell2, eoe, i, j, k
       integer, pointer :: nEdgesSolve, nCellsSolve
       real (kind=RKIND), dimension(:), pointer :: fEdge, fCell
@@ -1105,7 +1104,6 @@ contains
 
       call mpas_timer_start("ocn_fuperp")
 
-      call mpas_pool_get_config(ocnConfigs, 'config_use_les_for_vmix', config_use_les_for_vmix)
       call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocity, timeLevel)
       call mpas_pool_get_array(statePool, 'normalBaroclinicVelocity', normalBaroclinicVelocity, timeLevel)
 

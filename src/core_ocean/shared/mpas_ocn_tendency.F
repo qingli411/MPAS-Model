@@ -243,7 +243,7 @@ contains
       logical, pointer :: config_disable_vel_all_tend
       logical, pointer :: config_use_wetting_drying
       logical, pointer :: config_prevent_drying
-      logical, pointer :: config_use_les_for_vmix
+      logical, pointer :: config_use_les_vel_vmix
       character (len=StrKIND), pointer :: config_pressure_gradient_type
 
       if (present(timeLevelIn)) then
@@ -256,7 +256,7 @@ contains
       call mpas_pool_get_config(ocnConfigs, 'config_pressure_gradient_type', config_pressure_gradient_type)
       call mpas_pool_get_config(ocnConfigs, 'config_use_wetting_drying', config_use_wetting_drying)
       call mpas_pool_get_config(ocnConfigs, 'config_prevent_drying', config_prevent_drying)
-      call mpas_pool_get_config(ocnConfigs, 'config_use_les_for_vmix', config_use_les_for_vmix)
+      call mpas_pool_get_config(ocnConfigs, 'config_use_les_vel_vmix', config_use_les_vel_vmix)
 
       call mpas_pool_get_dimension(meshPool, 'nEdges', nEdges)
       call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
@@ -386,7 +386,7 @@ contains
       ! If LES is only running on selected cells, half of the velocity tendency due to wind stress
       ! is already applied to edges that connect the cell running LES and the neigboring cells that don't run LES,
       ! so only half is needed here
-      if (config_use_les_for_vmix) then
+      if (config_use_les_vel_vmix) then
          call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
          call mpas_pool_get_array(meshPool, 'lesCell', lesCell)
          !$omp do schedule(runtime)
@@ -463,7 +463,7 @@ contains
 
       logical, pointer :: config_compute_active_tracer_budgets, &
                           config_cvmix_kpp_nonlocal_with_implicit_mix, &
-                          config_use_les_for_vmix
+                          config_use_les_tracer_vmix
 
      real (kind=RKIND), pointer :: salinity_restoring_constant_piston_velocity
 
@@ -555,7 +555,7 @@ contains
       !
       ! get configure options
       !
-      call mpas_pool_get_config(ocnConfigs, 'config_use_les_for_vmix', config_use_les_for_vmix)
+      call mpas_pool_get_config(ocnConfigs, 'config_use_les_tracer_vmix', config_use_les_tracer_vmix)
       call mpas_pool_get_config(ocnConfigs, 'config_cvmix_kpp_nonlocal_with_implicit_mix', &
                                 config_cvmix_kpp_nonlocal_with_implicit_mix)
       call mpas_pool_get_config(ocnConfigs, 'config_disable_tr_all_tend', config_disable_tr_all_tend)
@@ -888,7 +888,7 @@ contains
 
                ! set surface fluxes of temperature and salinity to zero at cells that run LES
                if ( trim(groupItr % memberName) == 'activeTracers' ) then
-                  if (config_use_les_for_vmix) then
+                  if (config_use_les_tracer_vmix) then
                      do iCell = 1, nCells
                         if (lesCell(iCell) == 1) then
                            tracerGroupSurfaceFlux(:,iCell) = 0.0_RKIND

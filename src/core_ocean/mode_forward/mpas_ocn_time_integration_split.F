@@ -135,7 +135,7 @@ module ocn_time_integration_split
       integer, pointer :: config_n_ts_iter, config_btr_subcycle_loop_factor
       integer, pointer :: config_n_btr_cor_iter, config_num_halos
       logical, pointer :: config_use_standardGM
-      logical, pointer :: config_use_les_for_vmix
+      logical, pointer :: config_use_les_tracer_vmix, config_use_les_vel_vmix
       logical, pointer :: config_use_freq_filtered_thickness, config_btr_solve_SSH2, config_filter_btr_mode
       logical, pointer :: config_vel_correction, config_prescribe_velocity, config_prescribe_thickness
       logical, pointer :: config_disable_thick_all_tend
@@ -259,7 +259,8 @@ module ocn_time_integration_split
 
       call mpas_pool_get_config(domain % configs, 'config_num_halos', config_num_halos)
 
-      call mpas_pool_get_config(domain % configs, 'config_use_les_for_vmix', config_use_les_for_vmix)
+      call mpas_pool_get_config(domain % configs, 'config_use_les_tracer_vmix', config_use_les_tracer_vmix)
+      call mpas_pool_get_config(domain % configs, 'config_use_les_vel_vmix', config_use_les_vel_vmix)
       call mpas_pool_get_config(domain % configs, 'config_compute_active_tracer_budgets', config_compute_active_tracer_budgets)
       allocate(n_bcl_iter(config_n_ts_iter))
 
@@ -393,7 +394,7 @@ module ocn_time_integration_split
       n_bcl_iter(config_n_ts_iter) = config_n_bcl_iter_end
 
       ! run LES
-      if (config_use_les_for_vmix) then
+      if (config_use_les_tracer_vmix .or. config_use_les_vel_vmix) then
           call mpas_pool_get_subpool(domain % blocklist % structs,       &
               'mixedLayerDepthsAM', mixedLayerDepthsAMPool)
           call ocn_vmix_LES_interface(meshPool, statePool, forcingPool,  &
@@ -1802,8 +1803,11 @@ module ocn_time_integration_split
         ! Double counting is avoided by using the LES mask lesCell. Since the normal velocity is on edges,
         ! when running LES only on selected cells whose neighbor cell is not running LES, the velocity tendency
         ! is the average of the tendency from LES and that from the turbuelnt viscosity.
-        if (config_use_les_for_vmix) then
-           call ocn_vmix_LES_apply_tend(dt, meshPool, statePool, forcingPool, diagnosticsPool, 2)
+        if (config_use_les_tracer_vmix) then
+           call ocn_vmix_LES_tracer_tend(dt, meshPool, statePool, diagnosticsPool, 2)
+        end if
+        if (config_use_les_vel_vmix) then
+           call ocn_vmix_LES_vel_tend(dt, meshPool, statePool, diagnosticsPool, 2)
         end if
 
         block => block % next
