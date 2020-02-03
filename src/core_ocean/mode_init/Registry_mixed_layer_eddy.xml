@@ -43,6 +43,10 @@
 			description="Logical flag that determines if the initial condition of the velocity should be balanced with the buoyancy gradient or not. Initial velocity is zero if this flag is set to false."
 			possible_values=".true. or .false."
 		/>
+		<nml_option name="config_mixed_layer_eddy_two_fronts" type="logical" default_value=".false." units="unitless"
+			description="Logical flag that determines if the initial fields has two fronts."
+			possible_values=".true. or .false."
+		/>
 		<nml_option name="config_mixed_layer_eddy_heat_flux" type="real" default_value="0.0" units="m ^oC s^{-1}"
 			description="Surface heat flux."
 			possible_values="Any real number."

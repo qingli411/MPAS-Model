@@ -92,6 +92,7 @@ contains
       integer, intent(out) :: iErr
       real (kind=RKIND) :: yMin, yMax, xMin, xMax, dcEdgeMin, dcEdgeMinGlobal, dist
       real (kind=RKIND) :: yMinGlobal, yMaxGlobal, yMidGlobal, xMinGlobal, xMaxGlobal, xMidGlobal
+      real (kind=RKIND) :: y1Global, y2Global
       real (kind=RKIND) :: temperature, randomPerturbation
 
       type (block_type), pointer :: block_ptr
@@ -112,7 +113,8 @@ contains
 
       ! Define config variable pointers
       character (len=StrKIND), pointer :: config_init_configuration, config_vertical_grid
-      logical, pointer :: config_mixed_layer_eddy_balanced_velocity
+      logical, pointer :: config_mixed_layer_eddy_balanced_velocity, &
+                          config_mixed_layer_eddy_two_fronts
       real (kind=RKIND), pointer :: config_mixed_layer_eddy_mixed_layer_depth, &
                                     config_mixed_layer_eddy_bottom_depth, &
                                     config_mixed_layer_eddy_base_temperature, &
@@ -156,6 +158,7 @@ contains
       call mpas_pool_get_config(ocnConfigs, 'config_vertical_grid', config_vertical_grid)
 
       call mpas_pool_get_config(ocnConfigs, 'config_mixed_layer_eddy_balanced_velocity', config_mixed_layer_eddy_balanced_velocity)
+      call mpas_pool_get_config(ocnConfigs, 'config_mixed_layer_eddy_two_fronts', config_mixed_layer_eddy_two_fronts)
       call mpas_pool_get_config(ocnConfigs, 'config_mixed_layer_eddy_mixed_layer_depth', &
                                 config_mixed_layer_eddy_mixed_layer_depth)
       call mpas_pool_get_config(ocnConfigs, 'config_mixed_layer_eddy_bottom_depth', config_mixed_layer_eddy_bottom_depth)
@@ -311,27 +314,57 @@ contains
            ! Set initial condition for temperature and salinity with an idealized front
            if ( associated(activeTracers) ) then
               ! Set temperature
-              idx = index_temperature
-              do k = nVertLevels, idx_mixed_layer_base, -1
-                 temperature = config_mixed_layer_eddy_base_temperature &
-                             + config_mixed_layer_eddy_temperature_stratification_interior &
-                             * ( refZMid(k) + config_mixed_layer_eddy_mixed_layer_depth ) &
-                             + 0.5_RKIND * config_mixed_layer_eddy_temperature_front_width &
-                             * config_mixed_layer_eddy_temperature_horizontal_gradient &
-                             * tanh( 2.0_RKIND * (yCell(iCell) - yMidGlobal) / &
-                                     config_mixed_layer_eddy_temperature_front_width )
-                 activeTracers(idx, k, iCell) = temperature
-              end do
-              do k = idx_mixed_layer_base-1, 1, -1
-                 temperature = config_mixed_layer_eddy_base_temperature &
-                             + config_mixed_layer_eddy_temperature_stratification_mixed_layer &
-                             * ( refZMid(k) + config_mixed_layer_eddy_mixed_layer_depth ) &
-                             + 0.5_RKIND * config_mixed_layer_eddy_temperature_front_width &
-                             * config_mixed_layer_eddy_temperature_horizontal_gradient &
-                             * tanh( 2.0_RKIND * (yCell(iCell) - yMidGlobal) / &
-                                     config_mixed_layer_eddy_temperature_front_width )
-                 activeTracers(idx, k, iCell) = temperature
-              end do
+              if ( config_mixed_layer_eddy_two_fronts ) then
+                 y1Global = ( yMinGlobal + yMidGlobal ) * 0.5_RKIND
+                 y2Global = ( yMaxGlobal + yMidGlobal ) * 0.5_RKIND
+                 idx = index_temperature
+                 do k = nVertLevels, idx_mixed_layer_base, -1
+                    temperature = config_mixed_layer_eddy_base_temperature &
+                                + config_mixed_layer_eddy_temperature_stratification_interior &
+                                * ( refZMid(k) + config_mixed_layer_eddy_mixed_layer_depth ) &
+                                + 0.5_RKIND * config_mixed_layer_eddy_temperature_front_width &
+                                * config_mixed_layer_eddy_temperature_horizontal_gradient &
+                                * ( tanh( 2.0_RKIND * (yCell(iCell) - y1Global) / &
+                                        config_mixed_layer_eddy_temperature_front_width ) &
+                                -   tanh( 2.0_RKIND * (yCell(iCell) - y2Global) / &
+                                        config_mixed_layer_eddy_temperature_front_width ) + 1.0_RKIND )
+                    activeTracers(idx, k, iCell) = temperature
+                 end do
+                 do k = idx_mixed_layer_base-1, 1, -1
+                    temperature = config_mixed_layer_eddy_base_temperature &
+                                + config_mixed_layer_eddy_temperature_stratification_mixed_layer &
+                                * ( refZMid(k) + config_mixed_layer_eddy_mixed_layer_depth ) &
+                                + 0.5_RKIND * config_mixed_layer_eddy_temperature_front_width &
+                                * config_mixed_layer_eddy_temperature_horizontal_gradient &
+                                * ( tanh( 2.0_RKIND * (yCell(iCell) - y1Global) / &
+                                        config_mixed_layer_eddy_temperature_front_width ) &
+                                -   tanh( 2.0_RKIND * (yCell(iCell) - y2Global) / &
+                                        config_mixed_layer_eddy_temperature_front_width ) + 1.0_RKIND )
+                    activeTracers(idx, k, iCell) = temperature
+                 end do
+              else
+                 idx = index_temperature
+                 do k = nVertLevels, idx_mixed_layer_base, -1
+                    temperature = config_mixed_layer_eddy_base_temperature &
+                                + config_mixed_layer_eddy_temperature_stratification_interior &
+                                * ( refZMid(k) + config_mixed_layer_eddy_mixed_layer_depth ) &
+                                + 0.5_RKIND * config_mixed_layer_eddy_temperature_front_width &
+                                * config_mixed_layer_eddy_temperature_horizontal_gradient &
+                                * tanh( 2.0_RKIND * (yCell(iCell) - yMidGlobal) / &
+                                        config_mixed_layer_eddy_temperature_front_width )
+                    activeTracers(idx, k, iCell) = temperature
+                 end do
+                 do k = idx_mixed_layer_base-1, 1, -1
+                    temperature = config_mixed_layer_eddy_base_temperature &
+                                + config_mixed_layer_eddy_temperature_stratification_mixed_layer &
+                                * ( refZMid(k) + config_mixed_layer_eddy_mixed_layer_depth ) &
+                                + 0.5_RKIND * config_mixed_layer_eddy_temperature_front_width &
+                                * config_mixed_layer_eddy_temperature_horizontal_gradient &
+                                * tanh( 2.0_RKIND * (yCell(iCell) - yMidGlobal) / &
+                                        config_mixed_layer_eddy_temperature_front_width )
+                    activeTracers(idx, k, iCell) = temperature
+                 end do
+              end if
 
               ! Random perturbation [0,1)
               call random_number(randomPerturbation)
