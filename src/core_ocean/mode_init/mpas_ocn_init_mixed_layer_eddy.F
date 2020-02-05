@@ -41,16 +41,6 @@ module ocn_init_mixed_layer_eddy
    !
    !--------------------------------------------------------------------
 
-   integer, parameter :: nLES = 2
-   ! real (kind=RKIND), dimension(nLES) ::                               &
-   !    xLESFrac = (/ 0.2_RKIND, 0.2_RKIND, 0.2_RKIND, 0.5_RKIND,        &
-   !                  0.7_RKIND, 0.7_RKIND, 0.9_RKIND, 0.9_RKIND /),     &
-   !    yLESFrac = (/ 0.2_RKIND, 0.5_RKIND, 0.8_RKIND, 0.5_RKIND,        &
-   !                  0.3_RKIND, 0.7_RKIND, 0.4_RKIND, 0.6_RKIND/)
-   real (kind=RKIND), dimension(nLES) ::                               &
-      xLESFrac = (/ 0.3_RKIND, 0.6_RKIND /),                           &
-      yLESFrac = (/ 0.5_RKIND, 0.3_RKIND /)
-
    !--------------------------------------------------------------------
    !
    ! Public member functions
@@ -79,7 +69,7 @@ contains
 !> \date    01/17/2020
 !> \details
 !>  This routine sets up the initial conditions for the mixed layer eddy test case.
-!>  based on Fox-Kemper et al., 2008
+!>  It sets up initial fields with one or two fronts.
 !>  It should also ensure the mesh that was input is valid for the configuration.
 !
 !-----------------------------------------------------------------------
@@ -90,7 +80,7 @@ contains
 
       type (domain_type), intent(inout) :: domain
       integer, intent(out) :: iErr
-      real (kind=RKIND) :: yMin, yMax, xMin, xMax, dcEdgeMin, dcEdgeMinGlobal, dist
+      real (kind=RKIND) :: yMin, yMax, xMin, xMax, dcEdgeMin, dcEdgeMinGlobal
       real (kind=RKIND) :: yMinGlobal, yMaxGlobal, yMidGlobal, xMinGlobal, xMaxGlobal, xMidGlobal
       real (kind=RKIND) :: y1Global, y2Global
       real (kind=RKIND) :: temperature, randomPerturbation
@@ -104,9 +94,6 @@ contains
       type (mpas_pool_type), pointer :: forcingPool
 
       integer :: iCell, j, k, idx, idx_mixed_layer_base
-
-      integer, dimension(:), pointer :: idxLES
-      real (kind=RKIND), dimension(:), pointer :: xLES, yLES
 
       real (kind=RKIND), dimension(:), pointer :: windStressZonal, windStressMeridional,  &
                                     sensibleHeatFlux, evaporationFlux
@@ -136,8 +123,6 @@ contains
 
       ! Define variable pointers
       integer, dimension(:), pointer :: maxLevelCell
-      integer, dimension(:), pointer :: lesCell
-      integer, dimension(:,:), pointer :: edgesOnCell
       real (kind=RKIND), dimension(:), pointer :: xCell, yCell,refBottomDepth, refZMid, &
                                                   vertCoordMovementWeights, bottomDepth, &
                                                   fCell, fEdge, fVertex, dcEdge
@@ -268,7 +253,6 @@ contains
         call mpas_pool_get_array(forcingPool, 'evaporationFlux', evaporationFlux)
         call mpas_pool_get_array(forcingPool, 'windStressZonal', windStressZonal, 1)
         call mpas_pool_get_array(forcingPool, 'windStressMeridional', windStressMeridional, 1)
-
 
         call mpas_pool_get_array(verticalMeshPool, 'refZMid', refZMid)
         call mpas_pool_get_array(verticalMeshPool, 'restingThickness', restingThickness)
@@ -405,51 +389,6 @@ contains
         block_ptr => block_ptr % next
       end do
 
-      ! Locations of the LES cells
-      allocate(xLES(nLES), yLES(nLES), idxLES(nLES))
-      idxLES(:) = -1
-      do j = 1, nLES
-         xLES(j) = xMinGlobal + xLESFrac(j) * (xMaxGlobal - xMinGlobal)
-         yLES(j) = yMinGlobal + yLESFrac(j) * (yMaxGlobal - yMinGlobal)
-      end do
-
-      ! Set LES mask
-      block_ptr => domain % blocklist
-      do while(associated(block_ptr))
-
-        call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
-        call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCellsSolve)
-        call mpas_pool_get_array(meshPool, 'lesCell', lesCell)
-        call mpas_pool_get_array(meshPool, 'xCell', xCell)
-        call mpas_pool_get_array(meshPool, 'yCell', yCell)
-        call mpas_pool_get_array(meshPool, 'dcEdge', dcEdge)
-        call mpas_pool_get_array(meshPool, 'edgesOnCell', edgesOnCell)
-
-        lesCell(:) = 0
-        ! Find the cells that are close to the desired locations of LES cells
-        ! Note that this algorithm does not find the nearest neighbor, but the first
-        ! cell that is close enough to the desired location
-        do j = 1, nLES
-           do iCell = 1, nCellsSolve
-              dist = sqrt( ( xCell(iCell) - xLES(j) )**2 + ( yCell(iCell) - yLES(j) )**2 )
-              dcEdgeMin = minval(dcEdge(edgesOnCell(:, iCell)))
-              if ( dist < dcEdgeMin ) then
-                 idxLES(j) = iCell
-                 exit
-              end if
-           end do
-        end do
-        do j = 1, nLES
-           if ( idxLES(j) /= -1 ) then
-              lesCell(idxLES(j)) = 1
-              write(*,*) 'lesCell ID: ', j, idxLES(j)
-           end if
-        end do
-
-        block_ptr => block_ptr % next
-      end do
-
-      deallocate(xLES, yLES, idxLES)
       deallocate(interfaceLocations)
 
    !--------------------------------------------------------------------
