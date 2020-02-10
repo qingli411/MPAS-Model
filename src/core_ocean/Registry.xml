@@ -505,6 +505,10 @@
 					description="number of gridpoints in vertical for LES"
 					possible_values="positive integers"
 		/>
+		<nml_option name="config_les_ls_factor" type="real" default_value="1.0" units="NA"
+					description="factor applied in the large scale forcing term in LES"
+					possible_values="positive real numbers"
+		/>
 		<nml_option name="config_les_dt_data_output" type="real" default_value="99999999.0" units="s"
 					description="time interval in seconds for output of LES 3-D data volumes, reserved for debugging only"
 					possible_values="positive real numbers"
