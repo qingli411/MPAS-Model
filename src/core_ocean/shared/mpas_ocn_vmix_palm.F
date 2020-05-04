@@ -362,10 +362,10 @@ contains
                ! initial step of PALM, longer initialization
                call palm_init(nzMPAS, zTop(1:nzMPAS+1,iCell), activeTracers(1,1:nzMPAS,iCell)+273.15_RKIND,             &
                     activeTracers(2,1:nzMPAS,iCell), velocityZonal(1:nzMPAS,iCell), velocityMeridional(1:nzMPAS,iCell), &
-                    config_les_nz, -wt_sfc, ws_sfc, -uw_sfc, -vw_sfc,                                                   &
+                    config_les_nz, config_les_nx, config_les_ny, config_les_dx, config_les_dy,                          &
+                     -wt_sfc, ws_sfc, -uw_sfc, -vw_sfc,                                                                 &
                     .FALSE., -penetrativeTemperatureFlux(iCell), fac, dep1, dep2,                                       &
-                    dt, config_les_nx, config_les_ny, config_les_dx, config_les_dy,                                     &
-                    etime, config_les_ls_factor, latVal, indexToCellID(iCell))
+                    etime, dt, config_les_ls_factor, latVal, indexToCellID(iCell))
 
                     ! config_les_dt_disturb,
                     ! config_les_disturb_energy_limit,                &
