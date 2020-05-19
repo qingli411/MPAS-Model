@@ -84,6 +84,8 @@ module ocn_forward_mode
    use ocn_constants
    use ocn_config
 
+   use turbulence, only: clean_turbulence
+
    implicit none
    private
 
@@ -603,6 +605,7 @@ module ocn_forward_mode
            call mpas_timer_stop("land_ice_build_arrays")
 
            call ocn_frazil_forcing_build_arrays(domain, meshPool, forcingPool, diagnosticsPool, statePool, err)
+
            call ocn_tidal_forcing_build_array(domain, meshPool, forcingPool, diagnosticsPool, statePool, err)
 
            ! Compute normalGMBolusVelocity, relativeSlope and RediDiffVertCoef if respective flags are turned on
@@ -744,6 +747,8 @@ module ocn_forward_mode
       call mpas_dmpar_exch_group_destroy_reusable_buffers(domain, 'subcycleFields')
 
       call ocn_analysis_finalize(domain, ierr)
+
+      call clean_turbulence()
 
       call mpas_destroy_clock(domain % clock, ierr)
 
