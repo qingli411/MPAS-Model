@@ -741,6 +741,8 @@ module ocn_forward_mode
 
       integer :: ierr
 
+      logical, pointer :: config_use_gotm
+
       ! destroy the ocean mesh structure
       call ocn_meshDestroy(ierr)
 
@@ -748,7 +750,9 @@ module ocn_forward_mode
 
       call ocn_analysis_finalize(domain, ierr)
 
-      call clean_turbulence()
+      call mpas_pool_get_config(domain % configs, 'config_use_gotm', config_use_gotm)
+
+      if (config_use_gotm) call clean_turbulence()
 
       call mpas_destroy_clock(domain % clock, ierr)
 
