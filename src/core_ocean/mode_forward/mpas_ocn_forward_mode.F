@@ -76,6 +76,7 @@ module ocn_forward_mode
    use ocn_equation_of_state
 
    use ocn_vmix
+   use ocn_vmix_gotm, only: ocn_vmix_gotm_finalize
 
    use ocn_forcing
    use ocn_sea_ice
@@ -83,8 +84,6 @@ module ocn_forward_mode
 
    use ocn_constants
    use ocn_config
-
-   use turbulence, only: clean_turbulence
 
    implicit none
    private
@@ -741,8 +740,6 @@ module ocn_forward_mode
 
       integer :: ierr
 
-      logical, pointer :: config_use_gotm
-
       ! destroy the ocean mesh structure
       call ocn_meshDestroy(ierr)
 
@@ -750,9 +747,7 @@ module ocn_forward_mode
 
       call ocn_analysis_finalize(domain, ierr)
 
-      call mpas_pool_get_config(domain % configs, 'config_use_gotm', config_use_gotm)
-
-      if (config_use_gotm) call clean_turbulence()
+      call ocn_vmix_gotm_finalize(domain, ierr)
 
       call mpas_destroy_clock(domain % clock, ierr)
 
