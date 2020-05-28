@@ -141,27 +141,20 @@ contains
 
       integer :: k, i, iCell, timeLevel, iEdge, nCells, nEdges
       integer :: nLevs, edgeCount, cell1, cell2
-      integer, pointer :: nVertLevels, config_les_disturb_nblocks
+      integer, pointer :: nVertLevels
       integer, dimension(:), pointer :: nCellsArray, nEdgesArray
 
       character(len=strKind), pointer :: config_dt
 
       logical, pointer :: config_use_ecosysTracers,                             &
                           config_use_activeTracers_surface_bulk_forcing,        &
-                          config_AM_mixedLayerDepths_enable,                    &
-                          constant_dz, mixed_layer_refine
+                          config_les_idealized_diurnal
 
-      real (kind=RKIND), pointer :: config_les_dz, config_les_dx, config_les_dy,               &
-                                    config_les_dt_data_output,                                 &
-                                    config_les_dt_disturb, config_les_dt_data_output_av,       &
-                                    config_les_dt_dopr, config_les_end_time,                   &
-                                    config_les_dt_dots, config_flux_attenuation_coefficient,   &
-                                    config_flux_attenuation_coefficient_runoff,                &
-                                    config_les_disturb_top, config_les_disturb_bottom,         &
-                                    config_les_disturb_amplitude, config_les_bottom,           &
-                                    config_les_disturb_energy_limit, config_les_time_avg,      &
-                                    config_les_ls_factor,                                      &
-                                    config_les_restoring_strength
+      real (kind=RKIND), pointer :: config_les_dx, config_les_dy,                              &
+                                    config_les_end_time,                                       &
+                                    config_les_bottom, config_les_ls_factor,                   &
+                                    config_flux_attenuation_coefficient,                       &
+                                    config_flux_attenuation_coefficient_runoff
 
       integer, pointer :: config_les_nz, config_les_nx, config_les_ny
 
@@ -181,42 +174,25 @@ contains
       call mpas_pool_get_config(ocnConfigs, 'config_dt', config_dt)
       call mpas_pool_get_config(ocnConfigs, 'config_use_ecosysTracers', config_use_ecosysTracers)
       call mpas_pool_get_config(ocnConfigs, 'config_use_activeTracers_surface_bulk_forcing', config_use_activeTracers_surface_bulk_forcing)
-      call mpas_pool_get_config(ocnConfigs, 'config_AM_mixedLayerDepths_enable', config_AM_mixedLayerDepths_enable)
 
       if (config_use_ecosysTracers) then
          call mpas_log_write('Error, superparameterization is not configured for use with BGC',MPAS_LOG_CRIT)
       endif
 
-      call mpas_pool_get_config(ocnConfigs, 'config_les_restoring_strength', &
-                                config_les_restoring_strength)
       call mpas_pool_get_config(ocnConfigs, 'config_flux_attenuation_coefficient',  &
                                config_flux_attenuation_coefficient)
       call mpas_pool_get_config(ocnConfigs, 'config_flux_attenuation_coefficient_runoff',  &
                                config_flux_attenuation_coefficient_runoff)
       call mpas_pool_get_config(ocnConfigs, 'config_les_dx', config_les_dx)
       call mpas_pool_get_config(ocnConfigs, 'config_les_dy', config_les_dy)
-      call mpas_pool_get_config(ocnConfigs, 'config_les_dz', config_les_dz)
       call mpas_pool_get_config(ocnConfigs, 'config_les_nx', config_les_nx)
       call mpas_pool_get_config(ocnConfigs, 'config_les_ny', config_les_ny)
       call mpas_pool_get_config(ocnConfigs, 'config_les_nz', config_les_nz)
       call mpas_pool_get_config(ocnConfigs, 'config_les_ls_factor', config_les_ls_factor)
-      call mpas_pool_get_config(ocnConfigs, 'config_les_dt_data_output', config_les_dt_data_output)
-      call mpas_pool_get_config(ocnConfigs, 'config_les_dt_disturb', config_les_dt_disturb)
-      call mpas_pool_get_config(ocnConfigs, 'config_les_dt_data_output_av', config_les_dt_data_output_av)
-      call mpas_pool_get_config(ocnConfigs, 'config_les_dt_dopr', config_les_dt_dopr)
       call mpas_pool_get_config(ocnConfigs, 'config_les_end_time', config_les_end_time)
-      call mpas_pool_get_config(ocnConfigs, 'config_les_dt_dots', config_les_dt_dots)
-      call mpas_pool_get_config(ocnConfigs, 'config_jerlov_water_type', config_jerlov_water_type)
-      call mpas_pool_get_config(ocnConfigs, 'config_les_disturb_energy_limit', config_les_disturb_energy_limit)
-      call mpas_pool_get_config(ocnConfigs, 'config_les_disturb_amplitude', config_les_disturb_amplitude)
-      call mpas_pool_get_config(ocnConfigs, 'config_les_disturb_bottom', config_les_disturb_bottom)
       call mpas_pool_get_config(ocnConfigs, 'config_les_bottom', config_les_bottom)
-      call mpas_pool_get_config(ocnConfigs, 'config_les_disturb_top', config_les_disturb_top)
-      call mpas_pool_get_config(ocnConfigs, 'config_les_disturb_nblocks', config_les_disturb_nblocks)
-      call mpas_pool_get_config(ocnConfigs, 'config_les_time_avg', config_les_time_avg)
-      call mpas_pool_get_config(ocnConfigs, 'config_les_constant_dz', constant_dz)
-      call mpas_pool_get_config(ocnConfigs, 'config_les_mixed_layer_refine', mixed_layer_refine)
-
+      call mpas_pool_get_config(ocnConfigs, 'config_les_idealized_diurnal', config_les_idealized_diurnal)
+      call mpas_pool_get_config(ocnConfigs, 'config_jerlov_water_type', config_jerlov_water_type)
       call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
       call mpas_pool_get_dimension(meshPool, 'nCellsArray', nCellsArray)
       call mpas_pool_get_dimension(meshPool, 'nEdgesArray', nEdgesArray)
@@ -269,11 +245,6 @@ contains
       call mpas_pool_get_array(forcingPool, 'surfaceStress', surfaceStress)
       call mpas_pool_get_array(forcingPool, 'surfaceStressMagnitude', surfaceStressMagnitude)
       etime = config_les_end_time
-
-      if(constant_dz .and. mixed_layer_refine) then
-        print *, 'Cannot set constant_dz and mixed_layer_refine, setting constant_dz to false'
-        constant_dz = .false.
-      endif
 
       allocate(zonalAverage(nVertLevels),meridionalAverage(nVertLevels))
 
@@ -367,11 +338,6 @@ contains
                     .FALSE., -penetrativeTemperatureFlux(iCell), fac, dep1, dep2,                                       &
                     etime, dt, config_les_ls_factor, latVal, indexToCellID(iCell))
 
-                    ! config_les_dt_disturb,
-                    ! config_les_disturb_energy_limit,                &
-                    ! config_les_disturb_amplitude, les_disturb_bottom, config_les_disturb_top,        &
-                    ! config_les_disturb_nblocks, les_bottom, config_les_time_avg, constant_dz,        &
-                    ! dThreshMLD, mixed_layer_refine,0.0_RKIND)
             endif
             ! continue PALM
             call palm_main(nzMPAS, zTop(1:nzMPAS+1,iCell), activeTracers(1,1:nzMPAS,iCell)+273.15_RKIND,             &
@@ -381,7 +347,7 @@ contains
                  tIncrementLES(1:nzMPAS,iCell), sIncrementLES(1:nzMPAS,iCell),                                       &
                  uIncrementLES(1:nzMPAS,iCell), vIncrementLES(1:nzMPAS,iCell),                                       &
                  -wt_sfc, ws_sfc, -uw_sfc, -vw_sfc,                                                                  &
-                 .FALSE., -penetrativeTemperatureFlux(iCell), dt)
+                 config_les_idealized_diurnal, -penetrativeTemperatureFlux(iCell), dt)
 
          else
             tIncrementLES(:,iCell) = 0.0_RKIND
@@ -395,19 +361,9 @@ contains
             zLES(:,iCell) = 0.0_RKIND
          endif
 
-
-         ! if(config_AM_mixedLayerDepths_enable) then
-         !    les_disturb_bottom(iCell) = -2.0_RKIND*dThreshMLD(iCell)
-         !    ! les_disturb_bottom(iCell) = -dThreshMLD(iCell)
-         ! else
-         !    les_disturb_bottom(iCell) = config_les_disturb_bottom
-         ! endif
-
-
       enddo
       !$omp end do
 
-      ! TODO: if LES is running on sellected cells, how to update the velocity tendencies which are on edges? <20200116, Qing Li> !
       normalVelocityIncrementLES(:,:) = 0.0_RKIND
       !$omp do schedule(runtime) private(cell1, cell2)
       do iEdge = 1, nEdges

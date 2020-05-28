@@ -497,11 +497,11 @@
 					description="number of gridpoints in x-direction for LES"
 					possible_values="positive integers"
 		/>
-    <nml_option name="config_les_ny" type="integer" default_value="128" units="NA"
+        <nml_option name="config_les_ny" type="integer" default_value="128" units="NA"
 					description="number of gridpoints in y-direction for LES"
 					possible_values="positive integers"
 		/>
-    <nml_option name="config_les_nz" type="integer" default_value="128" units="NA"
+        <nml_option name="config_les_nz" type="integer" default_value="128" units="NA"
 					description="number of gridpoints in vertical for LES"
 					possible_values="positive integers"
 		/>
@@ -509,74 +509,18 @@
 					description="factor applied in the large scale forcing term in LES"
 					possible_values="positive real numbers"
 		/>
-		<nml_option name="config_les_dt_data_output" type="real" default_value="99999999.0" units="s"
-					description="time interval in seconds for output of LES 3-D data volumes, reserved for debugging only"
-					possible_values="positive real numbers"
-		/>
-		<nml_option name="config_les_dt_disturb" type="real" default_value="120.0" units="s"
-					description="time in seconds to apply noise disturbance to LES for faster initialization"
-					possible_values="positive real numbers"
-		/>
-		<nml_option name="config_les_dt_data_output_av" type="real" default_value="99999999.0" units="s"
-					description="time interval to output LES average data, reserved for debugging only"
-					possible_values="positive real numbers"
-		/>
-		<nml_option name="config_les_dt_dopr" type="real" default_value="99999999.0" units="s"
-					description="time interval to write profile data from LES, reserved for debugging only."
-					possible_values="positive real numbers"
-		/>
 		<nml_option name="config_les_end_time" type="real" default_value="10800.0" units="s"
 		       			description="length of LES run in seconds for each grid cell"
 					possible_values="positive real numbers"
 		/>
-		<nml_option name="config_les_dt_dots" type="real" default_value="99999999.0" units="s"
-					description="time interval to write LES time series data, reserved for debugging only."
-					possible_values="positive real numbers"
-		/>
-		<nml_option name="config_les_disturb_energy_limit" type="real" default_value="0.01" units="m^2 s^{-2}"
-					description="maximum energy for the disturbance"
-					possible_values="positive real numbers"
-		/>
-		<nml_option name="config_les_disturb_amplitude" type="real" default_value="0.01" units="NA"
-					description="amplitude of the disturbance"
-					possible_values="positive real numbers"
-		/>
-		<nml_option name="config_les_disturb_bottom" type="real" default_value="-50.0" units="m"
-					description="bottom of disturbance layer in m"
-					possible_values="negative real numbers"
-		/>
-		<nml_option name="config_les_disturb_top" type="real" default_value="0" units="m"
-					description="top of disturbance layer in m"
-					possible_values="negative real numbers"
-					/>
-		<nml_option name="config_les_disturb_nblocks" type="integer" default_value="1" units="NA"
-			                description="number of blocks for initial disturbance"
-					possible_values="integers >= 1"
-		/>
-	  <nml_option name="config_les_bottom" type="real" default_value="-64.0" units="m"
+	    <nml_option name="config_les_bottom" type="real" default_value="-64.0" units="m"
 					description="bottom of LES domain in m, will be clipped if deeper than bottomDepth"
 					possible_values="negative real numbers"
-    />
-    <nml_option name="config_les_use_variable_bottom_depth" type="logical" default_value=".false." units="NA"
-          description="if true, bottom of LES computational domain is 4*MLD else config_les_bottom is used"
-          possible_values=".true. or .false."
-    />
-	  <nml_option name="config_les_time_avg" type="real" default_value="0" units="s"
-					description="interval over which to average the LES increments"
-					possible_values="real vals >= 0"
+        />
+		<nml_option name="config_les_idealized_diurnal" type="logical" default_value=".false." units="NA"
+					description="If true, use an idealized diurnal cycle in the LES"
+					possible_values="True or False"
 		/>
-    <nml_option name="config_les_mixed_layer_refine" type="logical" default_value=".false." units="NA"
-					description="logical to determine if vertical grid is refined near MLD and surface"
-					possible_values=".true. or .false."
-		/>
-    <nml_option name="config_les_constant_dz" type="logical" default_value=".false." units="NA"
-					description="logical to use constant grid spacing in LES"
-					possible_values=".true. or .false."
-    />
-    <nml_option name="config_les_restoring_strength" type="real" default_value="0.0" units="NA"
-          description="strength of restoring of LES to MPAS results"
-          possible_values="real values b/w zero and one"
-    />
 	</nml_record>
 	<nml_record name="cvmix" mode="forward">
 		<nml_option name="config_use_cvmix" type="logical" default_value=".false." units="NA"
