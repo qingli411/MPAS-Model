@@ -413,6 +413,7 @@ contains
       type (block_type), pointer :: block
 
       logical, pointer :: config_use_gotm
+      character (len=StrKIND), pointer :: config_gotm_namelist_file
 
       ! TODO: read in namelist for testing <20200512, Qing Li> !
       integer :: namlstUnit !< unit for GOTM namelist file
@@ -448,8 +449,9 @@ contains
       !
       ! initialize GOTM turbulence module
       ! TODO: read in namelist for now, will need to modify init_turbulence if not reading namelist from this subroutine? <20200512, Qing Li> !
+      call mpas_pool_get_config(ocnConfigs, 'config_gotm_namelist_file', config_gotm_namelist_file)
       call mpas_new_unit(namlstUnit)
-      call init_turbulence(namlstUnit, 'gotmturb.nml', nVertLevels)
+      call init_turbulence(namlstUnit, trim(config_gotm_namelist_file), nVertLevels)
       call mpas_release_unit(namlstUnit)
 
       ! initialize GOTM tridiagnoal solver
