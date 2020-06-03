@@ -2,7 +2,7 @@
 # build_options.mk stuff handled here
 list(APPEND CPPDEFS "-DCORE_OCEAN")
 list(APPEND INCLUDES "${CMAKE_BINARY_DIR}/core_ocean/shared") # Only need this for '#include "../inc/core_variables.inc"' to work
-list(APPEND INCLUDES "${CMAKE_BINARY_DIR}/core_ocean/gotm/include")
+list(APPEND INCLUDES "core_ocean/gotm/include")
 
 # driver (files live in E3SM)
 list(APPEND RAW_SOURCES
@@ -184,7 +184,6 @@ set(GOTM_FILES
   core_ocean/gotm/src/turbulence/epsbalgebraic.F90
   core_ocean/gotm/src/turbulence/fk_craig.F90
   core_ocean/gotm/src/turbulence/genericeq.F90
-  core_ocean/gotm/src/turbulence/gotm_lib_version.F90
   core_ocean/gotm/src/turbulence/internal_wave.F90
   core_ocean/gotm/src/turbulence/ispralength.F90
   core_ocean/gotm/src/turbulence/kbalgebraic.F90
