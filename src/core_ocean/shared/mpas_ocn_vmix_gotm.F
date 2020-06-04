@@ -18,6 +18,7 @@ module ocn_vmix_gotm
    use mpas_timer
    use mpas_constants
    use mpas_log
+   use mpas_timekeeping
 
    use ocn_constants
 
@@ -58,6 +59,7 @@ module ocn_vmix_gotm
    !--------------------------------------------------------------------
 
    logical :: gotmOn
+   real (kind=RKIND) :: gotm_dt
 
 
 !***********************************************************************
@@ -77,7 +79,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_vmix_coefs_gotm_build(dt, meshPool, statePool, forcingPool, diagnosticsPool, err, timeLevelIn)!{{{
+   subroutine ocn_vmix_coefs_gotm_build(meshPool, statePool, forcingPool, diagnosticsPool, err, timeLevelIn)!{{{
 
       !-----------------------------------------------------------------
       !
@@ -85,7 +87,6 @@ contains
       !
       !-----------------------------------------------------------------
 
-      real (kind=RKIND), intent(in) :: dt !< Input: MPAS-O timestep
       type (mpas_pool_type), intent(in) :: &
          meshPool          !< Input: mesh information
 
@@ -344,7 +345,7 @@ contains
          ! MPAS-O (1:nlev+1) <-> GOTM (nlev:0)
          !
          call do_turbulence(maxLevelCell(iCell),                                 &
-                            dt,                                                  &
+                            gotm_dt,                                             &
                             bottomDepth(iCell),                                  &
                             surfaceFrictionVelocity(iCell),                      &
                             0.0_RKIND,                                           &
@@ -354,7 +355,6 @@ contains
                             NSquaredTop(maxLevelCell(iCell)+1:1:-1),             &
                             shearSquaredTop(maxLevelCell(iCell)+1:1:-1))
          ! TODO: use zero bottom friction and predefined surface/bottom roughness length for testing (may be a lower estimate) <20200512, Qing Li> !
-         ! TODO: use MPAS-O dt for testing, though subcycling is possible <20200512, Qing Li> !
 
          ! update GOTM arrays for next time step
          ! MPAS-O (1:nlev+1) <-> GOTM (nlev:0)
@@ -409,14 +409,14 @@ contains
 
       integer, intent(out) :: err !< Output: error flag
 
-      ! TODO: read in namelist for testing <20200512, Qing Li> !
-      integer :: namlstUnit !< unit for GOTM namelist file
-
       integer, pointer :: nVertLevels
       type (block_type), pointer :: block
 
-      ! GOTM
       logical, pointer :: config_use_gotm
+
+      ! TODO: read in namelist for testing <20200512, Qing Li> !
+      integer :: namlstUnit !< unit for GOTM namelist file
+      type (MPAS_timeInterval_type) :: timeStep
 
       !
       ! assume no errors during initialization and set to 1 when error is encountered
@@ -437,6 +437,9 @@ contains
       !
       ! test here, err=1 if a problem
 
+      ! TODO: use MPAS-O dt for testing. Sub-stepping is possible, though it may not help too much without updating the shear and stratification in the substeps <20200604, Qing Li> !
+      timeStep = mpas_get_clock_timestep(domain % clock, ierr=err)
+      call mpas_get_timeInterval(timeStep, dt=gotm_dt)
       !
       ! pull nVertLevels out of the mesh structure
       !
