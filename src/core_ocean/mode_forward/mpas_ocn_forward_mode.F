@@ -742,7 +742,7 @@ module ocn_forward_mode
 
       call mpas_decomp_destroy_decomp_list(domain % decompositions)
 
-      if (config_run_les .or. config_use_les_tracer_vmix .or. config_use_les_vel_vmix) call palm_finalize()
+      if (run_palm_finalize) call palm_finalize()
 
    end function ocn_forward_mode_finalize!}}}
 

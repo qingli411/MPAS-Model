@@ -40,6 +40,7 @@ module ocn_vmix_LES
       rfac   = (/ 0.58_RKIND, 0.62_RKIND, 0.67_RKIND, 0.77_RKIND, 0.78_RKIND /), &
       depth1 = (/ 0.35_RKIND, 0.60_RKIND, 1.00_RKIND, 1.50_RKIND, 1.40_RKIND /), &
       depth2 = (/ 23.0_RKIND, 20.0_RKIND, 17.0_RKIND, 14.0_RKIND, 7.90_RKIND /)
+   logical, public :: run_palm_finalize = .false.
 
    !--------------------------------------------------------------------
    !
@@ -158,7 +159,7 @@ contains
 
       integer, pointer :: config_les_nz, config_les_nx, config_les_ny
 
-      real (kind=RKIND), dimension(:), allocatable :: zonalAverage, meridionalAverage, les_disturb_bottom
+      real (kind=RKIND), dimension(:), allocatable :: zonalAverage, meridionalAverage
 
       real (kind=RKIND) :: fac, dep1, dep2, fracAbsorbed, fracAbsorbedRunoff,  &
                            etime, les_bottom, uw_sfc, vw_sfc, wt_sfc, ws_sfc, latVal
@@ -251,7 +252,6 @@ contains
       nCells = nCellsArray( 1 )
       nEdges = nEdgesArray( 1 )
 
-      allocate(les_disturb_bottom(nCells))
       !$omp do schedule(runtime)
       do iEdge=1,nEdges
          surfaceStress(iEdge) = 0.0_RKIND
@@ -338,6 +338,9 @@ contains
                     .FALSE., -penetrativeTemperatureFlux(iCell), fac, dep1, dep2,                                       &
                     etime, dt, config_les_ls_factor, latVal, indexToCellID(iCell))
 
+               ! flag to finalize palm
+               run_palm_finalize = .true.
+
             endif
             ! continue PALM
             call palm_main(nzMPAS, zTop(1:nzMPAS+1,iCell), activeTracers(1,1:nzMPAS,iCell)+273.15_RKIND,             &
@@ -380,8 +383,6 @@ contains
       !$omp end do
 
       if ( first_palm ) first_palm = .false.
-
-      deallocate(les_disturb_bottom)
 
       deallocate(zonalAverage)
       deallocate(meridionalAverage)
