@@ -352,10 +352,6 @@ contains
       call ocn_vel_hmix_tend(meshPool, scratchPool, divergence, relativeVorticity, normalVelocity, tangentialVelocity, viscosity, &
          tend_normalVelocity, err)
 
-
-      ! TODO: need to modify the surface forcing to avoid double counting in LES <20200116, Qing Li> !
-      !If LES option is enabled, surface forcing is computed with LES
-
       !
       ! velocity tendency: zero if drying
       !
@@ -893,6 +889,7 @@ contains
                         if (lesCell(iCell) == 1) then
                            tracerGroupSurfaceFlux(:,iCell) = 0.0_RKIND
                            tracerGroupSurfaceFluxRunoff(:,iCell) = 0.0_RKIND
+                           penetrativeTemperatureFlux(iCell) = 0.0_RKIND
                         end if
                      end do
                   end if
@@ -917,7 +914,6 @@ contains
                      !$omp end do
                   endif
 
-                  ! TODO: penetrative short wave absorption is currently off, will need speciall treatment in this subroutine if on <20200127, Qing Li> !
                   call ocn_tracer_short_wave_absorption_tend(meshPool, swForcingPool, forcingPool, indexTemperature, &
                            layerThickness, penetrativeTemperatureFlux, penetrativeTemperatureFluxOBL, tracerGroupTend, err)
 
