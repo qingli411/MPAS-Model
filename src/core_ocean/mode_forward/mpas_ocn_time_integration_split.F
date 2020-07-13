@@ -383,6 +383,11 @@ module ocn_time_integration_split
             !$omp end do
          endif
 
+         ! prepare for LES
+         if (config_run_les) then
+            call ocn_vmix_LES_interface(meshPool, statePool, forcingPool, diagnosticsPool, dt, err, 1)
+         endif
+
          block => block % next
       end do
 
@@ -393,14 +398,6 @@ module ocn_time_integration_split
       n_bcl_iter = config_n_bcl_iter_mid
       n_bcl_iter(1) = config_n_bcl_iter_beg
       n_bcl_iter(config_n_ts_iter) = config_n_bcl_iter_end
-
-      ! run LES
-      if (config_run_les .or. config_use_les_tracer_vmix .or. config_use_les_vel_vmix) then
-          call mpas_pool_get_subpool(domain % blocklist % structs,       &
-              'mixedLayerDepthsAM', mixedLayerDepthsAMPool)
-          call ocn_vmix_LES_interface(meshPool, statePool, forcingPool,  &
-                                        diagnosticsPool, mixedLayerDepthsAMPool, dt, err, 2)
-      endif
 
       do split_explicit_step = 1, config_n_ts_iter
 
@@ -1794,12 +1791,20 @@ module ocn_time_integration_split
         call mpas_pool_get_subpool(block % structs, 'mesh', meshPool)
         call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
         call mpas_pool_get_subpool(block % structs, 'scratch', scratchPool)
+
+        ! run LES
+        if (config_run_les) then
+            call ocn_vmix_LES_interface(meshPool, statePool, forcingPool, diagnosticsPool, dt, err, 2)
+        endif
+
         ! Compute normalGMBolusVelocity; it will be added to the baroclinic modes in Stage 2 above.
         if (config_use_standardGM) then
            call ocn_gm_compute_Bolus_velocity(diagnosticsPool, meshPool, scratchPool)
         end if
+
         ! Vertical mixing
         call ocn_vmix_implicit(dt, meshPool, diagnosticsPool, statePool, forcingPool, scratchPool, err, 2)
+
         ! Apply tendency terms from LES if using the LES for vmix
         ! Double counting is avoided by using the LES mask lesCell. Since the normal velocity is on edges,
         ! when running LES only on selected cells whose neighbor cell is not running LES, the velocity tendency

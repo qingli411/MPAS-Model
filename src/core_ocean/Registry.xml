@@ -2755,6 +2755,22 @@
 			description="normal velocity increment from LES"
 			packages="forwardMode;analysisMode"
 		/>
+		<var name="temperatureProfForLES" type="real" dimensions="nVertLevels nCells Time" units="C"
+			description="temperature profile for use in LES"
+			packages="forwardMode;analysisMode"
+		/>
+		<var name="salinityProfForLES" type="real" dimensions="nVertLevels nCells Time" units="PSU"
+			description="salinity profile for use in LES"
+			packages="forwardMode;analysisMode"
+		/>
+        <var name="velocityZonalProfForLES" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+			description="zonal velocity profile for use in LES"
+			packages="forwardMode;analysisMode"
+		/>
+        <var name="velocityMeridionalProfForLES" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+			description="meridional velocity profile for use in LES"
+			packages="forwardMode;analysisMode"
+		/>
 		<var name="bulkRichardsonNumber" type="real" dimensions="nVertLevels nCells Time" units="nondimensional"
 			 description="CVMix/KPP: bulk Richardson number"
 			 packages="forwardMode;analysisMode"
