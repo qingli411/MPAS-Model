@@ -383,11 +383,6 @@ module ocn_time_integration_split
             !$omp end do
          endif
 
-         ! prepare for LES
-         if (config_run_les) then
-            call ocn_vmix_LES_interface(meshPool, statePool, forcingPool, diagnosticsPool, dt, err, 1)
-         endif
-
          block => block % next
       end do
 
@@ -1792,15 +1787,15 @@ module ocn_time_integration_split
         call mpas_pool_get_subpool(block % structs, 'diagnostics', diagnosticsPool)
         call mpas_pool_get_subpool(block % structs, 'scratch', scratchPool)
 
-        ! run LES
-        if (config_run_les) then
-            call ocn_vmix_LES_interface(meshPool, statePool, forcingPool, diagnosticsPool, dt, err, 2)
-        endif
-
         ! Compute normalGMBolusVelocity; it will be added to the baroclinic modes in Stage 2 above.
         if (config_use_standardGM) then
            call ocn_gm_compute_Bolus_velocity(diagnosticsPool, meshPool, scratchPool)
         end if
+
+        ! run LES
+        if (config_run_les) then
+            call ocn_vmix_LES_interface(meshPool, statePool, forcingPool, diagnosticsPool, dt, err)
+        endif
 
         ! Vertical mixing
         call ocn_vmix_implicit(dt, meshPool, diagnosticsPool, statePool, forcingPool, scratchPool, err, 2)

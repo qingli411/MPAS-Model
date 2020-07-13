@@ -68,7 +68,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-   subroutine ocn_vmix_LES_interface(meshPool, statePool, forcingPool, diagnosticsPool, dt, err, timeLevelIn)!{{{
+   subroutine ocn_vmix_LES_interface(meshPool, statePool, forcingPool, diagnosticsPool, dt, err)!{{{
 
       !-----------------------------------------------------------------
       !
@@ -78,8 +78,6 @@ contains
 
       type (mpas_pool_type), intent(in) :: &
          meshPool          !< Input: mesh information
-
-      integer, intent(in), optional :: timeLevelIn !< Input: time level for state pool
 
       !-----------------------------------------------------------------
       !
@@ -127,21 +125,20 @@ contains
 
       real (kind=RKIND), dimension(:,:), pointer :: &
         layerThickness, velocityZonal, velocityMeridional, &
-        normalVelocity, uIncrementLES, vIncrementLES, tIncrementLES, &
+        normalVelocityCur, normalVelocityNew, &
+        uIncrementLES, vIncrementLES, tIncrementLES, &
         sIncrementLES, normalVelocityIncrementLES,     &
         tracerGroupSurfaceFlux, tracerGroupSurfaceFluxRunoff, &
         tracerGroupSurfaceFluxRemoved, temperatureLES, zLES, &
         salinityLES, velocityZonalLES, velocityMeridionalLES, &
         zMid, zTop, &
-        velocityX, velocityY, velocityZ, &
-        temperatureProfForLES, salinityProfForLES, &
-        velocityZonalProfForLES, velocityMeridionalProfForLES
+        velocityX, velocityY, velocityZ
 
-      real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
+      real (kind=RKIND), dimension(:,:,:), pointer :: activeTracersCur, activeTracersNew
       integer, pointer :: indexTemperature, indexSalinity, config_jerlov_water_type
       integer, dimension(:,:), pointer :: cellsOnEdge
 
-      integer :: k, i, iCell, timeLevel, iEdge, nCells, nEdges
+      integer :: k, i, iCell, iEdge, nCells, nEdges
       integer :: nLevs, edgeCount, cell1, cell2
       integer, pointer :: nVertLevels
       integer, dimension(:), pointer :: nCellsArray, nEdgesArray
@@ -162,44 +159,12 @@ contains
 
       real (kind=RKIND), dimension(:), allocatable :: zonalAverage, meridionalAverage
       real (kind=RKIND), dimension(:), allocatable :: tLSForcing, sLSForcing, uLSForcing, vLSForcing
+      real (kind=RKIND), dimension(:,:), allocatable :: uCur, uNew, vCur, vNew
 
       real (kind=RKIND) :: fac, dep1, dep2, fracAbsorbed, fracAbsorbedRunoff,  &
                            etime, les_bottom, uw_sfc, vw_sfc, wt_sfc, ws_sfc, latVal
 
       err=0
-
-      if (present(timeLevelIn)) then
-         timeLevel = timeLevelIn
-      else
-         timeLevel = 2
-      end if
-
-      ! preparation step
-      if (timeLevel == 1) then
-         ! save the current state of temperature, salinity and velocity for use later
-         call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
-         call mpas_pool_get_dimension(meshPool, 'nCellsArray', nCellsArray)
-         call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
-         call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, timeLevel)
-         call mpas_pool_get_dimension(tracersPool, 'index_temperature', indexTemperature)
-         call mpas_pool_get_dimension(tracersPool, 'index_salinity', indexSalinity)
-         call mpas_pool_get_array(diagnosticsPool, 'velocityZonal', velocityZonal)
-         call mpas_pool_get_array(diagnosticsPool, 'velocityMeridional', velocityMeridional)
-         call mpas_pool_get_array(diagnosticsPool, 'temperatureProfForLES', temperatureProfForLES)
-         call mpas_pool_get_array(diagnosticsPool, 'salinityProfForLES', salinityProfForLES)
-         call mpas_pool_get_array(diagnosticsPool, 'velocityZonalProfForLES', velocityZonalProfForLES)
-         call mpas_pool_get_array(diagnosticsPool, 'velocityMeridionalProfForLES', velocityMeridionalProfForLES)
-         nCells = nCellsArray( 1 )
-         do iCell = 1, nCells
-            do k = 1, nVertLevels
-               temperatureProfForLES(k,iCell) = activeTracers(indexTemperature,k,iCell)
-               salinityProfForLES(k,iCell) = activeTracers(indexSalinity,k,iCell)
-               velocityZonalProfForLES(k,iCell) = velocityZonal(k,iCell)
-               velocityMeridionalProfForLES(k,iCell) = velocityMeridional(k,iCell)
-            end do
-         end do
-         return
-      end if
 
       call mpas_pool_get_config(ocnConfigs, 'config_dt', config_dt)
       call mpas_pool_get_config(ocnConfigs, 'config_use_ecosysTracers', config_use_ecosysTracers)
@@ -227,7 +192,8 @@ contains
       call mpas_pool_get_dimension(meshPool, 'nCellsArray', nCellsArray)
       call mpas_pool_get_dimension(meshPool, 'nEdgesArray', nEdgesArray)
 
-      call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocity, timeLevel)
+      call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocityCur, 1)
+      call mpas_pool_get_array(statePool, 'normalVelocity', normalVelocityNew, 2)
       call mpas_pool_get_array(meshPool, 'cellsOnEdge', cellsOnEdge)
       call mpas_pool_get_array(meshPool, 'angleEdge', angleEdge)
       call mpas_pool_get_array(meshPool, 'lesCell', lesCell)
@@ -235,7 +201,8 @@ contains
 
       call mpas_pool_get_subpool(forcingPool, 'tracersSurfaceFlux', tracersSurfaceFluxPool)
       call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
-      call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, timeLevel)
+      call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracersCur, 1)
+      call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracersNew, 2)
       call mpas_pool_get_dimension(tracersPool, 'index_temperature', indexTemperature)
       call mpas_pool_get_dimension(tracersPool, 'index_salinity', indexSalinity)
 
@@ -246,7 +213,7 @@ contains
       call mpas_pool_get_array(forcingPool, "surfaceThicknessFluxRunoff", surfaceThicknessFluxRunoff)
       call mpas_pool_get_array(meshPool, 'fCell', fCell)
       call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
-      call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, timeLevel)
+      call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, 1)
 
       call mpas_pool_get_array(diagnosticsPool, 'tIncrementLES', tIncrementLES)
       call mpas_pool_get_array(diagnosticsPool, 'sIncrementLES', sIncrementLES)
@@ -267,11 +234,6 @@ contains
       call mpas_pool_get_array(diagnosticsPool, 'velocityZonalLES', velocityZonalLES)
       call mpas_pool_get_array(diagnosticsPool, 'velocityMeridionalLES', velocityMeridionalLES)
 
-      call mpas_pool_get_array(diagnosticsPool, 'temperatureProfForLES', temperatureProfForLES)
-      call mpas_pool_get_array(diagnosticsPool, 'salinityProfForLES', salinityProfForLES)
-      call mpas_pool_get_array(diagnosticsPool, 'velocityZonalProfForLES', velocityZonalProfForLES)
-      call mpas_pool_get_array(diagnosticsPool, 'velocityMeridionalProfForLES', velocityMeridionalProfForLES)
-
       ! need to use RBFs to get stress at cell centers
       call mpas_pool_get_array(forcingPool, 'windStressZonal', stressZonal)
       call mpas_pool_get_array(forcingPool, 'windStressMeridional', stressMeridional)
@@ -279,11 +241,12 @@ contains
       call mpas_pool_get_array(forcingPool, 'surfaceStressMagnitude', surfaceStressMagnitude)
       etime = config_les_end_time
 
-      allocate(zonalAverage(nVertLevels),meridionalAverage(nVertLevels))
-      allocate(tLSForcing(nVertLevels),sLSForcing(nVertLevels),uLSForcing(nVertLevels),vLSForcing(nVertLevels))
-
       nCells = nCellsArray( 1 )
       nEdges = nEdgesArray( 1 )
+
+      allocate(zonalAverage(nVertLevels),meridionalAverage(nVertLevels))
+      allocate(uCur(nVertLevels,nCells), vCur(nVertLevels,nCells))
+      allocate(uNew(nVertLevels,nCells), vNew(nVertLevels,nCells))
 
       !$omp do schedule(runtime)
       do iEdge=1,nEdges
@@ -307,7 +270,7 @@ contains
       call ocn_surface_land_ice_fluxes_vel(meshPool, diagnosticsPool, surfaceStress, surfaceStressMagnitude, err)
 
       if(config_use_activeTracers_surface_bulk_forcing) then
-         call ocn_surface_bulk_forcing_tracers(meshPool, "activeTracers", forcingPool, activeTracers,  &
+         call ocn_surface_bulk_forcing_tracers(meshPool, "activeTracers", forcingPool, activeTracersCur,  &
                                                tracerGroupSurfaceFlux, tracerGroupSurfaceFluxRunoff, &
                                                tracerGroupSurfaceFluxRemoved, dt, layerThickness, err)
       endif
@@ -319,10 +282,12 @@ contains
       call mpas_pool_get_array(forcingPool, 'penetrativeTemperatureFlux', penetrativeTemperatureFlux)
 
       ! reconstruct zonal and meridional velocity
-      call mpas_reconstruct(meshPool, normalVelocity,     &
+      call mpas_reconstruct(meshPool, normalVelocityCur,  &
                        velocityX, velocityY, velocityZ,   &
-                       velocityZonal, velocityMeridional, &
-                       includeHalos = .true.)
+                       uCur, vCur, includeHalos = .true.)
+      call mpas_reconstruct(meshPool, normalVelocityNew,  &
+                       velocityX, velocityY, velocityZ,   &
+                       uNew, vNew, includeHalos = .true.)
 
       ! water type parameters
       fac = rfac(config_jerlov_water_type)
@@ -339,11 +304,11 @@ contains
                               -100.0_RKIND) )
 
             wt_sfc = tracerGroupSurfaceFlux(indexTemperature, iCell) - fracAbsorbed * surfaceThicknessFlux(iCell) * &
-                     activeTracers(indexTemperature,1,iCell) + tracerGroupSurfaceFluxRunoff(indexTemperature,iCell) * &
+                     activeTracersCur(indexTemperature,1,iCell) + tracerGroupSurfaceFluxRunoff(indexTemperature,iCell) * &
                      fracAbsorbedRunoff
 
             ws_sfc = tracerGroupSurfaceFlux(indexSalinity, iCell) - fracAbsorbed * surfaceThicknessFlux(iCell) *  &
-                     activeTracers(indexSalinity,1,iCell)
+                     activeTracersCur(indexSalinity,1,iCell)
 
             uw_sfc = stressZonal(iCell) / rho_sw
 
@@ -366,10 +331,9 @@ contains
 
                ! initial step of PALM, longer initialization
                call palm_init(dt, nzMPAS, zTop(1:nzMPAS+1,iCell),                                 &
-                    temperatureProfForLES(1:nzMPAS,iCell)+273.15_RKIND,                           &
-                    salinityProfForLES(1:nzMPAS,iCell),                                           &
-                    velocityZonalProfForLES(1:nzMPAS,iCell),                                      &
-                    velocityMeridionalProfForLES(1:nzMPAS,iCell),                                 &
+                    activeTracersCur(indexTemperature,1:nzMPAS,iCell)+273.15_RKIND,               &
+                    activeTracersCur(indexSalinity,1:nzMPAS,iCell),                               &
+                    uCur(1:nzMPAS,iCell), vCur(1:nzMPAS,iCell),                                   &
                     -wt_sfc, ws_sfc, -uw_sfc, -vw_sfc, -penetrativeTemperatureFlux(iCell),        &
                     config_les_nz, config_les_nx, config_les_ny, config_les_dx, config_les_dy,    &
                     config_les_idealized_diurnal, fac, dep1, dep2,                                                      &
@@ -380,10 +344,10 @@ contains
 
             endif
 
-            tLSForcing = activeTracers(indexTemperature,:,iCell) - temperatureProfForLES(:, iCell)
-            sLSForcing = activeTracers(indexSalinity,:,iCell) - salinityProfForLES(:, iCell)
-            uLSForcing = velocityZonalLES(:,iCell) - velocityZonalProfForLES(:, iCell)
-            vLSForcing = velocityMeridionalLES(:,iCell) - velocityMeridionalProfForLES(:, iCell)
+            tLSForcing = activeTracersNew(indexTemperature,:,iCell) - activeTracersCur(indexTemperature,:,iCell)
+            sLSForcing = activeTracersNew(indexSalinity,:,iCell) - activeTracersCur(indexSalinity,:,iCell)
+            uLSForcing = uNew(:,iCell) - uCur(:,iCell)
+            vLSForcing = vNew(:,iCell) - vCur(:,iCell)
 
             ! continue PALM
             call palm_main(nzMPAS, zTop(1:nzMPAS+1,iCell), tLSForcing(1:nzMPAS), sLSForcing(1:nzMPAS),  &
@@ -429,6 +393,7 @@ contains
       deallocate(zonalAverage)
       deallocate(meridionalAverage)
       deallocate(tLSForcing, sLSForcing, uLSForcing, vLSForcing)
+      deallocate(uCur, uNew, vCur, vNew)
 
    end subroutine ocn_vmix_LES_interface!}}}
 
