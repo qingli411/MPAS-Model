@@ -150,19 +150,20 @@ contains
                           config_les_idealized_diurnal
 
       real (kind=RKIND), pointer :: config_les_dx, config_les_dy,                              &
-                                    config_les_end_time,                                       &
-                                    config_les_bottom, config_les_ls_factor,                   &
+                                    config_les_spinup_time,                                    &
+                                    config_les_bottom, config_les_ls_factor_tracer,            &
+                                    config_les_ls_factor_vel,                                  &
                                     config_flux_attenuation_coefficient,                       &
                                     config_flux_attenuation_coefficient_runoff
 
-      integer, pointer :: config_les_nz, config_les_nx, config_les_ny
+      integer, pointer :: config_les_nz, config_les_nx, config_les_ny, config_les_ls_mode
 
       real (kind=RKIND), dimension(:), allocatable :: zonalAverage, meridionalAverage
       real (kind=RKIND), dimension(:), allocatable :: tLSForcing, sLSForcing, uLSForcing, vLSForcing
       real (kind=RKIND), dimension(:,:), allocatable :: uCur, uNew, vCur, vNew
 
       real (kind=RKIND) :: fac, dep1, dep2, fracAbsorbed, fracAbsorbedRunoff,  &
-                           etime, les_bottom, uw_sfc, vw_sfc, wt_sfc, ws_sfc, latVal
+                           spinuptime, les_bottom, uw_sfc, vw_sfc, wt_sfc, ws_sfc
 
       err=0
 
@@ -183,8 +184,10 @@ contains
       call mpas_pool_get_config(ocnConfigs, 'config_les_nx', config_les_nx)
       call mpas_pool_get_config(ocnConfigs, 'config_les_ny', config_les_ny)
       call mpas_pool_get_config(ocnConfigs, 'config_les_nz', config_les_nz)
-      call mpas_pool_get_config(ocnConfigs, 'config_les_ls_factor', config_les_ls_factor)
-      call mpas_pool_get_config(ocnConfigs, 'config_les_end_time', config_les_end_time)
+      call mpas_pool_get_config(ocnConfigs, 'config_les_ls_mode', config_les_ls_mode)
+      call mpas_pool_get_config(ocnConfigs, 'config_les_ls_factor_tracer', config_les_ls_factor_tracer)
+      call mpas_pool_get_config(ocnConfigs, 'config_les_ls_factor_vel', config_les_ls_factor_vel)
+      call mpas_pool_get_config(ocnConfigs, 'config_les_spinup_time', config_les_spinup_time)
       call mpas_pool_get_config(ocnConfigs, 'config_les_bottom', config_les_bottom)
       call mpas_pool_get_config(ocnConfigs, 'config_les_idealized_diurnal', config_les_idealized_diurnal)
       call mpas_pool_get_config(ocnConfigs, 'config_jerlov_water_type', config_jerlov_water_type)
@@ -239,12 +242,14 @@ contains
       call mpas_pool_get_array(forcingPool, 'windStressMeridional', stressMeridional)
       call mpas_pool_get_array(forcingPool, 'surfaceStress', surfaceStress)
       call mpas_pool_get_array(forcingPool, 'surfaceStressMagnitude', surfaceStressMagnitude)
-      etime = config_les_end_time
+      spinuptime = config_les_spinup_time
 
       nCells = nCellsArray( 1 )
       nEdges = nEdgesArray( 1 )
 
       allocate(zonalAverage(nVertLevels),meridionalAverage(nVertLevels))
+      allocate(tLSForcing(nVertLevels), sLSForcing(nVertLevels))
+      allocate(uLSForcing(nVertLevels), vLSForcing(nVertLevels))
       allocate(uCur(nVertLevels,nCells), vCur(nVertLevels,nCells))
       allocate(uNew(nVertLevels,nCells), vNew(nVertLevels,nCells))
 
@@ -314,9 +319,6 @@ contains
 
             vw_sfc = stressMeridional(iCell) / rho_sw
 
-            ! latitude in degree
-            latVal = ASIN(fCell(iCell) / (2.0_RKIND*7.272E-5_RKIND))*180.0_RKIND/3.14159_RKIND
-
             ! run PALM
             if ( first_palm ) then
 
@@ -336,8 +338,9 @@ contains
                     uCur(1:nzMPAS,iCell), vCur(1:nzMPAS,iCell),                                   &
                     -wt_sfc, ws_sfc, -uw_sfc, -vw_sfc, -penetrativeTemperatureFlux(iCell),        &
                     config_les_nz, config_les_nx, config_les_ny, config_les_dx, config_les_dy,    &
-                    config_les_idealized_diurnal, fac, dep1, dep2,                                                      &
-                    etime, config_les_ls_factor, latVal, indexToCellID(iCell))
+                    config_les_idealized_diurnal, fac, dep1, dep2,                                &
+                    spinuptime, config_les_ls_mode, config_les_ls_factor_tracer,                  &
+                    config_les_ls_factor_vel, fCell(iCell), indexToCellID(iCell))
 
                ! flag to finalize palm
                run_palm_finalize = .true.
@@ -346,16 +349,22 @@ contains
 
             tLSForcing = activeTracersNew(indexTemperature,:,iCell) - activeTracersCur(indexTemperature,:,iCell)
             sLSForcing = activeTracersNew(indexSalinity,:,iCell) - activeTracersCur(indexSalinity,:,iCell)
-            uLSForcing = uNew(:,iCell) - uCur(:,iCell)
-            vLSForcing = vNew(:,iCell) - vCur(:,iCell)
+            ! uLSForcing = uNew(:,iCell) - uCur(:,iCell) + fCell(iCell) * vCur(:,iCell) * dt
+            ! vLSForcing = vNew(:,iCell) - vCur(:,iCell) - fCell(iCell) * uCur(:,iCell) * dt
+            uLSForcing = 0.0_RKIND
+            vLSForcing = 0.0_RKIND
 
             ! continue PALM
-            call palm_main(nzMPAS, zTop(1:nzMPAS+1,iCell), tLSForcing(1:nzMPAS), sLSForcing(1:nzMPAS),  &
-                 uLSForcing(1:nzMPAS), vLSForcing(1:nzMPAS),                                            &
-                 -wt_sfc, ws_sfc, -uw_sfc, -vw_sfc, -penetrativeTemperatureFlux(iCell),                 &
-                 tIncrementLES(1:nzMPAS,iCell), sIncrementLES(1:nzMPAS,iCell),                          &
-                 uIncrementLES(1:nzMPAS,iCell), vIncrementLES(1:nzMPAS,iCell),                          &
-                 zLES(:,iCell), temperatureLES(:,iCell), salinityLES(:,iCell),                          &
+            call palm_main(nzMPAS, zTop(1:nzMPAS+1,iCell),                                         &
+                 activeTracersCur(indexTemperature,1:nzMPAS,iCell)+273.15_RKIND,                   &
+                 activeTracersCur(indexSalinity,1:nzMPAS,iCell),                                   &
+                 uCur(1:nzMPAS,iCell), vCur(1:nzMPAS,iCell),                                       &
+                 -wt_sfc, ws_sfc, -uw_sfc, -vw_sfc, -penetrativeTemperatureFlux(iCell),            &
+                 tLSForcing(1:nzMPAS), sLSForcing(1:nzMPAS),                                       &
+                 uLSForcing(1:nzMPAS), vLSForcing(1:nzMPAS),                                       &
+                 tIncrementLES(1:nzMPAS,iCell), sIncrementLES(1:nzMPAS,iCell),                     &
+                 uIncrementLES(1:nzMPAS,iCell), vIncrementLES(1:nzMPAS,iCell),                     &
+                 zLES(:,iCell), temperatureLES(:,iCell), salinityLES(:,iCell),                     &
                  velocityZonalLES(:,iCell), velocityMeridionalLES(:,iCell))
 
          else

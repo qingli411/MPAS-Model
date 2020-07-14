@@ -505,12 +505,20 @@
 					description="number of gridpoints in vertical for LES"
 					possible_values="positive integers"
 		/>
-		<nml_option name="config_les_ls_factor" type="real" default_value="1.0" units="NA"
-					description="factor applied in the large scale forcing term in LES"
+		<nml_option name="config_les_ls_mode" type="integer" default_value="0" units="NA"
+					description="large scale forcing mode in LES (0: none, 1: input, 2: nudging)"
+					possible_values="0, 1, 2"
+		/>
+		<nml_option name="config_les_ls_factor_tracer" type="real" default_value="1.0" units="NA"
+					description="factor applied in the large scale forcing term in LES for tracers"
 					possible_values="positive real numbers"
 		/>
-		<nml_option name="config_les_end_time" type="real" default_value="10800.0" units="s"
-		       			description="length of LES run in seconds for each grid cell"
+		<nml_option name="config_les_ls_factor_vel" type="real" default_value="1.0" units="NA"
+					description="factor applied in the large scale forcing term in LES for velocity"
+					possible_values="positive real numbers"
+		/>
+		<nml_option name="config_les_spinup_time" type="real" default_value="10800.0" units="s"
+                    description="spinup time of initial LES run in seconds"
 					possible_values="positive real numbers"
 		/>
 	    <nml_option name="config_les_bottom" type="real" default_value="-64.0" units="m"
