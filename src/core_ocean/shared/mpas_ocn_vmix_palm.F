@@ -326,7 +326,7 @@ contains
                les_bottom = max(zMid(maxLevelCell(iCell),iCell), config_les_bottom)
                do k = 1, maxLevelCell(iCell)
                   if ( zMid(k,iCell) - les_bottom <= 0.0_RKIND ) then
-                     nzMPAS = k
+                     nzMPAS = k - 1
                      exit
                   endif
                enddo
