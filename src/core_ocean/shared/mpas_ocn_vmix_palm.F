@@ -147,7 +147,8 @@ contains
 
       logical, pointer :: config_use_ecosysTracers,                             &
                           config_use_activeTracers_surface_bulk_forcing,        &
-                          config_les_idealized_diurnal
+                          config_les_idealized_diurnal,                         &
+                          config_les_single_column
 
       real (kind=RKIND), pointer :: config_les_dx, config_les_dy,                              &
                                     config_les_spinup_time,                                    &
@@ -191,6 +192,7 @@ contains
       call mpas_pool_get_config(ocnConfigs, 'config_les_bottom', config_les_bottom)
       call mpas_pool_get_config(ocnConfigs, 'config_les_idealized_diurnal', config_les_idealized_diurnal)
       call mpas_pool_get_config(ocnConfigs, 'config_jerlov_water_type', config_jerlov_water_type)
+      call mpas_pool_get_config(ocnConfigs, 'config_les_single_column', config_les_single_column)
       call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
       call mpas_pool_get_dimension(meshPool, 'nCellsArray', nCellsArray)
       call mpas_pool_get_dimension(meshPool, 'nEdgesArray', nEdgesArray)
@@ -299,88 +301,177 @@ contains
       dep1 = depth1(config_jerlov_water_type)
       dep2 = depth2(config_jerlov_water_type)
 
-      !$omp do schedule(runtime)
-      do iCell = 1, nCells
-         ! only run LES where lesCell == 1
-         if ( lesCell(iCell) == 1 ) then
-            ! set surface forcing
-            fracAbsorbed = 1.0_RKIND - exp( max(-layerThickness(1, iCell) / config_flux_attenuation_coefficient, -100.0_RKIND) )
-            fracAbsorbedRunoff = 1.0_RKIND - exp( max(-layerThickness(1, iCell) / config_flux_attenuation_coefficient_runoff, &
-                              -100.0_RKIND) )
+      if (config_les_single_column) then
+         ! single column mode: only run LES in the first cell
+         ! need to make sure lesCell = 1 at all cells
 
-            wt_sfc = tracerGroupSurfaceFlux(indexTemperature, iCell) - fracAbsorbed * surfaceThicknessFlux(iCell) * &
-                     activeTracersCur(indexTemperature,1,iCell) + tracerGroupSurfaceFluxRunoff(indexTemperature,iCell) * &
-                     fracAbsorbedRunoff
+         do iCell = 1, nCells
+            if ( iCell == 1 ) then
+               ! set surface forcing
+               fracAbsorbed = 1.0_RKIND - exp( max(-layerThickness(1, iCell) / config_flux_attenuation_coefficient, -100.0_RKIND) )
+               fracAbsorbedRunoff = 1.0_RKIND - exp( max(-layerThickness(1, iCell) / config_flux_attenuation_coefficient_runoff, &
+                                 -100.0_RKIND) )
 
-            ws_sfc = tracerGroupSurfaceFlux(indexSalinity, iCell) - fracAbsorbed * surfaceThicknessFlux(iCell) *  &
-                     activeTracersCur(indexSalinity,1,iCell)
+               wt_sfc = tracerGroupSurfaceFlux(indexTemperature, iCell) - fracAbsorbed * surfaceThicknessFlux(iCell) * &
+                        activeTracersCur(indexTemperature,1,iCell) + tracerGroupSurfaceFluxRunoff(indexTemperature,iCell) * &
+                        fracAbsorbedRunoff
 
-            uw_sfc = stressZonal(iCell) / rho_sw
+               ws_sfc = tracerGroupSurfaceFlux(indexSalinity, iCell) - fracAbsorbed * surfaceThicknessFlux(iCell) *  &
+                        activeTracersCur(indexSalinity,1,iCell)
 
-            vw_sfc = stressMeridional(iCell) / rho_sw
+               uw_sfc = stressZonal(iCell) / rho_sw
 
-            ! run PALM
-            if ( first_palm ) then
+               vw_sfc = stressMeridional(iCell) / rho_sw
 
-               ! find the MPAS level that corresponds to the LES bottom
-               les_bottom = max(zMid(maxLevelCell(iCell),iCell), config_les_bottom)
-               do k = 1, maxLevelCell(iCell)
-                  if ( zMid(k,iCell) - les_bottom <= 0.0_RKIND ) then
-                     nzMPAS = k - 1
-                     exit
-                  endif
-               enddo
+               ! run PALM
+               if ( first_palm ) then
 
-               ! initial step of PALM, longer initialization
-               call palm_init(dt, nzMPAS, zTop(1:nzMPAS+1,iCell),                                 &
-                    activeTracersCur(indexTemperature,1:nzMPAS,iCell)+273.15_RKIND,               &
-                    activeTracersCur(indexSalinity,1:nzMPAS,iCell),                               &
-                    uCur(1:nzMPAS,iCell), vCur(1:nzMPAS,iCell),                                   &
-                    -wt_sfc, ws_sfc, -uw_sfc, -vw_sfc, -penetrativeTemperatureFlux(iCell),        &
-                    config_les_nz, config_les_nx, config_les_ny, config_les_dx, config_les_dy,    &
-                    config_les_idealized_diurnal, fac, dep1, dep2,                                &
-                    spinuptime, config_les_ls_mode, config_les_ls_factor_tracer,                  &
-                    config_les_ls_factor_vel, fCell(iCell), indexToCellID(iCell))
+                  ! find the MPAS level that corresponds to the LES bottom
+                  les_bottom = max(zMid(maxLevelCell(iCell),iCell), config_les_bottom)
+                  do k = 1, maxLevelCell(iCell)
+                     if ( zMid(k,iCell) - les_bottom <= 0.0_RKIND ) then
+                        nzMPAS = k - 1
+                        exit
+                     endif
+                  enddo
 
-               ! flag to finalize palm
-               run_palm_finalize = .true.
+                  ! initial step of PALM, longer initialization
+                  call palm_init(dt, nzMPAS, zTop(1:nzMPAS+1,iCell),                                 &
+                       activeTracersCur(indexTemperature,1:nzMPAS,iCell)+273.15_RKIND,               &
+                       activeTracersCur(indexSalinity,1:nzMPAS,iCell),                               &
+                       uCur(1:nzMPAS,iCell), vCur(1:nzMPAS,iCell),                                   &
+                       -wt_sfc, ws_sfc, -uw_sfc, -vw_sfc, -penetrativeTemperatureFlux(iCell),        &
+                       config_les_nz, config_les_nx, config_les_ny, config_les_dx, config_les_dy,    &
+                       config_les_idealized_diurnal, fac, dep1, dep2,                                &
+                       spinuptime, config_les_ls_mode, config_les_ls_factor_tracer,                  &
+                       config_les_ls_factor_vel, fCell(iCell), indexToCellID(iCell))
 
+                  ! flag to finalize palm
+                  run_palm_finalize = .true.
+
+               endif
+
+               tLSForcing = activeTracersNew(indexTemperature,:,iCell) - activeTracersCur(indexTemperature,:,iCell)
+               sLSForcing = activeTracersNew(indexSalinity,:,iCell) - activeTracersCur(indexSalinity,:,iCell)
+               ! uLSForcing = uNew(:,iCell) - uCur(:,iCell) + fCell(iCell) * vCur(:,iCell) * dt
+               ! vLSForcing = vNew(:,iCell) - vCur(:,iCell) - fCell(iCell) * uCur(:,iCell) * dt
+               uLSForcing = 0.0_RKIND
+               vLSForcing = 0.0_RKIND
+
+               ! continue PALM
+               call palm_main(nzMPAS, zTop(1:nzMPAS+1,iCell),                                         &
+                    activeTracersCur(indexTemperature,1:nzMPAS,iCell)+273.15_RKIND,                   &
+                    activeTracersCur(indexSalinity,1:nzMPAS,iCell),                                   &
+                    uCur(1:nzMPAS,iCell), vCur(1:nzMPAS,iCell),                                       &
+                    -wt_sfc, ws_sfc, -uw_sfc, -vw_sfc, -penetrativeTemperatureFlux(iCell),            &
+                    tLSForcing(1:nzMPAS), sLSForcing(1:nzMPAS),                                       &
+                    uLSForcing(1:nzMPAS), vLSForcing(1:nzMPAS),                                       &
+                    tIncrementLES(1:nzMPAS,iCell), sIncrementLES(1:nzMPAS,iCell),                     &
+                    uIncrementLES(1:nzMPAS,iCell), vIncrementLES(1:nzMPAS,iCell),                     &
+                    zLES(:,iCell), temperatureLES(:,iCell), salinityLES(:,iCell),                     &
+                    velocityZonalLES(:,iCell), velocityMeridionalLES(:,iCell))
+
+            else
+               tIncrementLES(:,iCell) = tIncrementLES(:,1)
+               sIncrementLES(:,iCell) = sIncrementLES(:,1)
+               uIncrementLES(:,iCell) = uIncrementLES(:,1)
+               vIncrementLES(:,iCell) = vIncrementLES(:,1)
+               temperatureLES(:,iCell) = temperatureLES(:,1)
+               salinityLES(:,iCell) = salinityLES(:,1)
+               velocityZonalLES(:,iCell) = velocityZonalLES(:,1)
+               velocityMeridionalLES(:,iCell) = velocityMeridionalLES(:,1)
+               zLES(:,iCell) = zLES(:,1)
             endif
 
-            tLSForcing = activeTracersNew(indexTemperature,:,iCell) - activeTracersCur(indexTemperature,:,iCell)
-            sLSForcing = activeTracersNew(indexSalinity,:,iCell) - activeTracersCur(indexSalinity,:,iCell)
-            ! uLSForcing = uNew(:,iCell) - uCur(:,iCell) + fCell(iCell) * vCur(:,iCell) * dt
-            ! vLSForcing = vNew(:,iCell) - vCur(:,iCell) - fCell(iCell) * uCur(:,iCell) * dt
-            uLSForcing = 0.0_RKIND
-            vLSForcing = 0.0_RKIND
+         enddo
+         !$omp end do
 
-            ! continue PALM
-            call palm_main(nzMPAS, zTop(1:nzMPAS+1,iCell),                                         &
-                 activeTracersCur(indexTemperature,1:nzMPAS,iCell)+273.15_RKIND,                   &
-                 activeTracersCur(indexSalinity,1:nzMPAS,iCell),                                   &
-                 uCur(1:nzMPAS,iCell), vCur(1:nzMPAS,iCell),                                       &
-                 -wt_sfc, ws_sfc, -uw_sfc, -vw_sfc, -penetrativeTemperatureFlux(iCell),            &
-                 tLSForcing(1:nzMPAS), sLSForcing(1:nzMPAS),                                       &
-                 uLSForcing(1:nzMPAS), vLSForcing(1:nzMPAS),                                       &
-                 tIncrementLES(1:nzMPAS,iCell), sIncrementLES(1:nzMPAS,iCell),                     &
-                 uIncrementLES(1:nzMPAS,iCell), vIncrementLES(1:nzMPAS,iCell),                     &
-                 zLES(:,iCell), temperatureLES(:,iCell), salinityLES(:,iCell),                     &
-                 velocityZonalLES(:,iCell), velocityMeridionalLES(:,iCell))
+      else
+         ! normal mode
 
-         else
-            tIncrementLES(:,iCell) = 0.0_RKIND
-            sIncrementLES(:,iCell) = 0.0_RKIND
-            uIncrementLES(:,iCell) = 0.0_RKIND
-            vIncrementLES(:,iCell) = 0.0_RKIND
-            temperatureLES(:,iCell) = 0.0_RKIND
-            salinityLES(:,iCell) = 0.0_RKIND
-            velocityZonalLES(:,iCell) = 0.0_RKIND
-            velocityMeridionalLES(:,iCell) = 0.0_RKIND
-            zLES(:,iCell) = 0.0_RKIND
-         endif
+         !$omp do schedule(runtime)
+         do iCell = 1, nCells
+            ! only run LES where lesCell == 1
+            if ( lesCell(iCell) == 1 ) then
+               ! set surface forcing
+               fracAbsorbed = 1.0_RKIND - exp( max(-layerThickness(1, iCell) / config_flux_attenuation_coefficient, -100.0_RKIND) )
+               fracAbsorbedRunoff = 1.0_RKIND - exp( max(-layerThickness(1, iCell) / config_flux_attenuation_coefficient_runoff, &
+                                 -100.0_RKIND) )
 
-      enddo
-      !$omp end do
+               wt_sfc = tracerGroupSurfaceFlux(indexTemperature, iCell) - fracAbsorbed * surfaceThicknessFlux(iCell) * &
+                        activeTracersCur(indexTemperature,1,iCell) + tracerGroupSurfaceFluxRunoff(indexTemperature,iCell) * &
+                        fracAbsorbedRunoff
+
+               ws_sfc = tracerGroupSurfaceFlux(indexSalinity, iCell) - fracAbsorbed * surfaceThicknessFlux(iCell) *  &
+                        activeTracersCur(indexSalinity,1,iCell)
+
+               uw_sfc = stressZonal(iCell) / rho_sw
+
+               vw_sfc = stressMeridional(iCell) / rho_sw
+
+               ! run PALM
+               if ( first_palm ) then
+
+                  ! find the MPAS level that corresponds to the LES bottom
+                  les_bottom = max(zMid(maxLevelCell(iCell),iCell), config_les_bottom)
+                  do k = 1, maxLevelCell(iCell)
+                     if ( zMid(k,iCell) - les_bottom <= 0.0_RKIND ) then
+                        nzMPAS = k - 1
+                        exit
+                     endif
+                  enddo
+
+                  ! initial step of PALM, longer initialization
+                  call palm_init(dt, nzMPAS, zTop(1:nzMPAS+1,iCell),                                 &
+                       activeTracersCur(indexTemperature,1:nzMPAS,iCell)+273.15_RKIND,               &
+                       activeTracersCur(indexSalinity,1:nzMPAS,iCell),                               &
+                       uCur(1:nzMPAS,iCell), vCur(1:nzMPAS,iCell),                                   &
+                       -wt_sfc, ws_sfc, -uw_sfc, -vw_sfc, -penetrativeTemperatureFlux(iCell),        &
+                       config_les_nz, config_les_nx, config_les_ny, config_les_dx, config_les_dy,    &
+                       config_les_idealized_diurnal, fac, dep1, dep2,                                &
+                       spinuptime, config_les_ls_mode, config_les_ls_factor_tracer,                  &
+                       config_les_ls_factor_vel, fCell(iCell), indexToCellID(iCell))
+
+                  ! flag to finalize palm
+                  run_palm_finalize = .true.
+
+               endif
+
+               tLSForcing = activeTracersNew(indexTemperature,:,iCell) - activeTracersCur(indexTemperature,:,iCell)
+               sLSForcing = activeTracersNew(indexSalinity,:,iCell) - activeTracersCur(indexSalinity,:,iCell)
+               ! uLSForcing = uNew(:,iCell) - uCur(:,iCell) + fCell(iCell) * vCur(:,iCell) * dt
+               ! vLSForcing = vNew(:,iCell) - vCur(:,iCell) - fCell(iCell) * uCur(:,iCell) * dt
+               uLSForcing = 0.0_RKIND
+               vLSForcing = 0.0_RKIND
+
+               ! continue PALM
+               call palm_main(nzMPAS, zTop(1:nzMPAS+1,iCell),                                         &
+                    activeTracersCur(indexTemperature,1:nzMPAS,iCell)+273.15_RKIND,                   &
+                    activeTracersCur(indexSalinity,1:nzMPAS,iCell),                                   &
+                    uCur(1:nzMPAS,iCell), vCur(1:nzMPAS,iCell),                                       &
+                    -wt_sfc, ws_sfc, -uw_sfc, -vw_sfc, -penetrativeTemperatureFlux(iCell),            &
+                    tLSForcing(1:nzMPAS), sLSForcing(1:nzMPAS),                                       &
+                    uLSForcing(1:nzMPAS), vLSForcing(1:nzMPAS),                                       &
+                    tIncrementLES(1:nzMPAS,iCell), sIncrementLES(1:nzMPAS,iCell),                     &
+                    uIncrementLES(1:nzMPAS,iCell), vIncrementLES(1:nzMPAS,iCell),                     &
+                    zLES(:,iCell), temperatureLES(:,iCell), salinityLES(:,iCell),                     &
+                    velocityZonalLES(:,iCell), velocityMeridionalLES(:,iCell))
+
+            else
+               tIncrementLES(:,iCell) = 0.0_RKIND
+               sIncrementLES(:,iCell) = 0.0_RKIND
+               uIncrementLES(:,iCell) = 0.0_RKIND
+               vIncrementLES(:,iCell) = 0.0_RKIND
+               temperatureLES(:,iCell) = 0.0_RKIND
+               salinityLES(:,iCell) = 0.0_RKIND
+               velocityZonalLES(:,iCell) = 0.0_RKIND
+               velocityMeridionalLES(:,iCell) = 0.0_RKIND
+               zLES(:,iCell) = 0.0_RKIND
+            endif
+
+         enddo
+         !$omp end do
+      endif
 
       normalVelocityIncrementLES(:,:) = 0.0_RKIND
       !$omp do schedule(runtime) private(cell1, cell2)

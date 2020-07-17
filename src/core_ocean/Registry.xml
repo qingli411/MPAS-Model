@@ -481,15 +481,19 @@
 					description="If true, a large eddy simulation model will be used for velocity vertical mixing tendencies."
 					possible_values=".true. or .false."
 		/>
+		<nml_option name="config_les_single_column" type="logical" default_value=".false." units="NA"
+					description="If true, tendencies from the large eddy simulation model are applied to all cells."
+					possible_values=".true. or .false."
+		/>
 		<nml_option name="config_les_dx" type="real" default_value="1.0" units="m"
 					description="x grid spacing in the LES"
 					possible_values="positive real numbers"
 		/>
-	  <nml_option name="config_les_dy" type="real" default_value="1.0" units="m"
+        <nml_option name="config_les_dy" type="real" default_value="1.0" units="m"
 					description="y grid spacing in the LES"
 					possible_values="positive real numbers"
 		/>
-	  <nml_option name="config_les_dz" type="real" default_value="1.0" units="m"
+	    <nml_option name="config_les_dz" type="real" default_value="1.0" units="m"
 					description="thickness of first layer in LES"
 					possible_values="positive real numbers"
 		/>

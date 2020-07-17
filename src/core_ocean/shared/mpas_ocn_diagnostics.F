@@ -1091,7 +1091,7 @@ contains
       real (kind=RKIND), dimension(:,:), pointer :: weightsOnEdge, normalVelocity, normalBaroclinicVelocity
       type (dm_info) :: dminfo
 
-      integer, dimension(:), pointer :: maxLevelEdgeTop, nEdgesOnEdge, lesCell
+      integer, dimension(:), pointer :: maxLevelEdgeTop, nEdgesOnEdge
       integer, dimension(:,:), pointer :: cellsOnEdge, edgesOnEdge
 
       integer :: timeLevel
