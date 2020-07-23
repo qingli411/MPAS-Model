@@ -228,13 +228,13 @@ pgi-summit-gpu:
 	"LES_FFLAGS_OPT = -acc -ta=tesla:cc70,deepcopy -Minfo=accel -Mcuda" \
 	"LES_LDFLAGS_OPT = -acc -Minfo=accel -Mcuda" \
 	"USE_CUDA = true" \
-	"FFLAGS_DEBUG = -fpic -O0 -g -Mbounds -byteswapio -Mfree -Ktrap=divz,fp,inv,ovf" \
-	"CFLAGS_DEBUG = -O0 -g" \
-	"CXXFLAGS_DEBUG = -O0 -g" \
-	"LDFLAGS_DEBUG = -O0 -g -acc -Minfo=accel -Mcuda -Mbounds -Ktrap=divz,fp,inv,ovf" \
+	"FFLAGS_DEBUG = -fpic -O0 -g -Mbounds -byteswapio -Mfree -Ktrap=divz,fp,inv,ovf -traceback" \
+	"CFLAGS_DEBUG = -O0 -g -traceback" \
+	"CXXFLAGS_DEBUG = -O0 -g -traceback" \
+	"LDFLAGS_DEBUG = -O0 -g -acc -Minfo=accel -Mcuda -Mbounds -Ktrap=divz,fp,inv,ovf -traceback" \
 	"FFLAGS_OMP = -mp" \
 	"CFLAGS_OMP = -mp" \
-	"LES_COPT = -Mpreprocess -D__netcdf -D__nopointers -D__lc -D__GPU -D__SP -D__DEBUG_PALMLIB" \
+	"LES_COPT = -Mpreprocess -D__netcdf -D__nopointers -D__lc -D__GPU -D__SP" \
 	"CORE = $(CORE)" \
 	"DEBUG = $(DEBUG)" \
 	"USE_PAPI = $(USE_PAPI)" \
