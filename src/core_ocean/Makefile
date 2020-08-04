@@ -49,10 +49,6 @@ cvmix_source: get_cvmix.sh
 	(/bin/bash ./get_cvmix.sh)
 	(cd cvmix)
 
-LES_source: get_palm_les.sh
-	(/bin/bash ./get_palm_les.sh)
-	(cd palm_les)
-
 BGC_source: get_BGC.sh
 	(/bin/bash ./get_BGC.sh)
 	(cd BGC)
@@ -64,7 +60,7 @@ libcvmix: cvmix_source
 		(exit 1) \
 	fi
 
-libLES: LES_source
+libLES:
 	if [ -d palm_les ]; then \
 		(cd palm_les; make libs makelib=True COPT="$(LES_COPT)" F90="$(FC)" F90FLAGS="$(FFLAGS) $(LES_FFLAGS_OPT) $(FCINCLUDES)" LDFLAGS="$(LES_LDFLAGS_OPT) $(LIBS) $(NCLIBF)") \
 	else \

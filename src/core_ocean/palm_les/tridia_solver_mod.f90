@@ -1,0 +1,408 @@
+!> @file tridia_solver_mod.f90
+!------------------------------------------------------------------------------!
+! This file is part of the PALM model system.
+!
+! PALM is free software: you can redistribute it and/or modify it under the
+! terms of the GNU General Public License as published by the Free Software
+! Foundation, either version 3 of the License, or (at your option) any later
+! version.
+!
+! PALM is distributed in the hope that it will be useful, but WITHOUT ANY
+! WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+! A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License along with
+! PALM. If not, see <http://www.gnu.org/licenses/>.
+!
+! Copyright 1997-2018 Leibniz Universitaet Hannover
+!------------------------------------------------------------------------------!
+!
+! Current revisions:
+! ------------------
+!
+!
+! Former revisions:
+! -----------------
+! $Id: tridia_solver_mod.f90 2718 2018-01-02 08:49:38Z maronga $
+! Corrected "Former revisions" section
+!
+! 2696 2017-12-14 17:12:51Z kanani
+! Change in file header (GPL part)
+!
+! 2119 2017-01-17 16:51:50Z raasch
+!
+! 2118 2017-01-17 16:38:49Z raasch
+! OpenACC directives removed
+!
+! 2037 2016-10-26 11:15:40Z knoop
+! Anelastic approximation implemented
+!
+! 2000 2016-08-20 18:09:15Z knoop
+! Forced header and separation lines into 80 columns
+!
+! 1850 2016-04-08 13:29:27Z maronga
+! Module renamed
+!
+!
+! 1815 2016-04-06 13:49:59Z raasch
+! cpp-switch intel11 removed
+!
+! 1808 2016-04-05 19:44:00Z raasch
+! test output removed
+!
+! 1804 2016-04-05 16:30:18Z maronga
+! Removed code for parameter file check (__check)
+!
+! 1682 2015-10-07 23:56:08Z knoop
+! Code annotations made doxygen readable
+!
+! 1406 2014-05-16 13:47:01Z raasch
+! bugfix for pgi 14.4: declare create moved after array declaration
+!
+! 1342 2014-03-26 17:04:47Z kanani
+! REAL constants defined as wp-kind
+!
+! 1322 2014-03-20 16:38:49Z raasch
+! REAL functions provided with KIND-attribute
+!
+! 1320 2014-03-20 08:40:49Z raasch
+! ONLY-attribute added to USE-statements,
+! kind-parameters added to all INTEGER and REAL declaration statements,
+! kinds are defined in new module kinds,
+! old module precision_kind is removed,
+! revision history before 2012 removed,
+! comment fields (!:) to be used for variable explanations added to
+! all variable declaration statements
+!
+! 1257 2013-11-08 15:18:40Z raasch
+! openacc loop and loop vector clauses removed, declare create moved after
+! the FORTRAN declaration statement
+!
+! 1221 2013-09-10 08:59:13Z raasch
+! dummy argument tri in 1d-routines replaced by tri_for_1d because of name
+! conflict with arry tri in module arrays_3d
+!
+! 1216 2013-08-26 09:31:42Z raasch
+! +tridia_substi_overlap for handling overlapping fft / transposition
+!
+! 1212 2013-08-15 08:46:27Z raasch
+! Initial revision.
+! Routines have been moved to seperate module from former file poisfft to here.
+! The tridiagonal matrix coefficients of array tri are calculated only once at
+! the beginning, i.e. routine split is called within tridia_init.
+!
+!
+! Description:
+! ------------
+!> solves the linear system of equations:
+!>
+!> -(4 pi^2(i^2/(dx^2*nnx^2)+j^2/(dy^2*nny^2))+
+!>   1/(dzu(k)*dzw(k))+1/(dzu(k-1)*dzw(k)))*p(i,j,k)+
+!> 1/(dzu(k)*dzw(k))*p(i,j,k+1)+1/(dzu(k-1)*dzw(k))*p(i,j,k-1)=d(i,j,k)
+!>
+!> by using the Thomas algorithm
+!------------------------------------------------------------------------------!
+ MODULE tridia_solver
+
+
+    USE indices,                                                               &
+        ONLY:  nx, ny, nz
+
+    USE kinds
+
+    USE transpose_indices,                                                     &
+        ONLY:  nxl_z, nyn_z, nxr_z, nys_z
+
+#ifdef __GPU
+    USE cudafor
+#endif
+
+    IMPLICIT NONE
+
+    PRIVATE
+
+    INTERFACE tridia_substi
+       MODULE PROCEDURE tridia_substi
+    END INTERFACE tridia_substi
+
+    PUBLIC  tridia_substi, tridia_init, tridia_deallocate
+
+ CONTAINS
+
+    SUBROUTINE tridia_deallocate
+
+       USE arrays_3d,                                                         &
+           ONLY:  ddzuw
+
+       DEALLOCATE(ddzuw)
+
+    END SUBROUTINE tridia_deallocate
+
+!------------------------------------------------------------------------------!
+! Description:
+! ------------
+!> @todo Missing subroutine description.
+!------------------------------------------------------------------------------!
+    SUBROUTINE tridia_init
+
+       USE kinds
+
+       IMPLICIT NONE
+
+!
+!--    Calculate constant coefficients of the tridiagonal matrix
+       CALL maketri
+       CALL split
+
+    END SUBROUTINE tridia_init
+
+
+!------------------------------------------------------------------------------!
+! Description:
+! ------------
+!> Computes the i- and j-dependent component of the matrix
+!> Provide the constant coefficients of the tridiagonal matrix for solution
+!> of the Poisson equation in Fourier space.
+!> The coefficients are computed following the method of
+!> Schmidt et al. (DFVLR-Mitteilung 84-15), which departs from Stephan
+!> Siano's original version by discretizing the Poisson equation,
+!> before it is Fourier-transformed.
+!------------------------------------------------------------------------------!
+    SUBROUTINE maketri
+
+
+          USE arrays_3d,                                                       &
+              ONLY:  tric, ddzuw
+
+          USE constants,                                                       &
+              ONLY:  pi
+
+          USE control_parameters,                                              &
+              ONLY:  ibc_p_b, ibc_p_t
+
+          USE grid_variables,                                                  &
+              ONLY:  dx, dy
+
+
+          USE kinds
+
+          IMPLICIT NONE
+
+          INTEGER(iwp) ::  i    !<
+          INTEGER(iwp) ::  j    !<
+          INTEGER(iwp) ::  k    !<
+          INTEGER(iwp) ::  nnxh !<
+          INTEGER(iwp) ::  nnyh !<
+
+          REAL(wp)    ::  ll(nxl_z:nxr_z,nys_z:nyn_z) !<
+
+
+          nnxh = ( nx + 1 ) / 2
+          nnyh = ( ny + 1 ) / 2
+
+          DO  j = nys_z, nyn_z
+             DO  i = nxl_z, nxr_z
+                IF ( j >= 0  .AND.  j <= nnyh )  THEN
+                   IF ( i >= 0  .AND.  i <= nnxh )  THEN
+                      ll(i,j) = 2.0_wp * ( 1.0_wp - COS( ( 2.0_wp * pi * i ) / &
+                                            REAL( nx+1, KIND=wp ) ) ) / ( dx * dx ) + &
+                                2.0_wp * ( 1.0_wp - COS( ( 2.0_wp * pi * j ) / &
+                                            REAL( ny+1, KIND=wp ) ) ) / ( dy * dy )
+                   ELSE
+                      ll(i,j) = 2.0_wp * ( 1.0_wp - COS( ( 2.0_wp * pi * ( nx+1-i ) ) / &
+                                            REAL( nx+1, KIND=wp ) ) ) / ( dx * dx ) + &
+                                2.0_wp * ( 1.0_wp - COS( ( 2.0_wp * pi * j ) / &
+                                            REAL( ny+1, KIND=wp ) ) ) / ( dy * dy )
+                   ENDIF
+                ELSE
+                   IF ( i >= 0  .AND.  i <= nnxh )  THEN
+                      ll(i,j) = 2.0_wp * ( 1.0_wp - COS( ( 2.0_wp * pi * i ) / &
+                                            REAL( nx+1, KIND=wp ) ) ) / ( dx * dx ) + &
+                                2.0_wp * ( 1.0_wp - COS( ( 2.0_wp * pi * ( ny+1-j ) ) / &
+                                            REAL( ny+1, KIND=wp ) ) ) / ( dy * dy )
+                   ELSE
+                      ll(i,j) = 2.0_wp * ( 1.0_wp - COS( ( 2.0_wp * pi * ( nx+1-i ) ) / &
+                                            REAL( nx+1, KIND=wp ) ) ) / ( dx * dx ) + &
+                                2.0_wp * ( 1.0_wp - COS( ( 2.0_wp * pi * ( ny+1-j ) ) / &
+                                            REAL( ny+1, KIND=wp ) ) ) / ( dy * dy )
+                   ENDIF
+                ENDIF
+             ENDDO
+          ENDDO
+
+          DO  k = 0, nz-1
+             DO  j = nys_z, nyn_z
+                DO  i = nxl_z, nxr_z
+                   tric(i,j,k) = ddzuw(k,3) - ll(i,j)
+                ENDDO
+             ENDDO
+          ENDDO
+
+          IF ( ibc_p_b == 1 )  THEN
+             DO  j = nys_z, nyn_z
+                DO  i = nxl_z, nxr_z
+                   tric(i,j,0) = tric(i,j,0) + ddzuw(0,1)
+                ENDDO
+             ENDDO
+          ENDIF
+          IF ( ibc_p_t == 1 )  THEN
+             DO  j = nys_z, nyn_z
+                DO  i = nxl_z, nxr_z
+                   tric(i,j,nz-1) = tric(i,j,nz-1) + ddzuw(nz-1,2)
+                ENDDO
+             ENDDO
+          ENDIF
+
+    END SUBROUTINE maketri
+
+
+!------------------------------------------------------------------------------!
+! Description:
+! ------------
+!> Substitution (Forward and Backward) (Thomas algorithm)
+!------------------------------------------------------------------------------!
+    SUBROUTINE tridia_substi( ar )
+
+
+          USE arrays_3d,                                                       &
+              ONLY:  tri, ddzuw
+
+          USE control_parameters,                                              &
+              ONLY:  ibc_p_b, ibc_p_t
+
+          USE kinds
+
+          IMPLICIT NONE
+
+          INTEGER(iwp) ::  i !<
+          INTEGER(iwp) ::  j !<
+          INTEGER(iwp) ::  k !<
+
+#ifdef __GPU
+          REAL(wp), DEVICE :: ar(nxl_z:nxr_z,nys_z:nyn_z,1:nz)
+          REAL(wp), DEVICE, ALLOCATABLE :: ar1(:,:,:), tri_d(:,:,:,:)
+
+          ALLOCATE( ar1(nxl_z:nxr_z,nys_z:nyn_z,0:nz-1) ) !<
+          ALLOCATE( tri_d(nxl_z:nxr_z,nys_z:nyn_z,0:nz-1,2) )
+
+          tri_d = tri
+#else
+          REAL(wp)     ::  ar(nxl_z:nxr_z,nys_z:nyn_z,1:nz) !<
+          REAL(wp), DIMENSION(nxl_z:nxr_z,nys_z:nyn_z,0:nz-1)   ::  ar1 !<
+#endif
+
+!
+!--       Forward substitution
+          !$acc parallel present( ddzuw )
+          !$acc loop
+          DO  k = 0, nz - 1
+            !$acc loop collapse(2)
+             DO  j = nys_z, nyn_z
+                DO  i = nxl_z, nxr_z
+
+#ifdef __GPU
+                   IF ( k == 0 )  THEN
+                      ar1(i,j,k) = ar(i,j,k+1)
+                   ELSE
+                      ar1(i,j,k) = ar(i,j,k+1) - tri_d(i,j,k,2) * ar1(i,j,k-1)
+                   ENDIF
+#else
+                   IF ( k == 0 )  THEN
+                      ar1(i,j,k) = ar(i,j,k+1)
+                   ELSE
+                      ar1(i,j,k) = ar(i,j,k+1) - tri(i,j,k,2) * ar1(i,j,k-1)
+                   ENDIF
+#endif
+
+                ENDDO
+             ENDDO
+          ENDDO
+
+!
+!--       Backward substitution
+!--       Note, the 1.0E-20 in the denominator is due to avoid divisions
+!--       by zero appearing if the pressure bc is set to neumann at the top of
+!--       the model domain.
+          !$acc loop
+          DO  k = nz-1, 0, -1
+             !$acc loop collapse(2)
+              DO  j = nys_z, nyn_z
+                DO  i = nxl_z, nxr_z
+
+#ifdef __GPU
+                   IF ( k == nz-1 )  THEN
+                      ar(i,j,k+1) = ar1(i,j,k) / ( tri_d(i,j,k,1) + 1.0E-20_wp )
+                   ELSE
+                      ar(i,j,k+1) = ( ar1(i,j,k) - ddzuw(k,2) * ar(i,j,k+2) ) &
+                              / tri_d(i,j,k,1)
+                   ENDIF
+#else
+                   IF ( k == nz-1 )  THEN
+                      ar(i,j,k+1) = ar1(i,j,k) / ( tri(i,j,k,1) + 1.0E-20_wp )
+                   ELSE
+                      ar(i,j,k+1) = ( ar1(i,j,k) - ddzuw(k,2) * ar(i,j,k+2) ) &
+                              / tri(i,j,k,1)
+                   ENDIF
+#endif
+
+                ENDDO
+             ENDDO
+          ENDDO
+
+!
+!--       Indices i=0, j=0 correspond to horizontally averaged pressure.
+!--       The respective values of ar should be zero at all k-levels if
+!--       acceleration of horizontally averaged vertical velocity is zero.
+          IF ( ibc_p_b == 1  .AND.  ibc_p_t == 1 )  THEN
+             IF ( nys_z == 0  .AND.  nxl_z == 0 )  THEN
+                !$acc loop
+                DO  k = 1, nz
+                   ar(nxl_z,nys_z,k) = 0.0_wp
+                ENDDO
+             ENDIF
+          ENDIF
+
+          !$acc end parallel
+
+    END SUBROUTINE tridia_substi
+
+
+!------------------------------------------------------------------------------!
+! Description:
+! ------------
+!> Splitting of the tridiagonal matrix (Thomas algorithm)
+!------------------------------------------------------------------------------!
+    SUBROUTINE split
+
+
+          USE arrays_3d,                                                       &
+              ONLY:  tri, tric, ddzuw
+
+          USE kinds
+
+          IMPLICIT NONE
+
+          INTEGER(iwp) ::  i !<
+          INTEGER(iwp) ::  j !<
+          INTEGER(iwp) ::  k !<
+!
+!--       Splitting
+          DO  j = nys_z, nyn_z
+             DO  i = nxl_z, nxr_z
+                tri(i,j,0,1) = tric(i,j,0)
+             ENDDO
+          ENDDO
+
+          DO  k = 1, nz-1
+             DO  j = nys_z, nyn_z
+                DO  i = nxl_z, nxr_z
+                   tri(i,j,k,2) = ddzuw(k,1) / tri(i,j,k-1,1)
+                   tri(i,j,k,1) = tric(i,j,k) - ddzuw(k-1,2) * tri(i,j,k,2)
+                ENDDO
+             ENDDO
+          ENDDO
+
+    END SUBROUTINE split
+
+
+ END MODULE tridia_solver
