@@ -491,7 +491,8 @@
     USE control_parameters
 
     USE eqn_state_seawater_mod,                                                &
-        ONLY:  eqn_state_seawater, eqn_state_seawater_func
+        ONLY:  eqn_state_seawater, eqn_state_seawater_func,                    &
+               eqn_state_linear_func
 
     USE grid_variables,                                                        &
         ONLY:  dx, dy
@@ -858,14 +859,10 @@
 !-- and pressure (based on in situ density)
     DO  n = 1, 5
 
-       rho_reference = 0.0_wp
        DO  k = nzb+1, nzt
           rho_ocean_init(k) = eqn_state_seawater_func( hyp(k),                 &
                               pt_init(k), sa_init(k) )
-          rho_reference = rho_reference + rho_ocean_init(k) * dzw(k)
        ENDDO
-
-       rho_reference = rho_reference / ( zw(nzt) - zw(nzb) )
 
        DO  k = nzt, 0, -1
           hyp(k) = hyp(k+1) + g * 0.5_wp * ( rho_ocean_init(k)                 &
@@ -877,10 +874,18 @@
 !
 !-- Calculate the reference potential density
     prho_reference = 0.0_wp
-    DO  k = nzb+1, nzt
-       prho_reference = prho_reference + dzw(k) * &
-                        eqn_state_seawater_func( 0.0_wp, pt_init(k), sa_init(k) )
-    ENDDO
+    IF (linear_eqnOfState) THEN
+       DO  k = nzb+1, nzt
+          prho_reference = prho_reference + dzw(k) * &
+                           eqn_state_linear_func( pt_init(k), sa_init(k),        &
+                              alpha_const, beta_const, rho_ref, pt_ref, sa_ref )
+       ENDDO
+    ELSE
+       DO  k = nzb+1, nzt
+          prho_reference = prho_reference + dzw(k) * &
+                           eqn_state_seawater_func( 0.0_wp, pt_init(k), sa_init(k) )
+       ENDDO
+    ENDIF
 
     prho_reference = prho_reference / ( zw(nzt) - zw(nzb) )
 

@@ -768,7 +768,7 @@
                        TRIM( gradients ), TRIM( slices )
 
 !-- Reference potential density
-    WRITE ( io, 426) rho_reference
+    WRITE ( io, 426) prho_reference
 
 !
 !-- Listing of 1D-profiles

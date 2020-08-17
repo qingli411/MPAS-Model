@@ -449,7 +449,7 @@
              ideal_solar_efolding1, ideal_solar_efolding2,                     &
              initializing_actions, latitude, longitude, most_method,           &
              netcdf_precision, nx, ny, nz,                                     &
-             linear_eqnOfState, rho_ref, fixed_alpha, alpha_const,             &
+             linear_eqnOfState, rho_ref, alpha_const,                          &
              beta_const, pt_ref, sa_ref, omega, prandtl_number,                &
              pt_surface, pt_surface_initial_change, pt_vertical_gradient,      &
              pt_vertical_gradient_level, random_generator,                     &
@@ -473,7 +473,7 @@
              ideal_solar_efolding1, ideal_solar_efolding2,                     &
              initializing_actions, latitude, longitude, most_method,           &
              netcdf_precision, nx, ny, nz,                                     &
-             linear_eqnOfState, rho_ref, fixed_alpha, alpha_const,             &
+             linear_eqnOfState, rho_ref, alpha_const,                          &
              beta_const, pt_ref, sa_ref, omega, prandtl_number,                &
              pt_surface, pt_surface_initial_change, pt_vertical_gradient,      &
              pt_vertical_gradient_level, random_generator,                     &

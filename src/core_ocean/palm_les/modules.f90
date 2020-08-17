@@ -933,7 +933,6 @@
     LOGICAL ::  les_mw = .FALSE.                                 !< use Moeng-Wyngaard turbulence closure for LES mode
     LOGICAL ::  linear_eqnOfState = .FALSE.                      !< namelist parmaeter for linear equation of state in ocean
     REAL(wp) :: rho_ref = 1000.0_wp                              !< reference density for linear eos
-    LOGICAL ::  fixed_alpha = .TRUE.                             !< use fixed thermal and haline expansion coefficients
     REAL(wp) :: alpha_const = 2.0E-4                             !< fixed alpha_T value
     REAL(wp) :: beta_const = 8.0E-4                              !< fixed beta_S value
     REAL(wp) :: pt_ref = 15.0_wp                                 !< potential temperature reference falue
@@ -1003,13 +1002,11 @@
     REAL(wp) ::  particle_maximum_age = 9999999.9_wp           !< namelist parameter
     REAL(wp) ::  prandtl_number = 1.0_wp                       !< namelist parameter
     REAL(wp) ::  prho_reference                                !< reference state of potential density
-                                                               !< boundary of total domain
     REAL(wp) ::  pt_surface = 293.0_wp                         !< namelist parameter
     REAL(wp) ::  pt_surface_initial_change = 0.0_wp            !< namelist parameter
     REAL(wp) ::  rayleigh_damping_factor = -1.0_wp             !< namelist parameter
     REAL(wp) ::  rayleigh_damping_height = -1.0_wp             !< namelist parameter
     REAL(wp) ::  restart_time = 9999999.9_wp                   !< namelist parameter
-    REAL(wp) ::  rho_reference                                 !< reference state of density
     REAL(wp) ::  rho_surface                                   !< surface value of density
     REAL(wp) ::  sa_surface = 35.0_wp                          !< namelist parameter
     REAL(wp) ::  simulated_time = 0.0_wp                       !< elapsed simulated time

@@ -89,7 +89,7 @@
     IMPLICIT NONE
 
     PRIVATE
-    PUBLIC eqn_state_seawater, eqn_state_seawater_func
+    PUBLIC eqn_state_seawater, eqn_state_seawater_func, eqn_state_linear_func
 
     REAL(wp), DIMENSION(12), PARAMETER ::  nom =                               &
                           (/ 9.9984085444849347D2,   7.3471625860981584D0,     &
@@ -134,7 +134,7 @@
            ONLY:  nxl, nxlg, nxr, nxrg, nyn, nyng, nys, nysg, nzb, nzt
 
        USE control_parameters,                                                 &
-          ONLY :  linear_eqnOfState, alpha_const, beta_const, fixed_alpha,     &
+          ONLY :  linear_eqnOfState, alpha_const, beta_const,                  &
                   rho_ref, pt_ref, sa_ref
 
        IMPLICIT NONE
@@ -163,95 +163,102 @@
        REAL(wp) ::  sa1    !<
        REAL(wp) ::  sa15   !<
        REAL(wp) ::  sa2    !<
+       REAL(wp) ::  tmp    !<
 
+       IF (linear_eqnOfState) THEN
 
-       !$acc parallel present( pt_p, sa_p ) &
-       !$acc present( hyp, rho_ocean, prho, alpha_T, beta_S )
+          !$acc parallel present( pt_p, sa_p ) &
+          !$acc present( rho_ocean, prho )
 
-       !$acc loop collapse(2)
-       DO  i = nxl, nxr
-          DO  j = nys, nyn
-             !$acc loop seq
-             DO  k = nzb+1, nzt
-             !
-!--             Pressure is needed in dbar
-                p1 = hyp(k) * 1E-4_wp
-                p2 = p1 * p1
-                p3 = p2 * p1
-
+          !$acc loop collapse(3)
+          DO  i = nxl, nxr
+             DO  j = nys, nyn
+                DO  k = nzb+1, nzt
 !
-!--             Temperature needed in degree Celsius
-                pt1 = pt_p(k,j,i) - 273.15_wp
-                pt2 = pt1 * pt1
-                pt3 = pt1 * pt2
-                pt4 = pt2 * pt2
-
-                sa1  = sa_p(k,j,i)
-                sa15 = sa1 * SQRT( sa1 )
-                sa2  = sa1 * sa1
-
-                pnom = nom(1)           + nom(2)*pt1     + nom(3)*pt2     +    &
-                       nom(4)*pt3       + nom(5)*sa1     + nom(6)*sa1*pt1 +    &
-                       nom(7)*sa2
-!-- LPV         Compute pieces for alpha_T and beta_S in steps
-
-                dpnomdT1 = nom(2)       + 2.0*nom(3)*pt1 + 3.0*nom(4)*pt2 +    &
-                       nom(6)*sa1
-                dpnomdS1 = nom(5)       + nom(6)*pt1     + 2.0*nom(7)*sa1
-
-                pden = den(1)           + den(2)*pt1     + den(3)*pt2     +    &
-                       den(4)*pt3       + den(5)*pt4     + den(6)*sa1     +    &
-                       den(7)*sa1*pt1   + den(8)*sa1*pt3 + den(9)*sa15    +    &
-                       den(10)*sa15*pt2
-!
-                dpdendT1 = den(2) + 2.0*den(3)*pt1 + 3.0*den(4)*pt2 + 4.0*den(5)*pt3 + &
-                       den(7)*sa1 + 3.0*den(8)*sa1*pt2 + 2.0*den(10)*sa15*pt1
-                dpdendS1 = den(6) + den(7)*pt1 + den(8)*pt3 + 1.5*den(9)*sqrt(sa1) + &
-                       1.5*den(10)*pt2*sqrt(sa1)
-
-!--             Potential density (without pressure terms)
-                prho(k,j,i) = pnom / pden
-
-                pnom = pnom +             nom(8)*p1      + nom(9)*p1*pt2  +    &
-                       nom(10)*p1*sa1   + nom(11)*p2     + nom(12)*p2*pt2
-
-                pden = pden +             den(11)*p1     + den(12)*p2*pt3 +    &
-                       den(13)*p3*pt1
-
-                dpnomdT2 = dpnomdT1     + 2.0*nom(9)*p1*pt1  + 2.0*nom(12)*p2*pt1
-                dpnomdS2 = dpnomdS1     + nom(10)*p1
-
-                dpdendT2 = dpdendT1 + 3.0*den(12)*p2*pt2 + den(13)*p3
-                dpdendS2 = dpdendS1
-
-!
-!--             In-situ density
-
-                rho_ocean(k,j,i) = pnom / pden
-
-                alpha_T(k,j,i) = -1.0/rho_ocean(k,j,i)*((dpnomdT2*pden -         &
-                                    pnom*dpdendT2) / (pden*pden))
-                beta_S(k,j,i) = 1.0/rho_ocean(k,j,i)*(dpnomdS2*pden - pnom*dpdendS2) / (pden*pden)
-                rho_ocean(k,j,i) = pnom / pden
-
-                if (linear_eqnOfState) THEN
-                  if (fixed_alpha) THEN
-                    rho_ocean(k,j,i) = rho_ref*(1.0 - alpha_const*(pt1 - pt_ref) + &
-                        beta_const*(sa1 - sa_ref))
-                  ELSE
-                    rho_ocean(k,j,i) = rho_ref*(1.0 - alpha_T(k,j,i)*(pt1 - pt_ref) + &
-                        beta_S(k,j,i)*(sa1 - sa_ref))
-                  ENDIF
-                ENDIF
+!--                Potential density
+                   prho(k,j,i) = rho_ref*(1.0 - &
+                        alpha_const*(pt_p(k,j,i) - 273.15_wp - pt_ref) + &
+                        beta_const*(sa_p(k,j,i) - sa_ref))
+                   rho_ocean(k,j,i) = rho_ref*(1.0 - &
+                        alpha_const*(pt_p(k,j,i) - 273.15_wp - pt_ref) + &
+                        beta_const*(sa_p(k,j,i) - sa_ref))
+                ENDDO
              ENDDO
-!
-!--          Neumann conditions are assumed at top boundary
-             prho(nzt+1,j,i)      = prho(nzt,j,i)
-             rho_ocean(nzt+1,j,i) = rho_ocean(nzt,j,i)
-
           ENDDO
-       ENDDO
-       !$acc end parallel
+          !$acc end parallel
+
+       ELSE
+
+          !$acc parallel present( pt_p, sa_p ) &
+          !$acc present( hyp, rho_ocean, prho, alpha_T, beta_S )
+
+          !$acc loop collapse(3)
+          DO  i = nxl, nxr
+             DO  j = nys, nyn
+                DO  k = nzb+1, nzt
+!
+!--                Pressure is needed in dbar
+                   p1 = hyp(k) * 1E-4_wp
+                   p2 = p1 * p1
+                   p3 = p2 * p1
+
+!
+!--                Temperature needed in degree Celsius
+                   pt1 = pt_p(k,j,i) - 273.15_wp
+                   pt2 = pt1 * pt1
+                   pt3 = pt1 * pt2
+                   pt4 = pt2 * pt2
+
+                   sa1  = sa_p(k,j,i)
+                   sa15 = sa1 * SQRT( sa1 )
+                   sa2  = sa1 * sa1
+
+                   pnom = nom(1)           + nom(2)*pt1     + nom(3)*pt2     +    &
+                          nom(4)*pt3       + nom(5)*sa1     + nom(6)*sa1*pt1 +    &
+                          nom(7)*sa2
+!
+!-- LPV            Compute pieces for alpha_T and beta_S in steps
+
+                   dpnomdT1 = nom(2)       + 2.0*nom(3)*pt1 + 3.0*nom(4)*pt2 +    &
+                          nom(6)*sa1
+                   dpnomdS1 = nom(5)       + nom(6)*pt1     + 2.0*nom(7)*sa1
+
+                   pden = den(1)           + den(2)*pt1     + den(3)*pt2     +    &
+                          den(4)*pt3       + den(5)*pt4     + den(6)*sa1     +    &
+                          den(7)*sa1*pt1   + den(8)*sa1*pt3 + den(9)*sa15    +    &
+                          den(10)*sa15*pt2
+!
+                   dpdendT1 = den(2) + 2.0*den(3)*pt1 + 3.0*den(4)*pt2 + 4.0*den(5)*pt3 + &
+                          den(7)*sa1 + 3.0*den(8)*sa1*pt2 + 2.0*den(10)*sa15*pt1
+                   dpdendS1 = den(6) + den(7)*pt1 + den(8)*pt3 + 1.5*den(9)*sqrt(sa1) + &
+                          1.5*den(10)*pt2*sqrt(sa1)
+
+!--                Potential density (without pressure terms)
+                   prho(k,j,i) = pnom / pden
+
+                   pnom = pnom +             nom(8)*p1      + nom(9)*p1*pt2  +    &
+                          nom(10)*p1*sa1   + nom(11)*p2     + nom(12)*p2*pt2
+
+                   pden = pden +             den(11)*p1     + den(12)*p2*pt3 +    &
+                          den(13)*p3*pt1
+
+                   dpnomdT2 = dpnomdT1     + 2.0*nom(9)*p1*pt1  + 2.0*nom(12)*p2*pt1
+                   dpnomdS2 = dpnomdS1     + nom(10)*p1
+
+                   dpdendT2 = dpdendT1 + 3.0*den(12)*p2*pt2 + den(13)*p3
+                   dpdendS2 = dpdendS1
+!
+!--                In-situ density
+
+                   tmp = pnom / pden
+                   rho_ocean(k,j,i) = tmp
+                   alpha_T(k,j,i) = -1.0/tmp*(dpnomdT2*pden - pnom*dpdendT2) / (pden*pden)
+                   beta_S(k,j,i) = 1.0/tmp*(dpnomdS2*pden - pnom*dpdendS2) / (pden*pden)
+                ENDDO
+             ENDDO
+          ENDDO
+          !$acc end parallel
+       ENDIF
 !
 !--    Neumann conditions at up/downward-facing surfaces
        !$OMP PARALLEL DO PRIVATE( i, j )
@@ -323,5 +330,23 @@
 
 
     END FUNCTION eqn_state_seawater_func
+
+    REAL(wp) FUNCTION eqn_state_linear_func( pt, sa, alpha, beta, rho_ref, pt_ref, sa_ref )
+
+       IMPLICIT NONE
+
+       REAL(wp) :: pt
+       REAL(wp) :: sa
+       REAL(wp) :: alpha
+       REAL(wp) :: beta
+       REAL(wp) :: rho_ref
+       REAL(wp) :: pt_ref
+       REAL(wp) :: sa_ref
+
+       eqn_state_linear_func = rho_ref*(1.0 -                    &
+                                 alpha*(pt - pt_ref - 273.15_wp) + &
+                                 beta*(sa - sa_ref))
+
+    END FUNCTION eqn_state_linear_func
 
  END MODULE eqn_state_seawater_mod

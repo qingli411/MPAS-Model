@@ -567,10 +567,9 @@
 
     !$acc parallel present( g ) &
     !$acc present( tend ) &
-    !$acc present( e, e_p ) &
+    !$acc present( e ) &
     !$acc present( dd2zu, ddzu, ddzw ) &
     !$acc present( l_grid, l_wall) &
-    !$acc present(te_m, tsc) &
     !$acc present( km, sgs_diss, prho )
 
     !$acc loop
@@ -620,11 +619,26 @@
                                        ! dissipation
                                        - sgs_diss(k,j,i)
 
-    !
-    !--    Prognostic equation for TKE.
-    !--    Eliminate negative TKE values, which can occur due to numerical
-    !--    reasons in the course of the integration. In such cases the old TKE
-    !--    value is reduced by 90%.
+          ENDDO
+       ENDDO
+    ENDDO
+    !$acc end parallel
+
+!-- end of inline subroutine diffusion_e()
+
+!
+!-- Prognostic equation for TKE.
+!-- Eliminate negative TKE values, which can occur due to numerical
+!-- reasons in the course of the integration. In such cases the old TKE
+!-- value is reduced by 90%.
+    !$acc parallel present( tend ) &
+    !$acc present(te_m, tsc) &
+    !$acc present( e, e_p )
+
+    !$acc loop collapse(3)
+    DO  i = nxl, nxr
+       DO  j = nys, nyn
+          DO  k = nzb+1, nzt
 
              e_p(k,j,i) = e(k,j,i) + ( dt_3d * ( tsc(2) * tend(k,j,i) +        &
                                                  tsc(3) * te_m(k,j,i) )        &
@@ -635,8 +649,6 @@
        ENDDO
     ENDDO
     !$acc end parallel
-
-!-- end of inline subroutine diffusion_e()
 
 !
 !-- Calculate tendencies for the next Runge-Kutta step
