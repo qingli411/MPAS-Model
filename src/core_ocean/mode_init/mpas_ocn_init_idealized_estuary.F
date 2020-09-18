@@ -42,6 +42,7 @@ module ocn_init_idealized_estuary
    use mpas_derived_types
    use mpas_pool_routines
    use mpas_constants
+   use mpas_dmpar
 
    use ocn_constants
    use ocn_init_vertical_grids
@@ -149,14 +150,14 @@ contains
     call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_coriolis_parameter', config_idealized_estuary_coriolis_parameter)
     call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_depth_ocean', config_idealized_estuary_depth_ocean)
     call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_depth_river', config_idealized_estuary_depth_river)
-    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_initial_temperature', config_idealized_estuary_depth_river)
+    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_initial_temperature', config_idealized_estuary_initial_temperature)
     call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_initial_salinity_ocean', config_idealized_estuary_initial_salinity_ocean)
     call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_initial_salinity_river', config_idealized_estuary_initial_salinity_river)
     call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_initial_salinity_width', config_idealized_estuary_initial_salinity_width)
     call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_tidal_boundary_width', config_idealized_estuary_tidal_boundary_width)
 
     ! check configuration parameters
-    if (config_idealized_estuary_depth_ocean < config_idealized_estuary_depth_river) then
+    if (config_idealized_estuary_depth_ocean .lt. config_idealized_estuary_depth_river) then
        call mpas_log_write('Ocean boundary must be deeper than River boundary!', MPAS_LOG_CRIT)
     end if
 
