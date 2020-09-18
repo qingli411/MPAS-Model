@@ -31,4 +31,8 @@
 		description="Width of the initial salinity gradient at the center of the domain."
 		possible_values="Any real number larger than zero."
 		/>
+	<nml_option name="config_idealized_estuary_tidal_boundary_width" type="real" default_value="2000.0" units="m"
+		description="Width of the tidal boundary at the ocean side."
+		possible_values="Any real number larger than zero."
+		/>
 </nml_record>

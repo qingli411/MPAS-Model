@@ -97,6 +97,7 @@ contains
 
     type (block_type), pointer :: block_ptr
     type (mpas_pool_type), pointer :: meshPool
+    type (mpas_pool_type), pointer :: forcingPool
     type (mpas_pool_type), pointer :: statePool
     type (mpas_pool_type), pointer :: tracersPool
     type (mpas_pool_type), pointer :: verticalMeshPool
@@ -105,7 +106,9 @@ contains
     integer :: iCell, k, idx
     real (kind=RKIND) :: yMin, yMax, dcEdgeMin, dcEdgeMinGlobal
     real (kind=RKIND) :: yMinGlobal, yMaxGlobal, yMidGlobal
+    real (kind=RKIND) :: salinity
     real (kind=RKIND), dimension(:), pointer :: interfaceLocations
+    real (kind=RKIND), dimension(:), pointer :: tidalInputMask
 
     ! Define config variable pointers
     character (len=StrKIND), pointer :: config_init_configuration, config_vertical_grid
@@ -117,6 +120,7 @@ contains
     real (kind=RKIND), pointer :: config_idealized_estuary_initial_salinity_ocean
     real (kind=RKIND), pointer :: config_idealized_estuary_initial_salinity_river
     real (kind=RKIND), pointer :: config_idealized_estuary_initial_salinity_width
+    real (kind=RKIND), pointer :: config_idealized_estuary_tidal_boundary_width
 
     ! Define dimension pointers
     integer, pointer :: nCellsSolve, nEdgesSolve, nVertLevels, nVertLevelsP1
@@ -149,6 +153,7 @@ contains
     call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_initial_salinity_ocean', config_idealized_estuary_initial_salinity_ocean)
     call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_initial_salinity_river', config_idealized_estuary_initial_salinity_river)
     call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_initial_salinity_width', config_idealized_estuary_initial_salinity_width)
+    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_tidal_boundary_width', config_idealized_estuary_tidal_boundary_width)
 
     ! check configuration parameters
     if (config_idealized_estuary_depth_ocean < config_idealized_estuary_depth_river) then
@@ -205,7 +210,6 @@ contains
     do while(associated(block_ptr))
        call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
 
-       ! TODO: Set tidal boundary and river boundary? <20200918, Qing Li> !
        call ocn_mark_north_boundary(meshPool, yMaxGlobal, dcEdgeMinGlobal, iErr)
        call ocn_mark_south_boundary(meshPool, yMinGlobal, dcEdgeMinGlobal, iErr)
 
@@ -219,12 +223,15 @@ contains
     block_ptr => domain % blocklist
     do while(associated(block_ptr))
        call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
+       call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
        call mpas_pool_get_subpool(block_ptr % structs, 'state', statePool)
        call mpas_pool_get_subpool(block_ptr % structs, 'verticalMesh', verticalMeshPool)
        call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
 
        call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
        call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCellsSolve)
+
+       call mpas_pool_get_array(forcingPool, 'tidalInputMask', tidalInputMask)
 
        call mpas_pool_get_dimension(tracersPool, 'index_temperature', index_temperature)
        call mpas_pool_get_dimension(tracersPool, 'index_salinity', index_salinity)
@@ -297,6 +304,11 @@ contains
                 end if
              end do
           end if
+
+          ! Set tidal boundary mask
+          ! tidal forcing exponentially decay away from the boundary at the ocean side
+          tidalInputMask(iCell) = exp( (yCell(iCell) - yMaxGlobal) / &
+                                        config_idealized_estuary_tidal_boundary_width )
 
           ! Set Coriolis parameters, if other than zero
           fCell(iCell) = config_idealized_estuary_coriolis_parameter
