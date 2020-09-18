@@ -103,15 +103,20 @@ contains
 
     ! local variables
     integer :: iCell, k, idx
-    real (kind=RKIND) :: yMin, yMax, xMin, xMax, dcEdgeMin, dcEdgeMinGlobal
-    real (kind=RKIND) :: yMinGlobal, yMaxGlobal, yMidGlobal, xMinGlobal, xMaxGlobal
-    real (kind=RKIND) :: localVar1, localVar2
+    real (kind=RKIND) :: yMin, yMax, dcEdgeMin, dcEdgeMinGlobal
+    real (kind=RKIND) :: yMinGlobal, yMaxGlobal, yMidGlobal
     real (kind=RKIND), dimension(:), pointer :: interfaceLocations
 
     ! Define config variable pointers
     character (len=StrKIND), pointer :: config_init_configuration, config_vertical_grid
-    logical, pointer :: config_idealized_estuary_example_flag1
-    real (kind=RKIND), pointer :: config_idealized_estuary_example_flag2
+    integer, pointer :: config_idealized_estuary_vert_levels
+    real (kind=RKIND), pointer :: config_idealized_estuary_coriolis_parameter
+    real (kind=RKIND), pointer :: config_idealized_estuary_depth_ocean
+    real (kind=RKIND), pointer :: config_idealized_estuary_depth_river
+    real (kind=RKIND), pointer :: config_idealized_estuary_initial_temperature
+    real (kind=RKIND), pointer :: config_idealized_estuary_initial_salinity_ocean
+    real (kind=RKIND), pointer :: config_idealized_estuary_initial_salinity_river
+    real (kind=RKIND), pointer :: config_idealized_estuary_initial_salinity_width
 
     ! Define dimension pointers
     integer, pointer :: nCellsSolve, nEdgesSolve, nVertLevels, nVertLevelsP1
@@ -120,7 +125,7 @@ contains
     ! Define variable pointers
     logical, pointer :: on_a_sphere
     integer, dimension(:), pointer :: maxLevelCell
-    real (kind=RKIND), dimension(:), pointer :: xCell, yCell,refBottomDepth, refZMid, &
+    real (kind=RKIND), dimension(:), pointer :: yCell,refBottomDepth, refZMid, &
          vertCoordMovementWeights, bottomDepth, &
          fCell, fEdge, fVertex, dcEdge
     real (kind=RKIND), dimension(:,:), pointer :: layerThickness, restingThickness
@@ -136,8 +141,19 @@ contains
 
     call mpas_pool_get_config(ocnConfigs, 'config_vertical_grid', config_vertical_grid)
 
-    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_example_flag1', config_idealized_estuary_example_flag1)
-    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_example_flag2', config_idealized_estuary_example_flag2)
+    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_vert_levels', config_idealized_estuary_vert_levels)
+    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_coriolis_parameter', config_idealized_estuary_coriolis_parameter)
+    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_depth_ocean', config_idealized_estuary_depth_ocean)
+    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_depth_river', config_idealized_estuary_depth_river)
+    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_initial_temperature', config_idealized_estuary_depth_river)
+    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_initial_salinity_ocean', config_idealized_estuary_initial_salinity_ocean)
+    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_initial_salinity_river', config_idealized_estuary_initial_salinity_river)
+    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_initial_salinity_width', config_idealized_estuary_initial_salinity_width)
+
+    ! check configuration parameters
+    if (config_idealized_estuary_depth_ocean < config_idealized_estuary_depth_river) then
+       call mpas_log_write('Ocean boundary must be deeper than River boundary!', MPAS_LOG_CRIT)
+    end if
 
     ! Determine vertical grid for configuration
     call mpas_pool_get_subpool(domain % blocklist % structs, 'mesh', meshPool)
@@ -145,8 +161,8 @@ contains
     call mpas_pool_get_config(meshPool, 'on_a_sphere', on_a_sphere)
 
     ! you may restrict your case geometry as follows:
-    ! if ( on_a_sphere ) call mpas_log_write('The idealized_estuary configuration can only be applied ' &
-    !     // 'to a planar mesh. Exiting...', MPAS_LOG_CRIT)
+    if ( on_a_sphere ) call mpas_log_write('The idealized_estuary configuration can only be applied ' &
+        // 'to a planar mesh. Exiting...', MPAS_LOG_CRIT)
 
     allocate(interfaceLocations(nVertLevelsP1))
     call ocn_generate_vertical_grid( config_vertical_grid, interfaceLocations )
@@ -158,8 +174,6 @@ contains
     ! Initalize min/max values to large positive and negative values
     yMin = 1.0E10_RKIND
     yMax = -1.0E10_RKIND
-    xMin = 1.0E10_RKIND
-    xMax = -1.0E10_RKIND
     dcEdgeMin = 1.0E10_RKIND
 
     ! Determine local min and max values.
@@ -170,14 +184,11 @@ contains
        call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCellsSolve)
        call mpas_pool_get_dimension(meshPool, 'nEdgesSolve', nEdgesSolve)
 
-       call mpas_pool_get_array(meshPool, 'xCell', xCell)
        call mpas_pool_get_array(meshPool, 'yCell', yCell)
        call mpas_pool_get_array(meshPool, 'dcEdge', dcEdge)
 
        yMin = min( yMin, minval(yCell(1:nCellsSolve)))
        yMax = max( yMax, maxval(yCell(1:nCellsSolve)))
-       xMin = min( xMin, minval(xCell(1:nCellsSolve)))
-       xMax = max( xMax, maxval(xCell(1:nCellsSolve)))
        dcEdgeMin = min( dcEdgeMin, minval(dcEdge(1:nEdgesSolve)))
 
        block_ptr => block_ptr % next
@@ -186,14 +197,15 @@ contains
     ! Determine global min and max values.
     call mpas_dmpar_min_real(domain % dminfo, yMin, yMinGlobal)
     call mpas_dmpar_max_real(domain % dminfo, yMax, yMaxGlobal)
-    call mpas_dmpar_min_real(domain % dminfo, xMin, xMinGlobal)
-    call mpas_dmpar_max_real(domain % dminfo, xMax, xMaxGlobal)
     call mpas_dmpar_min_real(domain % dminfo, dcEdgeMin, dcEdgeMinGlobal)
+
+    yMidGlobal = ( yMinGlobal + yMaxGlobal ) * 0.5_RKIND
 
     block_ptr => domain % blocklist
     do while(associated(block_ptr))
        call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
 
+       ! TODO: Set tidal boundary and river boundary? <20200918, Qing Li> !
        call ocn_mark_north_boundary(meshPool, yMaxGlobal, dcEdgeMinGlobal, iErr)
        call ocn_mark_south_boundary(meshPool, yMinGlobal, dcEdgeMinGlobal, iErr)
 
@@ -217,7 +229,6 @@ contains
        call mpas_pool_get_dimension(tracersPool, 'index_temperature', index_temperature)
        call mpas_pool_get_dimension(tracersPool, 'index_salinity', index_salinity)
 
-       call mpas_pool_get_array(meshPool, 'xCell', xCell)
        call mpas_pool_get_array(meshPool, 'yCell', yCell)
        call mpas_pool_get_array(meshPool, 'refBottomDepth', refBottomDepth)
        call mpas_pool_get_array(meshPool, 'vertCoordMovementWeights', vertCoordMovementWeights)
@@ -236,8 +247,8 @@ contains
 
        ! ! Set refBottomDepth and refZMid
        do k = 1, nVertLevels
-          refBottomDepth(k) = config_idealized_estuary_bottom_depth * interfaceLocations(k+1)
-          refZMid(k) = - 0.5_RKIND * (interfaceLocations(k+1) + interfaceLocations(k)) * config_idealized_estuary_bottom_depth
+          refBottomDepth(k) = config_idealized_estuary_depth_ocean * interfaceLocations(k+1)
+          refZMid(k) = - 0.5_RKIND * (interfaceLocations(k+1) + interfaceLocations(k)) * config_idealized_estuary_depth_ocean
        end do
 
        ! Set vertCoordMovementWeights
@@ -248,26 +259,44 @@ contains
           ! Set temperature
           idx = index_temperature
           do k = 1, nVertLevels
-             ! activeTracers(idx, k, iCell) =
+             activeTracers(idx, k, iCell) = config_idealized_estuary_initial_temperature
           end do
 
           ! Set salinity
+          salinity = config_idealized_estuary_initial_salinity_river &
+                   + 0.5_RKIND * ( tanh( 2.0_RKIND * (yCell(iCell) - yMidGlobal) / &
+                       config_idealized_estuary_initial_salinity_width ) + 1.0_RKIND ) &
+                   * ( config_idealized_estuary_initial_salinity_ocean - &
+                       config_idealized_estuary_initial_salinity_river )
           idx = index_salinity
           do k = 1, nVertLevels
-             ! activeTracers(idx, k, iCell) =
+             activeTracers(idx, k, iCell) = salinity
           end do
 
           ! Set layerThickness and restingThickness
           do k = 1, nVertLevels
-             ! layerThickness(k, iCell) =
-             ! restingThickness(k, iCell) =
+              layerThickness(k, iCell) = config_idealized_estuary_depth_ocean * ( interfaceLocations(k+1) &
+                                       - interfaceLocations(k) )
+              restingThickness(k, iCell) = config_idealized_estuary_depth_ocean * ( interfaceLocations(k+1) &
+                                         - interfaceLocations(k) )
           end do
 
           ! Set bottomDepth
-          ! bottomDepth(iCell) =
+          bottomDepth(iCell) = config_idealized_estuary_depth_river &
+             + (yCell(iCell) - yMinGlobal) / (yMaxGlobal - yMinGlobal) &
+             * (config_idealized_estuary_depth_ocean - config_idealized_estuary_depth_river)
 
           ! Set maxLevelCell
-          ! maxLevelCell(iCell) =
+          maxLevelCell(iCell) = nVertLevels
+          if (nVertLevels > 1) then
+             do k = 1, nVertLevels
+                if (bottomDepth(iCell) < refBottomDepth(k)) then
+                   maxLevelCell(iCell) = k-1
+                   bottomDepth(iCell) = refBottomDepth(k-1)
+                   exit
+                end if
+             end do
+          end if
 
           ! Set Coriolis parameters, if other than zero
           fCell(iCell) = config_idealized_estuary_coriolis_parameter
