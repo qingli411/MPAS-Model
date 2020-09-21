@@ -102,6 +102,7 @@ contains
     type (mpas_pool_type), pointer :: statePool
     type (mpas_pool_type), pointer :: tracersPool
     type (mpas_pool_type), pointer :: verticalMeshPool
+    type (mpas_pool_type), pointer :: tracersInteriorRestoringFieldsPool
 
     ! local variables
     integer :: iCell, k, idx
@@ -122,6 +123,9 @@ contains
     real (kind=RKIND), pointer :: config_idealized_estuary_initial_salinity_river
     real (kind=RKIND), pointer :: config_idealized_estuary_initial_salinity_width
     real (kind=RKIND), pointer :: config_idealized_estuary_tidal_boundary_width
+    real (kind=RKIND), pointer :: config_idealized_estuary_restoring_salinity_width_ocean
+    real (kind=RKIND), pointer :: config_idealized_estuary_restoring_salinity_width_river
+    real (kind=RKIND), pointer :: config_idealized_estuary_restoring_salinity_tau
 
     ! Define dimension pointers
     integer, pointer :: nCellsSolve, nEdgesSolve, nVertLevels, nVertLevelsP1
@@ -134,6 +138,7 @@ contains
          vertCoordMovementWeights, bottomDepth, &
          fCell, fEdge, fVertex, dcEdge
     real (kind=RKIND), dimension(:,:), pointer :: layerThickness, restingThickness
+    real (kind=RKIND), dimension(:,:,:), pointer :: activeTracersInteriorRestoringValue, activeTracersInteriorRestoringRate
     real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
 
     iErr = 0
@@ -155,6 +160,9 @@ contains
     call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_initial_salinity_river', config_idealized_estuary_initial_salinity_river)
     call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_initial_salinity_width', config_idealized_estuary_initial_salinity_width)
     call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_tidal_boundary_width', config_idealized_estuary_tidal_boundary_width)
+    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_restoring_salinity_width_ocean', config_idealized_estuary_restoring_salinity_width_ocean)
+    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_restoring_salinity_width_river', config_idealized_estuary_restoring_salinity_width_river)
+    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_restoring_salinity_tau', config_idealized_estuary_restoring_salinity_tau)
 
     ! check configuration parameters
     if (config_idealized_estuary_depth_ocean .lt. config_idealized_estuary_depth_river) then
@@ -228,11 +236,9 @@ contains
        call mpas_pool_get_subpool(block_ptr % structs, 'state', statePool)
        call mpas_pool_get_subpool(block_ptr % structs, 'verticalMesh', verticalMeshPool)
        call mpas_pool_get_subpool(statePool, 'tracers', tracersPool)
-
+       call mpas_pool_get_subpool(forcingPool, 'tracersInteriorRestoringFields', tracersInteriorRestoringFieldsPool)
        call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
        call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCellsSolve)
-
-       call mpas_pool_get_array(forcingPool, 'tidalInputMask', tidalInputMask)
 
        call mpas_pool_get_dimension(tracersPool, 'index_temperature', index_temperature)
        call mpas_pool_get_dimension(tracersPool, 'index_salinity', index_salinity)
@@ -249,9 +255,19 @@ contains
        call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, 1)
        call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, 1)
 
+       call mpas_pool_get_array(forcingPool, 'tidalInputMask', tidalInputMask)
+
        call mpas_pool_get_array(verticalMeshPool, 'refZMid', refZMid)
        call mpas_pool_get_array(verticalMeshPool, 'restingThickness', restingThickness)
 
+       call mpas_pool_get_array(tracersInteriorRestoringFieldsPool, &
+                 'activeTracersInteriorRestoringRate', activeTracersInteriorRestoringRate, 1)
+       call mpas_pool_get_array(tracersInteriorRestoringFieldsPool, &
+                 'activeTracersInteriorRestoringValue', activeTracersInteriorRestoringValue, 1)
+
+       tidalInputMask(:) = 0.0_RKIND
+       activeTracersInteriorRestoringRate(:,:,:) = 0.0_RKIND
+       activeTracersInteriorRestoringValue(:,:,:) = 0.0_RKIND
 
        ! ! Set refBottomDepth and refZMid
        do k = 1, nVertLevels
@@ -307,9 +323,43 @@ contains
           end if
 
           ! Set tidal boundary mask
-          ! tidal forcing exponentially decay away from the boundary at the ocean side
-          tidalInputMask(iCell) = exp( (yCell(iCell) - yMaxGlobal) / &
-                                        config_idealized_estuary_tidal_boundary_width )
+          if(yMaxGlobal-yCell(iCell) <= 3.0_RKIND*config_idealized_estuary_tidal_boundary_width) then
+             ! tidal forcing exponentially decay away from the boundary at the ocean side
+             tidalInputMask(iCell) = exp( (yCell(iCell) - yMaxGlobal) / &
+                                           config_idealized_estuary_tidal_boundary_width )
+          end if
+
+          ! Set restoring at the ocean side boundary
+          if(yMaxGlobal-yCell(iCell) <= 3.0_RKIND*config_idealized_estuary_restoring_salinity_width_ocean) then
+             do k = 1, nVertLevels
+                ! no restoring for temperature
+                idx = index_temperature
+                activeTracersInteriorRestoringValue(idx, k, iCell) = config_idealized_estuary_initial_temperature
+                activeTracersInteriorRestoringRate(idx, k, iCell) = 0.0_RKIND
+                idx = index_salinity
+                activeTracersInteriorRestoringValue(idx, k, iCell) = config_idealized_estuary_initial_salinity_ocean
+                activeTracersInteriorRestoringRate(idx, k, iCell) = &
+                                 exp( (yCell(iCell) - yMaxGlobal) / &
+                                 config_idealized_estuary_restoring_salinity_width_ocean ) * &
+                                 ( 1.0_RKIND / (config_idealized_estuary_restoring_salinity_tau*86400.0_RKIND))
+             end do
+          end if
+
+          ! Set restoring at the river side boundary
+          if(yCell(iCell)-yMinGlobal <= 3.0_RKIND*config_idealized_estuary_restoring_salinity_width_river) then
+             do k = 1, nVertLevels
+                ! no restoring for temperature
+                idx = index_temperature
+                activeTracersInteriorRestoringValue(idx, k, iCell) = config_idealized_estuary_initial_temperature
+                activeTracersInteriorRestoringRate(idx, k, iCell) = 0.0_RKIND
+                idx = index_salinity
+                activeTracersInteriorRestoringValue(idx, k, iCell) = config_idealized_estuary_initial_salinity_river
+                activeTracersInteriorRestoringRate(idx, k, iCell) = &
+                                 exp( (yMidGlobal - yCell(iCell)) / &
+                                 config_idealized_estuary_restoring_salinity_width_river ) * &
+                                 ( 1.0_RKIND / (config_idealized_estuary_restoring_salinity_tau*86400.0_RKIND))
+             end do
+          end if
 
           ! Set Coriolis parameters, if other than zero
           fCell(iCell) = config_idealized_estuary_coriolis_parameter
