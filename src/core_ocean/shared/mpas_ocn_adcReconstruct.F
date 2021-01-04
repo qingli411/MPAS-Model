@@ -165,7 +165,7 @@ module ocn_adc_mixing_fused
       real :: KEm1, KEp1, tauUP, tauDN, tomUP, tomDN
       real :: tauM1, tau, tauP1, tauAV, utemp, vtemp
       real :: B, Cval, diff, wtav, dzmid, Ksps, Sz, Tz, w4k, w4kp1, w2k, w2kp1
-      real :: lareaFraction, wstar, Q, w3av, tempMoment
+      real :: lareaFraction, wstar, wbsfc, w3av, tempMoment
       real :: sfcFrictionVelocity, wtSumUp, wtSumDn, wsSumUp, wsSumDn
 
       real,dimension(nVertLevels,nCells) :: taupt, taups, taupv
@@ -181,12 +181,11 @@ module ocn_adc_mixing_fused
 
       !on further examination build_diagnostics array can live outside the iter loop
       do iCell=1,nCells
-        Q = gravity*(alphaT(1,iCell)*wtsfc(iCell) - betaS(1,iCell)*wssfc(iCell))* &
-            boundaryLayerDepth(iCell)
-        if(Q > 0) then
-          wstar = abs(0.4_RKIND*Q)**(1.0/3.0)
+        wbsfc = gravity * (alphaT(1,iCell)*wtsfc(iCell) - betaS(1,iCell)*wssfc(iCell))
+        if(wbsfc > 0.0_RKIND) then
+          wstar = abs(wbsfc*boundaryLayerDepth(iCell))**(1.0_RKIND/3.0_RKIND)
         else
-          wstar = 0.0
+          wstar = 0.0_RKIND
         endif
 
         tumd(1,iCell) = 0.0_RKIND

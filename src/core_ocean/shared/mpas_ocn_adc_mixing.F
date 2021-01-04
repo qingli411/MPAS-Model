@@ -380,7 +380,7 @@ module ocn_adc_mixing
     real,dimension(nCells),intent(in) :: wtsfc, wssfc, boundaryLayerDepth
     real, dimension(nVertLevels,nCells) :: alphaT, betaS
 
-    real :: wtav, McAv, sigav, tumdav, wumdav, sumdav, wb, bld, wstar
+    real :: wtav, McAv, sigav, tumdav, wumdav, sumdav, wbsfc, bld, wstar
     integer :: iCell,k
 
     do iCell=1,nCells
@@ -390,12 +390,11 @@ module ocn_adc_mixing
         sumd(k,iCell) = ws(tlev,k,iCell) / (1.0E-12_RKIND + Mc(k,iCell))
       enddo
 
-      wb = gravity*(alphaT(1,iCell)*wtsfc(iCell) - betaS(1,iCell)*wssfc(iCell))
-!      wstar = (abs(0.4*boundaryLayerDepth(iCell)*wb))**(1./3.)
+      wbsfc = gravity*(alphaT(1,iCell)*wtsfc(iCell) - betaS(1,iCell)*wssfc(iCell))
 
-      if(wb > 0.0) then
-        wb = gravity*(alphaT(1,iCell)*wtsfc(iCell) - betaS(1,iCell)*wssfc(iCell))
-        wstar = (abs(0.4_RKIND*boundaryLayerDepth(iCell)*wb))**(1.0_RKIND/3.0_RKIND)
+      if(wbsfc > 0.0) then
+        wbsfc = gravity*(alphaT(1,iCell)*wtsfc(iCell) - betaS(1,iCell)*wssfc(iCell))
+        wstar = (abs(boundaryLayerDepth(iCell)*wbsfc))**(1.0_RKIND/3.0_RKIND)
         w2t(1,iCell) = -0.3_RKIND*wstar * wtsfc(iCell)
         !Below FIXME!
         w2s(1,iCell) = 0.3_RKIND*wstar * wssfc(iCell)
