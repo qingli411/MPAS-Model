@@ -45,7 +45,7 @@ module ocn_turbulence
 
    real(kind=RKIND),public :: epsilon, &! small value below which w2, v2, u2 cannot go
                        sigmat, Ko, gamma1, beta5, c1, c2, c8, c10, c11, &
-                       alpha1, alpha2, alpha3, B1, Kt, grav, c_1, c_2, c_mom, &
+                       alpha1, alpha2, alpha3, B1, Kt, c_1, c_2, c_mom, &
                        c_therm, c_mom_w3, c_pt, c_ps, c_pv, &
                        kappa_FL, kappa_w3, kappa_VAR, Cww_D, Cww_E
 
@@ -143,7 +143,6 @@ module ocn_turbulence
       nCells = nCellsTmp
       nVertLevels = nVertLevelsTmp
       sigmat = config_adc_sigmat
-      grav = gravity
       epsilon = config_adc_epsilon
       Ko = config_adc_Ko
       gamma1 = config_adc_gamma1
@@ -513,7 +512,6 @@ module ocn_turbulence
       !$acc                   nCells,   &
       !$acc                   nVertLevels,  &
       !$acc                   sigmat,       &
-      !$acc                   grav,         &
       !$acc                   epsilon,      &
       !$acc                   Ko,           &
       !$acc                   gamma1,       &
@@ -694,7 +692,6 @@ module ocn_turbulence
       !$acc                   nCells,   &
       !$acc                   nVertLevels,  &
       !$acc                   sigmat,       &
-      !$acc                   grav,         &
       !$acc                   epsilon,      &
       !$acc                   Ko,           &
       !$acc                   gamma1,       &
@@ -1122,7 +1119,6 @@ module ocn_turbulence
       !$acc                   nCells,   &
       !$acc                   nVertLevels,  &
       !$acc                   sigmat,       &
-      !$acc                   grav,         &
       !$acc                   epsilon,      &
       !$acc                   Ko,           &
       !$acc                   gamma1,       &

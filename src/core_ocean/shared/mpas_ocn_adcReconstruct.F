@@ -1,9 +1,11 @@
 module ocn_adc_mixing_fused
 
+  use mpas_constants
   use mpas_kind_types
+  use mpas_log
+
   use ocn_constants
   use ocn_turbulence
-  use mpas_log
   use ocn_config
 
   implicit none
@@ -37,10 +39,10 @@ module ocn_adc_mixing_fused
     do iCell=1,nCells
       KEsps(:) = areaFraction(:,iCell)*KspsU(i1,:,iCell) + (1.0_RKIND - areaFraction(:,iCell))*KspsD(i1,:,iCell)
       tke(:) = 0.5*(u2(i1,:,iCell) + v2(i1,:,iCell) + w2(i1,:,iCell)) ! + KEsps(:)
-        
+
        do k=1,nVertLevels
-          B(k) = -9.806*(-alphaT(k,iCell)*(activeTracers(1,k,iCell) - 15.0_RKIND) + betaS(k,iCell)*   &
-                    (activeTracers(2,k,iCell) - 35.0_RKIND))
+          B(k) = gravity * (alphaT(k,iCell) * (activeTracers(1,k,iCell) - 15.0_RKIND) - &
+                            betaS(k,iCell)  * (activeTracers(2,k,iCell) - 35.0_RKIND))
 
           sav = 0.5_RKIND*(areaFraction(k,iCell) + areaFraction(k+1,iCell))
           tudav = 0.5_RKIND*(tumd(k,iCell) + tumd(k+1,iCell))
@@ -51,8 +53,8 @@ module ocn_adc_mixing_fused
           Sup = activeTracers(2,k,iCell) + (1.0_RKIND - sav)*sudav
           Sdo = activeTracers(2,k,iCell) - sav*sudav
 
-          Bup(k) = -9.806*(-alphaT(k,iCell)*(Tup - 15.0) + betaS(k,iCell)*(Sup - 35.0))
-          Bdo(k) = -9.806*(-alphaT(k,iCell)*(Tdo - 15.0) + betaS(k,iCell)*(Sdo - 35.0))
+          Bup(k) = gravity * (alphaT(k,iCell) * (Tup - 15.0) - betaS(k,iCell) * (Sup - 35.0))
+          Bdo(k) = gravity * (alphaT(k,iCell) * (Tdo - 15.0) - betaS(k,iCell) * (Sdo - 35.0))
 
           if(k>1) THEN
              BupEdge(k) = 0.5*(Bup(k-1) + Bup(k))
@@ -136,7 +138,7 @@ module ocn_adc_mixing_fused
 
   end subroutine dissipation_lengths2
 
-  subroutine compute_ADC_tends(nCells,nVertLevels, nTracers, dt,activeTracers, uvel, vvel, BVF,  &
+  subroutine compute_ADC_tends(nCells, nVertLevels, nTracers, dt, activeTracers, uvel, vvel, BVF,  &
                   uwsfc, vwsfc, wtsfc, wssfc, alphaT, betaS, fCell, boundaryLayerDepth)
 
       integer,intent(in) :: nCells, nVertLevels, nTracers
@@ -179,7 +181,7 @@ module ocn_adc_mixing_fused
 
       !on further examination build_diagnostics array can live outside the iter loop
       do iCell=1,nCells
-        Q = grav*(alphaT(1,iCell)*wtsfc(iCell) - betaS(1,iCell)*wssfc(iCell))* &
+        Q = gravity*(alphaT(1,iCell)*wtsfc(iCell) - betaS(1,iCell)*wssfc(iCell))* &
             boundaryLayerDepth(iCell)
         if(Q > 0) then
           wstar = abs(0.4_RKIND*Q)**(1.0/3.0)
@@ -322,7 +324,7 @@ module ocn_adc_mixing_fused
             !        2.0_RKIND*areaFraction(k+1,iCell))*wumd(k+1,iCell)**2.0_RKIND) / dz
               w3tend4(k,iCell) = 3.0_RKIND*(1.0_RKIND - 2.0_RKIND*sigav)*Mcav*wumdav*Swup -          &
                     C_mom_w3*KE / (1E-15_RKIND+ sqrt(2.0_RKIND)*lenAv)*w3(i1,k,iCell)
-              w3tend5(k,iCell) = 3.0_RKIND*grav*(alphaT(k,iCell)*w2t(k,iCell) - &
+              w3tend5(k,iCell) = 3.0_RKIND*gravity*(alphaT(k,iCell)*w2t(k,iCell) - &
                     betaS(k,iCell)*w2s(k,iCell))*0.9_RKIND
 
               w3tend(k,iCell) = w3tend1(k,iCell) + w3tend2(k,iCell) + w3tend3(k,iCell) + &
@@ -358,7 +360,7 @@ module ocn_adc_mixing_fused
             enddo !nVertLevels
           enddo !nCells
 
-          ! Ashwath -- I'm removing this possibility from this branch since it will be near impossible to 
+          ! Ashwath -- I'm removing this possibility from this branch since it will be near impossible to
           ! parallelize well.  It's a loop over k with an inner loop expanding underneath.
           if(config_adc_use_old_length_scale)then
 							   call dissipation_lengths2(nCells,nVertLevels,activeTracers,alphaT,betaS)
@@ -369,7 +371,7 @@ module ocn_adc_mixing_fused
             do k=2,nVertLevels
               dzmid = (zm(k-1,iCell) - zm(k,iCell))
               dz = ze(k,iCell) - ze(k+1,iCell)
-              B = grav*(alphaT(k,iCell)*wt(i1,k,iCell) - betaS(k,iCell)*ws(i1,k,iCell))
+              B = gravity*(alphaT(k,iCell)*wt(i1,k,iCell) - betaS(k,iCell)*ws(i1,k,iCell))
 
               sigav = 0.5*(areaFraction(k,iCell) + areaFraction(k-1,iCell))
               wumdav = 0.5*(wumd(k,iCell) + wumd(k-1,iCell))
@@ -391,7 +393,7 @@ module ocn_adc_mixing_fused
               KEsps = areaFraction(k,iCell)*KspsU(i1,k,iCell) +  &
                         (1.0_RKIND-areaFraction(k,iCell))*KspsD(i1,k,iCell)
               KE = sqrt((u2(i1,k,iCell) + v2(i1,k,iCell) + w2(i1,k,iCell)) + 0.0*KEsps)
-              Swup = grav*alphaT(k,iCell)*tumd(k,iCell) - grav*        &
+              Swup = gravity*alphaT(k,iCell)*tumd(k,iCell) - gravity*        &
                 betaS(k,iCell)*sumd(k,iCell) - 2.0_RKIND/3.0_RKIND*(1.0_RKIND/        &
                 areaFraction(k,iCell)*(sigAv*KspsUav - sigavp1*KspsUavp1) / dzmid -     &
                 1.0_RKIND/(1.0_RKIND - areaFraction(k,iCell))*((1.0_RKIND - sigav)* &
@@ -404,8 +406,8 @@ module ocn_adc_mixing_fused
                 length(k,iCell))*(u2(i1,k,iCell) + v2(i1,k,iCell))/3.0_RKIND
               w2tend4(k,iCell) = 2.0_RKIND*Mc(k,iCell)*Swup - 4.0_RKIND / &
                 3.0_RKIND*C_2*areaFraction(k,iCell)*(1.0_RKIND -          &
-                areaFraction(k,iCell))*wumd(k,iCell)*(grav*     &
-                alphaT(k,iCell)*tumd(k,iCell) - grav*betaS(k,iCell)*      &
+                areaFraction(k,iCell))*wumd(k,iCell)*(gravity*     &
+                alphaT(k,iCell)*tumd(k,iCell) - gravity*betaS(k,iCell)*      &
                 sumd(k,iCell))
               w2tend5(k,iCell) = (1.0_RKIND/3.0_RKIND*alpha1 -            &
                 alpha2)*(uw(i1,k,iCell)*Uz + vw(i1,k,iCell)*Vz)
@@ -421,7 +423,7 @@ module ocn_adc_mixing_fused
                 wumd(k,iCell)*tumd(k,iCell) - (w2t(k-1,iCell) - w2t(k,iCell)) / dzmid
 
               wttend2(k,iCell) = -w2(i1,k,iCell)*Tz
-              wttend3(k,iCell) = (1.0_RKIND - gamma1)*grav*(alphaT(k,iCell) &
+              wttend3(k,iCell) = (1.0_RKIND - gamma1)*gravity*(alphaT(k,iCell) &
                 *t2(i1,k,iCell) - betaS(k,iCell)*ts(i1,k,iCell))
               wttend4(k,iCell) = -alpha3/4.0*(ut(i1,k,iCell)*Uz + &
                 vt(i1,k,iCell)*Vz)
@@ -445,7 +447,7 @@ module ocn_adc_mixing_fused
 
               wstend1(k,iCell) = -(w2s(k-1,iCell) - w2s(k,iCell)) / dzmid
               wstend2(k,iCell) = -w2(i1,k,iCell)*Sz
-              wstend3(k,iCell) = (1.0_RKIND - gamma1)*grav*(alphaT(k,iCell)* &
+              wstend3(k,iCell) = (1.0_RKIND - gamma1)*gravity*(alphaT(k,iCell)* &
                 ts(i1,k,iCell) - betaS(k,iCell)*s2(i1,k,iCell))
               wstend4(k,iCell) = -alpha3/4.0*(us(i1,k,iCell)*Uz + &
                 vs(i1,k,iCell)*Vz)
@@ -461,7 +463,7 @@ module ocn_adc_mixing_fused
                 alpha2 - 2.0_RKIND)*w2(i1,k,iCell))*Uz
               uwtend3(k,iCell) = 0.5_RKIND*(alpha1 - alpha2)*    &
                 uv(i1,k,iCell)*Vz
-              uwtend4(k,iCell) = beta5*grav*(alphaT(k,iCell)*   &
+              uwtend4(k,iCell) = beta5*gravity*(alphaT(k,iCell)*   &
                 ut(i1,k,iCell) - betaS(k,iCell)*us(i1,k,iCell))
               uwtend5(k,iCell) = -taupv(k,iCell)*uw(i1,k,iCell) + &
                 kappa_FL*(uw(i1,k-1,iCell) - uw(i1,k+1,iCell)) / &
@@ -474,7 +476,7 @@ module ocn_adc_mixing_fused
                 0.5_RKIND*((0.8_RKIND - 4.0*alpha1/3.0)*0.5_RKIND*KE**2.0_RKIND +  &
                 (alpha1 - alpha2)*v2(i1,k,iCell) + (alpha1 -   &
                 alpha2 - 2.0_RKIND)*w2(i1,k,iCell))*Vz + 0.5_RKIND*(alpha1 &
-                - alpha2)*uv(i1,k,iCell)*Uz + beta5*grav*       &
+                - alpha2)*uv(i1,k,iCell)*Uz + beta5*gravity*       &
                 (alphaT(k,iCell)*vt(i1,k,iCell) - betaS(k,iCell)*vs(i1,k,iCell))) -            &
                 taupv(k,iCell)*vw(i1,k,iCell) + kappa_FL*(vw(i1,k-1,iCell) &
                 - vw(i1,k+1,iCell)) / (ze(k-1,iCell) - ze(k+1,iCell))**2.0
@@ -558,7 +560,7 @@ module ocn_adc_mixing_fused
                 (zm(k-1,iCell) - zm(k,iCell)) - &
                 2.88/(tau + 1.0E-10_RKIND)*vw(i1,k,iCell)*(vvel(k-1,iCell) - vvel(k,iCell)) / &
                 (zm(k-1,iCell) - zm(k,iCell)) + &
-                2.88/(tau + 1.0E-10_RKIND)*grav*(alphaT(k,iCell)*wt(i1,k,iCell) - betaS(k,iCell)* &
+                2.88/(tau + 1.0E-10_RKIND)*gravity*(alphaT(k,iCell)*wt(i1,k,iCell) - betaS(k,iCell)* &
                 ws(i1,k,iCell)) - 3.84*eps(i1,k,iCell)/(tau + 1.0E-10_RKIND)
               endif
 
@@ -593,7 +595,7 @@ module ocn_adc_mixing_fused
                 Cval = (0.19_RKIND+0.51_RKIND*lenspsU(k,iCell)/dzmid)
               endif
 
-              KspsUtend(k,iCell) = -grav*(alphaT(k,iCell)*wt_spsU(k,iCell) - &
+              KspsUtend(k,iCell) = -gravity*(alphaT(k,iCell)*wt_spsU(k,iCell) - &
                 betaS(k,iCell)*ws_spsU(k,ICell)) + ((KmU(k-1,iCell) +                 &
                 KmU(k,iCell))*(KspsU(i1,k-1,iCell) - KspsU(i1,k,iCell)) /         &
                 (ze(k-1,iCell) - ze(k,iCell)) - (KmU(k,iCell) +             &
@@ -609,7 +611,7 @@ module ocn_adc_mixing_fused
                 Cval = (0.19_RKIND+0.51_RKIND*lenspsD(k,iCell)/dz)
               endif
 
-              KspsDtend(k,iCell) = -grav*(alphaT(k,iCell)*wt_spsD(k,iCell) - &
+              KspsDtend(k,iCell) = -gravity*(alphaT(k,iCell)*wt_spsD(k,iCell) - &
                 betaS(k,iCell)*ws_spsD(k,iCell)) + ((KmD(k-1,iCell) +                 &
                 KmD(k,iCell))*(KspsD(i1,k-1,iCell) - KspsD(i1,k,iCell)) /         &
                 (ze(k-1,iCell) - ze(k,iCell)) - (KmD(k,iCell) +             &
