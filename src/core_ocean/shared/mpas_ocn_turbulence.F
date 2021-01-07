@@ -58,16 +58,16 @@ module ocn_turbulence
                        uws, vws, ws2, wt2, areaFraction, Entrainment,        &
                        Detrainment, tumd, sumd, wumd, Mc
 
-   real(kind=RKIND), public, dimension(:,:), allocatable :: w2tend1, w2tend2,     &
-                       w2tend3, w2tend4, w2tend5, wttend1, wttend2,   &
-                       wttend3, wttend4, wttend5, wttend6,w3tend1, w3tend2,   &
-                       w3tend3, w3tend5, w3tend4, wstend1, wstend2,   &
-                       wstend3, wstend4, wstend5, uwtend1, uwtend2,   &
-                       uwtend3, uwtend4, uwtend5, vwtend1, vwtend2,   &
-                       vwtend3, vwtend4, vwtend5, u2tend1, u2tend2,   &
-                       u2tend3, u2tend4, u2tend5, v2tend1, v2tend2,   &
-                       v2tend3, v2tend4, v2tend5, u2cliptend,         &
-                       v2cliptend, w2cliptend
+   real(kind=RKIND), public, dimension(:,:), allocatable :: &
+                       w2tend1, w2tend2, w2tend3, w2tend4, w2tend5, &
+                       wttend1, wttend2, wttend3, wttend4, wttend5, wttend6, &
+                       w3tend1, w3tend2, w3tend3, w3tend4, w3tend5, w3tend6, &
+                       wstend1, wstend2, wstend3, wstend4, wstend5, &
+                       uwtend1, uwtend2, uwtend3, uwtend4, uwtend5, &
+                       vwtend1, vwtend2, vwtend3, vwtend4, vwtend5, &
+                       u2tend1, u2tend2, u2tend3, u2tend4, u2tend5, &
+                       v2tend1, v2tend2, v2tend3, v2tend4, v2tend5, &
+                       u2cliptend, v2cliptend, w2cliptend
 
    real(kind=RKIND), public, dimension(:,:,:), allocatable :: u2, v2, w2, t2, s2, &
                        uw, vw, wt, ws, w3, uv, ut, vt, us, vs, ts, eps, KspsU, KspsD
@@ -110,16 +110,16 @@ module ocn_turbulence
                        uwsTmp, vwsTmp, ws2Tmp, wt2Tmp, areaFractionTmp, EntrainmentTmp,        &
                        DetrainmentTmp, tumdTmp, sumdTmp, wumdTmp, McTmp, lendnTmp, lenupTmp
 
-   real(kind=RKIND), dimension(:,:), pointer :: w2tend1Tmp, w2tend2Tmp,     &
-                       w2tend3Tmp, w2tend4Tmp, w2tend5Tmp, wttend1Tmp, wttend2Tmp,   &
-                       wttend3Tmp, wttend4Tmp, wttend5Tmp, wttend6Tmp, w3tend1Tmp, w3tend2Tmp,   &
-                       w3tend3Tmp, w3tend5Tmp, w3tend4Tmp, wstend1Tmp, wstend2Tmp,   &
-                       wstend3Tmp, wstend4Tmp, wstend5Tmp, uwtend1Tmp, uwtend2Tmp,   &
-                       uwtend3Tmp, uwtend4Tmp, uwtend5Tmp, vwtend1Tmp, vwtend2Tmp,   &
-                       vwtend3Tmp, vwtend4Tmp, vwtend5Tmp, u2tend1Tmp, u2tend2Tmp,   &
-                       u2tend3Tmp, u2tend4Tmp, u2tend5Tmp, v2tend1Tmp, v2tend2Tmp,   &
-                       v2tend3Tmp, v2tend4Tmp, v2tend5Tmp, u2cliptendTmp,         &
-                       v2cliptendTmp, w2cliptendTmp
+   real(kind=RKIND), dimension(:,:), pointer :: &
+                       w2tend1Tmp, w2tend2Tmp, w2tend3Tmp, w2tend4Tmp, w2tend5Tmp, &
+                       wttend1Tmp, wttend2Tmp, wttend3Tmp, wttend4Tmp, wttend5Tmp, wttend6Tmp, &
+                       w3tend1Tmp, w3tend2Tmp, w3tend3Tmp, w3tend4Tmp, w3tend5Tmp, w3tend6Tmp, &
+                       wstend1Tmp, wstend2Tmp, wstend3Tmp, wstend4Tmp, wstend5Tmp, &
+                       uwtend1Tmp, uwtend2Tmp, uwtend3Tmp, uwtend4Tmp, uwtend5Tmp, &
+                       vwtend1Tmp, vwtend2Tmp, vwtend3Tmp, vwtend4Tmp, vwtend5Tmp, &
+                       u2tend1Tmp, u2tend2Tmp, u2tend3Tmp, u2tend4Tmp, u2tend5Tmp, &
+                       v2tend1Tmp, v2tend2Tmp, v2tend3Tmp, v2tend4Tmp, v2tend5Tmp, &
+                       u2cliptendTmp, v2cliptendTmp, w2cliptendTmp
 
    real(kind=RKIND), dimension(:,:), pointer :: u2Tmp, v2Tmp, w2Tmp, t2Tmp, s2Tmp, &
                        uwTmp, vwTmp, wtTmp, wsTmp, w3Tmp, uvTmp, utTmp, vtTmp, usTmp,&
@@ -278,6 +278,7 @@ module ocn_turbulence
       call mpas_pool_get_array(adcTendPool, 'w3tend3', w3tend3Tmp)
       call mpas_pool_get_array(adcTendPool, 'w3tend4', w3tend4Tmp)
       call mpas_pool_get_array(adcTendPool, 'w3tend5', w3tend5Tmp)
+      call mpas_pool_get_array(adcTendPool, 'w3tend6', w3tend6Tmp)
       call mpas_pool_get_array(adcTendPool, 'wttend1', wttend1Tmp)
       call mpas_pool_get_array(adcTendPool, 'wttend2', wttend2Tmp)
       call mpas_pool_get_array(adcTendPool, 'wttend3', wttend3Tmp)
@@ -354,6 +355,7 @@ module ocn_turbulence
       allocate( w3tend3( nVertLevels, nCells ))
       allocate( w3tend4( nVertLevels, nCells ))
       allocate( w3tend5( nVertLevels, nCells ))
+      allocate( w3tend6( nVertLevels, nCells ))
       allocate( u2cliptend( nVertLevelsP1, nCells ))
       allocate( v2cliptend( nVertLevelsP1, nCells ))
       allocate( w2cliptend( nVertLevelsP1, nCells ))
@@ -368,6 +370,7 @@ module ocn_turbulence
       w3tend3 = w3tend3Tmp
       w3tend4 = w3tend4Tmp
       w3tend5 = w3tend5Tmp
+      w3tend6 = w3tend6Tmp
       wttend1 = wttend1Tmp
       wttend2 = wttend2Tmp
       wttend3 = wttend3Tmp
@@ -587,6 +590,7 @@ module ocn_turbulence
       !$acc                  w3tend3,     &
       !$acc                  w3tend4,     &
       !$acc                  w3tend5,     &
+      !$acc                  w3tend6,     &
       !$acc                  wttend1,     &
       !$acc                  wttend2,     &
       !$acc                  wttend3,     &
@@ -663,16 +667,16 @@ module ocn_turbulence
                        uwsTmp, vwsTmp, ws2Tmp, wt2Tmp, areaFractionTmp, EntrainmentTmp,        &
                        DetrainmentTmp, tumdTmp, sumdTmp, wumdTmp, McTmp, lendnTmp, lenupTmp
 
-   real(kind=RKIND), dimension(:,:), pointer :: w2tend1Tmp, w2tend2Tmp,     &
-                       w2tend3Tmp, w2tend4Tmp, w2tend5Tmp, wttend1Tmp, wttend2Tmp,   &
-                       wttend3Tmp, wttend4Tmp, wttend5Tmp, wttend6Tmp, w3tend1Tmp, w3tend2Tmp,   &
-                       w3tend3Tmp, w3tend5Tmp, w3tend4Tmp, wstend1Tmp, wstend2Tmp,   &
-                       wstend3Tmp, wstend4Tmp, wstend5Tmp, uwtend1Tmp, uwtend2Tmp,   &
-                       uwtend3Tmp, uwtend4Tmp, uwtend5Tmp, vwtend1Tmp, vwtend2Tmp,   &
-                       vwtend3Tmp, vwtend4Tmp, vwtend5Tmp, u2tend1Tmp, u2tend2Tmp,   &
-                       u2tend3Tmp, u2tend4Tmp, u2tend5Tmp, v2tend1Tmp, v2tend2Tmp,   &
-                       v2tend3Tmp, v2tend4Tmp, v2tend5Tmp, u2cliptendTmp,         &
-                       v2cliptendTmp, w2cliptendTmp
+   real(kind=RKIND), dimension(:,:), pointer :: &
+                       w2tend1Tmp, w2tend2Tmp, w2tend3Tmp, w2tend4Tmp, w2tend5Tmp, &
+                       wttend1Tmp, wttend2Tmp, wttend3Tmp, wttend4Tmp, wttend5Tmp, wttend6Tmp, &
+                       w3tend1Tmp, w3tend2Tmp, w3tend3Tmp, w3tend4Tmp, w3tend5Tmp, w3tend6Tmp, &
+                       wstend1Tmp, wstend2Tmp, wstend3Tmp, wstend4Tmp, wstend5Tmp, &
+                       uwtend1Tmp, uwtend2Tmp, uwtend3Tmp, uwtend4Tmp, uwtend5Tmp, &
+                       vwtend1Tmp, vwtend2Tmp, vwtend3Tmp, vwtend4Tmp, vwtend5Tmp, &
+                       u2tend1Tmp, u2tend2Tmp, u2tend3Tmp, u2tend4Tmp, u2tend5Tmp, &
+                       v2tend1Tmp, v2tend2Tmp, v2tend3Tmp, v2tend4Tmp, v2tend5Tmp, &
+                       u2cliptendTmp, v2cliptendTmp, w2cliptendTmp
 
    real(kind=RKIND), dimension(:,:), pointer :: u2Tmp, v2Tmp, w2Tmp, t2Tmp, s2Tmp, &
                        uwTmp, vwTmp, wtTmp, wsTmp, w3Tmp, uvTmp, utTmp, vtTmp, usTmp,&
@@ -767,6 +771,7 @@ module ocn_turbulence
       !$acc                  w3tend3,     &
       !$acc                  w3tend4,     &
       !$acc                  w3tend5,     &
+      !$acc                  w3tend6,     &
       !$acc                  wttend1,     &
       !$acc                  wttend2,     &
       !$acc                  wttend3,     &
@@ -915,6 +920,7 @@ module ocn_turbulence
       call mpas_pool_get_array(adcTendPool, 'w3tend3', w3tend3Tmp)
       call mpas_pool_get_array(adcTendPool, 'w3tend4', w3tend4Tmp)
       call mpas_pool_get_array(adcTendPool, 'w3tend5', w3tend5Tmp)
+      call mpas_pool_get_array(adcTendPool, 'w3tend6', w3tend6Tmp)
       call mpas_pool_get_array(adcTendPool, 'wttend1', wttend1Tmp)
       call mpas_pool_get_array(adcTendPool, 'wttend2', wttend2Tmp)
       call mpas_pool_get_array(adcTendPool, 'wttend3', wttend3Tmp)
@@ -960,6 +966,7 @@ module ocn_turbulence
       w3tend3Tmp = w3tend3
       w3tend4Tmp = w3tend4
       w3tend5Tmp = w3tend5
+      w3tend6Tmp = w3tend6
       wttend1Tmp = wttend1
       wttend2Tmp = wttend2
       wttend3Tmp = wttend3
@@ -1194,6 +1201,7 @@ module ocn_turbulence
       !$acc                  w3tend3,     &
       !$acc                  w3tend4,     &
       !$acc                  w3tend5,     &
+      !$acc                  w3tend6,     &
       !$acc                  wttend1,     &
       !$acc                  wttend2,     &
       !$acc                  wttend3,     &
@@ -1294,6 +1302,7 @@ module ocn_turbulence
                  w3tend3,     &
                  w3tend4,     &
                  w3tend5,     &
+                 w3tend6,     &
                  wttend1,     &
                  wttend2,     &
                  wttend3,     &

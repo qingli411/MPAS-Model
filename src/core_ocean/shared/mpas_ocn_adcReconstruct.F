@@ -156,7 +156,7 @@ module ocn_adc_mixing_fused
       real (kind=RKIND), dimension(nVertLevels+1,nCells) :: w2tend
       real (kind=RKIND), dimension(nVertLevels,nCells) :: w3tend
 
-      real (kind=RKIND) :: Sw, St, Ss, Eav, Dav, sigav, sigavp1, wumdAv, tumdAv, sumdAv, wumdAvp1, tumdAvp1, sumdAvp1
+      real (kind=RKIND) :: Sw, St, Ss, Eav, Dav, sigav, sigavp1, wumdav, tumdav, sumdav
       real (kind=RKIND) :: Swumd, KspsUav, KspsDav, KspsUavp1, KspsDavp1, KE, Mcav, lenav,u2av,v2av,w2av
       real (kind=RKIND) :: w3temp, w3check, mval, KEsps, Uz, Vz, dz
 
@@ -285,17 +285,6 @@ module ocn_adc_mixing_fused
             KspsDav = 0.5_RKIND*(KspsD(i1,k,iCell) + KspsD(i1,k+1,iCell))
             Mcav    = 0.5_RKIND*(Mc(k,iCell) + Mc(k+1,iCell))
             lenav   = 0.5_RKIND*(length(k,iCell) + length(k+1,iCell))
-            if (k==nVertLevels) then
-              sigavp1  = 0.5_RKIND*(areaFraction(k,iCell))
-              wumdAvp1 = 0.5_RKIND*(wumd(k,iCell))
-              tumdAvp1 = 0.5_RKIND*(tumd(k,iCell))
-              sumdAvp1 = 0.5_RKIND*(sumd(k,iCell))
-            else
-              sigavp1  = 0.5_RKIND*(areaFraction(k,iCell) + areaFraction(k+1,iCell))
-              wumdAvp1 = 0.5_RKIND*(wumd(k,iCell) + wumd(k+1,iCell))
-              tumdAvp1 = 0.5_RKIND*(tumd(k,iCell) + tumd(k+1,iCell))
-              sumdAvp1 = 0.5_RKIND*(sumd(k,iCell) + sumd(k+1,iCell))
-            endif
 
             KEsps = sigav*KspsUav + (1.0_RKIND - sigav)*KspsDav
             ! TODO: rename the velocity scale
@@ -304,7 +293,6 @@ module ocn_adc_mixing_fused
 
             dz = ze(k,iCell) - ze(k+1,iCell)
             !KE = sqrt(areaFraction(k,iCell)*KspsUav + (1.0 - areaFraction(k,iCell))*KspsDav)
-            ! TODO: need to double check w3 equation
             ! Swumd = - 2.0_RKIND/3.0_RKIND*(KspsU(i1,k,iCell) - KspsU(i1,k+1,iCell)) / dz &
             !    - 2.0_RKIND/3.0_RKIND*KspsUav*(log(areaFraction(k,iCell)) -           &
             !   log(areaFraction(k+1,iCell))) / dz +         &
@@ -312,7 +300,7 @@ module ocn_adc_mixing_fused
             !  + 2.0_RKIND/3.0_RKIND*KspsDav*(log(1.0-areaFraction(k,iCell)) -         &
             !   log(1.0_RKIND-areaFraction(k+1,iCell))) /  dz
 
-            ! last term in (40) of LR01a, also using (35) of LR01b
+            ! last term (SPS) in (40) of LR01a, also using (35) of LR01b
             Swumd = - 2.0_RKIND/3.0_RKIND * ( &
                     1.0_RKIND/sigav * &
                     (areaFraction(k,  iCell)*KspsU(i1,k,  iCell) - &
@@ -321,34 +309,49 @@ module ocn_adc_mixing_fused
                     ((1.0_RKIND-areaFraction(k,  iCell))*KspsD(i1,k,  iCell) - &
                      (1.0_RKIND-areaFraction(k+1,iCell))*KspsD(i1,k+1,iCell)) / dz )
 
+            ! first and second terms in (52) of LR01a
             w3tend1(k,iCell) = wumdav**3*(Eav*(3.0_RKIND*sigav - 2.0_RKIND) + Dav*(3.0_RKIND*sigav - 1.0_RKIND))
             !LPV trying new formulation of d/dz(w4) and 3w2 d/dz(w2) -- Not convinced the LR01a equation is correct
-            w4k   = areaFraction(k,iCell)*(1.0_RKIND - areaFraction(k,iCell))* &
-                    (1.0_RKIND - 3.0_RKIND*areaFraction(k,iCell) + 3.0_RKIND* &
-                    areaFraction(k,iCell)**2)*wumd(k,iCell)**4
-            w4kp1 = areaFraction(k+1,iCell)*(1.0_RKIND - areaFraction(k+1,iCell))* &
-                    (1.0_RKIND - 3.0_RKIND*areaFraction(k+1,iCell) + 3.0_RKIND* &
-                    areaFraction(k+1,iCell)**2)*wumd(k+1,iCell)**4
-            w3tend2(k,iCell) = -(w4k - w4kp1) / dz
+            ! w3tend2 + w3tend3 = third + fourth terms in (52) of LR01a
+            ! w4k   = areaFraction(k,iCell)*(1.0_RKIND - areaFraction(k,iCell))* &
+            !         (1.0_RKIND - 3.0_RKIND*areaFraction(k,iCell) + 3.0_RKIND* &
+            !         areaFraction(k,iCell)**2)*wumd(k,iCell)**4
+            ! w4kp1 = areaFraction(k+1,iCell)*(1.0_RKIND - areaFraction(k+1,iCell))* &
+            !         (1.0_RKIND - 3.0_RKIND*areaFraction(k+1,iCell) + 3.0_RKIND* &
+            !         areaFraction(k+1,iCell)**2)*wumd(k+1,iCell)**4
+            ! w3tend2(k,iCell) = -(w4k - w4kp1) / dz
             !now the w3term
-            w2k   = areaFraction(k,iCell)*(1.0_RKIND-areaFraction(k,iCell))*wumd(k,iCell)**2
-            w2kp1 = areaFraction(k+1,iCell)*(1.0_RKIND-areaFraction(k+1,iCell))*wumd(k+1,iCell)**2
-            w3tend3(k,iCell) = 1.5_RKIND*(w2k**2 - w2kp1**2) / dz
-            !  w3tend2(k,iCell) =  -wumdav**3.0*(6.0*sigav**2.0 - 6.0*sigav + 1)*             &
-            !        (areaFraction(k,iCell)*(1.0_RKIND - areaFraction(k,iCell))*  &
-            !        wumd(k,iCell) - areaFraction(k+1,iCell)*(1.0_RKIND - &
-            !        areaFraction(k+1,iCell))*wumd(k+1,iCell))/dz
-            !  w3tend3(k,iCell) = -1.5_RKIND*sigav*(1.0_RKIND - sigav)*(1.0_RKIND - 2.0_RKIND*sigav)* &
-            !        wumdav**2.0_RKIND*((1.0_RKIND - 2.0_RKIND*areaFraction(k,iCell))*      &
-            !        wumd(k,iCell)**2.0_RKIND - (1.0_RKIND -                                &
-            !        2.0_RKIND*areaFraction(k+1,iCell))*wumd(k+1,iCell)**2.0_RKIND) / dz
-            w3tend4(k,iCell) = 3.0_RKIND*(1.0_RKIND - 2.0_RKIND*sigav)*Mcav*wumdav*Swumd -          &
-                  C_mom_w3*KE / (1E-15_RKIND+ sqrt(2.0_RKIND)*lenAv)*w3(i1,k,iCell)
-            w3tend5(k,iCell) = 3.0_RKIND*gravity*(alphaT(k,iCell)*w2t(k,iCell) - &
-                  betaS(k,iCell)*w2s(k,iCell))*0.9_RKIND
+            ! w2k   = areaFraction(k,iCell)*(1.0_RKIND-areaFraction(k,iCell))*wumd(k,iCell)**2
+            ! w2kp1 = areaFraction(k+1,iCell)*(1.0_RKIND-areaFraction(k+1,iCell))*wumd(k+1,iCell)**2
+            ! w3tend3(k,iCell) = 1.5_RKIND*(w2k**2 - w2kp1**2) / dz
+
+            ! third term in (52) of LR01a
+            w3tend2(k,iCell) = - wumdav**3 * (6.0_RKIND*sigav**2 - 6.0_RKIND*sigav + 1.0_RKIND) * &
+                                 ( Mc(k,iCell)-Mc(k+1,iCell) ) / dz
+            ! fourth term in (52) of LR01a
+            w3tend3(k,iCell) = - 1.5_RKIND * sigav * (1.0_RKIND - sigav)*(1.0_RKIND - 2.0_RKIND*sigav) * &
+                                 wumdav**2 * &
+                                 ( (1.0_RKIND - 2.0_RKIND*areaFraction(k,  iCell))*wumd(k,  iCell)**2 &
+                                 - (1.0_RKIND - 2.0_RKIND*areaFraction(k+1,iCell))*wumd(k+1,iCell)**2 &
+                                 ) / dz
+
+            ! the pressure term in the sources and sinks in (52) of LR01a
+            ! TODO: check the pressure term
+            w3tend4(k,iCell) = - C_mom_w3*KE / (1E-15_RKIND+ sqrt(2.0_RKIND)*lenAv)*w3(i1,k,iCell)
+
+            ! buoyancy term TODO: what is the factor of 0.9?
+            ! w3tend5(k,iCell) = 3.0_RKIND*gravity*(alphaT(k,iCell)*w2t(k,iCell) - &
+            !       betaS(k,iCell)*w2s(k,iCell))*0.9_RKIND
+
+            ! the buoyancy term in the sources and sinks in (52) of LR01a
+            w3tend5(k,iCell) = 3.0_RKIND * (1.0_RKIND - 2.0_RKIND*sigav) * Mcav * wumdav * gravity * &
+                               (alphaT(k,iCell)*tumdav - betaS(k,iCell)*sumdav)
+
+            ! the SPS term in the sources and sinks in (52) of LR01a
+            w3tend6(k,iCell) = 3.0_RKIND * (1.0_RKIND - 2.0_RKIND*sigav) * Mcav * wumdav * Swumd
 
             w3tend(k,iCell) = w3tend1(k,iCell) + w3tend2(k,iCell) + w3tend3(k,iCell) + &
-                              w3tend4(k,iCell) + w3tend5(k,iCell)
+                              w3tend4(k,iCell) + w3tend5(k,iCell) + w3tend6(k,iCell)
 
             if(k>1 .and. k < nVertLevels) then
                ! TODO: What is this term?

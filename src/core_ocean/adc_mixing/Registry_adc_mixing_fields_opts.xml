@@ -239,11 +239,14 @@
       description="w2 d/dz w2"
 		/>
     <var name="w3tend4" type="real" dimensions="nVertLevels nCells Time" units="m^2/s^3"
-			 description="subplume terms + return to isotropy, latter dominates"
+			 description="return to isotropy term"
 		/>
     <var name="w3tend5" type="real" dimensions="nVertLevels nCells Time" units="m^2/s^3"
 			 description="third order moment of buoyancy, turb transport of buoyancy fluxes"
        />
+    <var name="w3tend6" type="real" dimensions="nVertLevels nCells Time" units="m^2/s^3"
+			 description="subplume terms"
+		/>
     <var name="wttend1" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
 			 description="divergence of turbulent transport of flux"
 		/>
@@ -484,6 +487,7 @@
       <var name="w3tend3"/>
       <var name="w3tend4"/>
       <var name="w3tend5"/>
+      <var name="w3tend6"/>
       <var name="wttend1"/>
       <var name="wttend2"/>
       <var name="wttend3"/>
