@@ -305,12 +305,21 @@ module ocn_adc_mixing_fused
             dz = ze(k,iCell) - ze(k+1,iCell)
             !KE = sqrt(areaFraction(k,iCell)*KspsUav + (1.0 - areaFraction(k,iCell))*KspsDav)
             ! TODO: need to double check w3 equation
-            Swumd = - 2.0_RKIND/3.0_RKIND*(KspsU(i1,k,iCell) - KspsU(i1,k+1,iCell)) / dz &
-               - 2.0_RKIND/3.0_RKIND*KspsUav*(log(areaFraction(k,iCell)) -           &
-              log(areaFraction(k+1,iCell))) / dz +         &
-              2.0_RKIND/3.0_RKIND*(KspsD(i1,k,iCell) - KspsD(i1,k+1,iCell)) / dz        &
-             + 2.0_RKIND/3.0_RKIND*KspsDav*(log(1.0-areaFraction(k,iCell)) -         &
-              log(1.0_RKIND-areaFraction(k+1,iCell))) /  dz
+            ! Swumd = - 2.0_RKIND/3.0_RKIND*(KspsU(i1,k,iCell) - KspsU(i1,k+1,iCell)) / dz &
+            !    - 2.0_RKIND/3.0_RKIND*KspsUav*(log(areaFraction(k,iCell)) -           &
+            !   log(areaFraction(k+1,iCell))) / dz +         &
+            !   2.0_RKIND/3.0_RKIND*(KspsD(i1,k,iCell) - KspsD(i1,k+1,iCell)) / dz        &
+            !  + 2.0_RKIND/3.0_RKIND*KspsDav*(log(1.0-areaFraction(k,iCell)) -         &
+            !   log(1.0_RKIND-areaFraction(k+1,iCell))) /  dz
+
+            ! last term in (40) of LR01a, also using (35) of LR01b
+            Swumd = - 2.0_RKIND/3.0_RKIND * ( &
+                    1.0_RKIND/sigav * &
+                    (areaFraction(k,  iCell)*KspsU(i1,k,  iCell) - &
+                     areaFraction(k+1,iCell)*KspsU(i1,k+1,iCell)) / dz &
+                    - 1.0_RKIND/(1.0_RKIND-sigav) * &
+                    ((1.0_RKIND-areaFraction(k,  iCell))*KspsD(i1,k,  iCell) - &
+                     (1.0_RKIND-areaFraction(k+1,iCell))*KspsD(i1,k+1,iCell)) / dz )
 
             w3tend1(k,iCell) = wumdav**3*(Eav*(3.0_RKIND*sigav - 2.0_RKIND) + Dav*(3.0_RKIND*sigav - 1.0_RKIND))
             !LPV trying new formulation of d/dz(w4) and 3w2 d/dz(w2) -- Not convinced the LR01a equation is correct
