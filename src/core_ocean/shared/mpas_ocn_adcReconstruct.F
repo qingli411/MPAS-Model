@@ -157,8 +157,8 @@ module ocn_adc_mixing_fused
       real (kind=RKIND), dimension(nVertLevels+1,nCells) :: w2tend
       real (kind=RKIND), dimension(nVertLevels,nCells) :: w3tend
 
-      real (kind=RKIND) :: Sw, St, Ss, Eav, Dav, sigav, sigavp1, wumdav, tumdav, sumdav
-      real (kind=RKIND) :: Swumd, KspsUav, KspsDav, KspsUavp1, KspsDavp1, KE, Mcav, lenav,u2av,v2av,w2av
+      real (kind=RKIND) :: Sw, St, Ss, Eav, Dav, sigav, wumdav, tumdav, sumdav
+      real (kind=RKIND) :: KspsUav, KspsDav, KE, Mcav, lenav,u2av,v2av,w2av
       real (kind=RKIND) :: w3temp, w3check, mval, KEsps, Uz, Vz, dz
 
       real (kind=RKIND) :: invLen, l, len1, len2, lenmax, integrandTop, integrandBot
@@ -169,6 +169,7 @@ module ocn_adc_mixing_fused
       real (kind=RKIND) :: lareaFraction, wstar, wbsfc, w3av, tempMoment
       real (kind=RKIND) :: sfcFrictionVelocity, wtSumUp, wtSumDn, wsSumUp, wsSumDn
 
+      real (kind=RKIND), dimension(nVertLevels,nCells) :: Swumd
       real (kind=RKIND), dimension(nVertLevels,nCells) :: taupt, taups, taupv
       real (kind=RKIND), dimension(nVertLevels+1,nCells) :: wttend, wstend, uwtend, vwtend, u2tend, v2tend, &
         uttend, vttend, ustend, vstend, uvtend
@@ -296,13 +297,13 @@ module ocn_adc_mixing_fused
             !KE = sqrt(areaFraction(k,iCell)*KspsUav + (1.0 - areaFraction(k,iCell))*KspsDav)
 
             ! last term (SPS) in (40) of LR01a, also using (35) of LR01b
-            Swumd = - 2.0_RKIND/3.0_RKIND * ( &
-                    1.0_RKIND/sigav * &
-                    (areaFraction(k,  iCell)*KspsU(i1,k,  iCell) - &
-                     areaFraction(k+1,iCell)*KspsU(i1,k+1,iCell)) / dz &
-                    - 1.0_RKIND/(1.0_RKIND-sigav) * &
-                    ((1.0_RKIND-areaFraction(k,  iCell))*KspsD(i1,k,  iCell) - &
-                     (1.0_RKIND-areaFraction(k+1,iCell))*KspsD(i1,k+1,iCell)) / dz )
+            Swumd(k,iCell) = - 2.0_RKIND/3.0_RKIND * ( &
+                              1.0_RKIND/sigav * &
+                              (areaFraction(k,  iCell)*KspsU(i1,k,  iCell) - &
+                               areaFraction(k+1,iCell)*KspsU(i1,k+1,iCell)) / dz &
+                              - 1.0_RKIND/(1.0_RKIND-sigav) * &
+                              ((1.0_RKIND-areaFraction(k,  iCell))*KspsD(i1,k,  iCell) - &
+                               (1.0_RKIND-areaFraction(k+1,iCell))*KspsD(i1,k+1,iCell)) / dz )
 
             ! first and second terms in (52) of LR01a, see also (20) of LR01b
             w3tend1(k,iCell) = wumdav**3*(Eav*(3.0_RKIND*sigav - 2.0_RKIND) + Dav*(3.0_RKIND*sigav - 1.0_RKIND))
@@ -340,8 +341,9 @@ module ocn_adc_mixing_fused
                                (alphaT(k,iCell)*tumdav - betaS(k,iCell)*sumdav)
 
             ! the SPS term in the sources and sinks in (52) of LR01a
-            w3tend6(k,iCell) = 3.0_RKIND * (1.0_RKIND - 2.0_RKIND*sigav) * Mcav * wumdav * Swumd
+            w3tend6(k,iCell) = 3.0_RKIND * (1.0_RKIND - 2.0_RKIND*sigav) * Mcav * wumdav * Swumd(k,iCell)
 
+            ! w3 tendency
             w3tend(k,iCell) = w3tend1(k,iCell) + w3tend2(k,iCell) + w3tend3(k,iCell) + &
                               w3tend4(k,iCell) + w3tend5(k,iCell) + w3tend6(k,iCell)
 
@@ -390,18 +392,6 @@ module ocn_adc_mixing_fused
             dz = ze(k,iCell) - ze(k+1,iCell)
             B = gravity*(alphaT(k,iCell)*wt(i1,k,iCell) - betaS(k,iCell)*ws(i1,k,iCell))
 
-            sigav   = 0.5_RKIND*(areaFraction(k,iCell) + areaFraction(k-1,iCell))
-            wumdav  = 0.5_RKIND*(wumd(k,iCell) + wumd(k-1,iCell))
-            tumdav  = 0.5_RKIND*(tumd(k,iCell) + tumd(k-1,iCell))
-            sumdav  = 0.5_RKIND*(sumd(k,iCell) + sumd(k-1,iCell))
-            KspsUav = 0.5_RKIND*(KspsU(i1,k,iCell) + KspsU(i1,k-1,iCell))
-            KspsDav = 0.5_RKIND*(KspsD(i1,k,iCell) + KspsD(i1,k-1,iCell))
-            Mcav    = 0.5_RKIND*(Mc(k,iCell) + Mc(k-1,iCell))
-
-            sigavp1   = 0.5_RKIND*(areaFraction(k,iCell) + areaFraction(k+1,iCell))
-            KspsUavp1 = 0.5_RKIND*(KspsU(i1,k,iCell) + KspsU(i1,k+1,iCell))
-            KspsDavp1 = 0.5_RKIND*(KspsD(i1,k,iCell) + KspsD(i1,k+1,iCell))
-
             Uz = (uvel(k-1,iCell) - uvel(k,iCell)) / dzmid
             Vz = (vvel(k-1,iCell) - vvel(k,iCell)) / dzmid
             Tz = (activeTracers(1,k-1,iCell) - activeTracers(1,k,iCell)) / dzmid
@@ -412,32 +402,33 @@ module ocn_adc_mixing_fused
             ! TODO: rename the velocity scale
             ! TODO: Should we include the subplume scale KE in the velocity scale?
             KE = sqrt((u2(i1,k,iCell) + v2(i1,k,iCell) + w2(i1,k,iCell)) + 0.0*KEsps)
-            ! (40) of LR01a
-            Swumd = gravity*alphaT(k,iCell)*tumd(k,iCell) - gravity*        &
-              betaS(k,iCell)*sumd(k,iCell) - 2.0_RKIND/3.0_RKIND*(1.0_RKIND/        &
-              areaFraction(k,iCell)*(sigAv*KspsUav - sigavp1*KspsUavp1) / dzmid -     &
-              1.0_RKIND/(1.0_RKIND - areaFraction(k,iCell))*((1.0_RKIND - sigav)* &
-              KspsDav - (1.0_RKIND - sigavp1)*KspsDavp1) / dzmid)
 
             ! See (48) of LR01a for the w2 equation
             ! dissipation by entrainment/detrainment of plumes
             ! (18) of LR01b
-            w2tend1(k,iCell) = -wumd(k,iCell)**2*(Entrainment(k,iCell) + Detrainment(k,iCell))
+            w2tend1(k,iCell) = - wumd(k,iCell)**2 * (Entrainment(k,iCell) + Detrainment(k,iCell))
             ! turbulent transport
-            w2tend2(k,iCell) = -(w3(i1,k-1,iCell) - w3(i1,k,iCell)) / dzmid
-            ! pressure term: return to isotropy
+            w2tend2(k,iCell) = - ( Mc(k-1,iCell) * &
+                               (1.0_RKIND - 2.0_RKIND*areaFraction(k-1,iCell)) * wumd(k-1,iCell)**2 &
+                                 - Mc(k+1,iCell) * &
+                               (1.0_RKIND - 2.0_RKIND*areaFraction(k+1,iCell)) * wumd(k+1,iCell)**2 &
+                                 ) / (ze(k-1,iCell) - ze(k+1,iCell))
+            ! pressure term: slow, return to isotropy
             w2tend3(k,iCell) = KE / (1.0E-15_RKIND + c_pv*2.0_RKIND*sqrt(2.0_RKIND)* &
               length(k,iCell))*(u2(i1,k,iCell) + v2(i1,k,iCell))/3.0_RKIND
-            w2tend4(k,iCell) = 2.0_RKIND*Mc(k,iCell)*Swumd - 4.0_RKIND / &
-              3.0_RKIND*C_2*areaFraction(k,iCell)*(1.0_RKIND -          &
-              areaFraction(k,iCell))*wumd(k,iCell)*(gravity*     &
-              alphaT(k,iCell)*tumd(k,iCell) - gravity*betaS(k,iCell)*      &
-              sumd(k,iCell))
-            w2tend5(k,iCell) = (1.0_RKIND/3.0_RKIND*alpha1 -            &
-              alpha2)*(uw(i1,k,iCell)*Uz + vw(i1,k,iCell)*Vz)
+            ! buoyancy term + the buoyancy contribution in the pressure term
+            w2tend4(k,iCell) = (2.0_RKIND - 4.0_RKIND/3.0_RKIND*C_2) * &
+                               Mc(k,iCell) * gravity * &
+                               (alphaT(k,iCell)*tumd(k,iCell) - betaS(k,iCell)*sumd(k,iCell))
+            ! pressure term: fast + subplume scale term
+            ! TODO: use MF formulation for uw and vw as well?
+            w2tend5(k,iCell) = (1.0_RKIND/3.0_RKIND*alpha1 - alpha2) * &
+                               (uw(i1,k,iCell)*Uz + vw(i1,k,iCell)*Vz) + &
+                               Mc(k,iCell) * (Swumd(k-1,iCell) + Swumd(k,iCell))
 
-            w2tend(k,iCell) = w2tend1(k,iCell) + w2tend2(k,iCell) + &
-                              w2tend3(k,iCell) + w2tend4(k,iCell) + w2tend5(k,iCell)
+            ! w2 tendency
+            w2tend(k,iCell) = w2tend1(k,iCell) + w2tend2(k,iCell) + w2tend3(k,iCell) + &
+                              w2tend4(k,iCell) + w2tend5(k,iCell)
 
             taupt(k,iCell) = KE / (2.0_RKIND*sqrt(2.0_RKIND)*c_pt*length(k,iCell))
             taups(k,iCell) = KE / (2.0_RKIND*sqrt(2.0_RKIND)*c_ps*length(k,iCell))
