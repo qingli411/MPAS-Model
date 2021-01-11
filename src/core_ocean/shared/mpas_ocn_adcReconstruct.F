@@ -29,48 +29,49 @@ module ocn_adc_mixing_fused
     real (kind=RKIND), dimension(nVertLevels,nCells), intent(in) :: alphaT, betaS
     integer :: iCell, k, ij, i
 
-    real (kind=RKIND), dimension(nVertLevels) :: B, Bup, Bdo
-    real (kind=RKIND), dimension(nVertLevels+1) :: KEsps, tke, BupEdge, BdoEdge
-    real (kind=RKIND) :: sav, tudav, sudav, Tup, Tdo, Sup, Sdo
+    real (kind=RKIND), dimension(nVertLevels) :: B, Bup, Bdn
+    real (kind=RKIND), dimension(nVertLevels+1) :: KEsps, tke, BupEdge, BdnEdge
+    real (kind=RKIND) :: sigav, tumdav, sumdav, Tup, Tdn, Sup, Sdn
     real (kind=RKIND) :: s1, z1, zV, sumv, minlen
+    real (kind=RKIND), parameter :: refT = 15.0_RKIND, refS = 35.0_RKIND
 
     !NOTE: will need to convert to some form of displaced density in the mpas framework soon
     !possibly go back to a more traditional length scale formulation
-    do iCell=1,nCells
-      KEsps(:) = areaFraction(:,iCell)*KspsU(i1,:,iCell) + (1.0_RKIND - areaFraction(:,iCell))*KspsD(i1,:,iCell)
-      tke(:) = 0.5*(u2(i1,:,iCell) + v2(i1,:,iCell) + w2(i1,:,iCell)) ! + KEsps(:)
+    do iCell = 1,nCells
+       KEsps(:) = areaFraction(:,iCell)*KspsU(i1,:,iCell) + (1.0_RKIND - areaFraction(:,iCell))*KspsD(i1,:,iCell)
+       tke(:) = 0.5_RKIND*(u2(i1,:,iCell) + v2(i1,:,iCell) + w2(i1,:,iCell)) ! + KEsps(:)
 
-       do k=1,nVertLevels
-          B(k) = gravity * (alphaT(k,iCell) * (activeTracers(1,k,iCell) - 15.0_RKIND) - &
-                            betaS(k,iCell)  * (activeTracers(2,k,iCell) - 35.0_RKIND))
+       do k = 1,nVertLevels
+          B(k) = gravity * (alphaT(k,iCell) * (activeTracers(1,k,iCell) - refT) - &
+                            betaS(k,iCell)  * (activeTracers(2,k,iCell) - refS))
 
-          sav = 0.5_RKIND*(areaFraction(k,iCell) + areaFraction(k+1,iCell))
-          tudav = 0.5_RKIND*(tumd(k,iCell) + tumd(k+1,iCell))
-          sudav = 0.5*(sumd(k,iCell) + sumd(k+1,iCell))
+          sigav  = 0.5_RKIND * (areaFraction(k,iCell) + areaFraction(k+1,iCell))
+          tumdav = 0.5_RKIND * (tumd(k,iCell) + tumd(k+1,iCell))
+          sumdav = 0.5_RKIND * (sumd(k,iCell) + sumd(k+1,iCell))
 
-          Tup = activeTracers(1,k,iCell) + (1.0_RKIND - sav)*tudav
-          Tdo = activeTracers(1,k,iCell) - sav*tudav
-          Sup = activeTracers(2,k,iCell) + (1.0_RKIND - sav)*sudav
-          Sdo = activeTracers(2,k,iCell) - sav*sudav
+          Tup = activeTracers(1,k,iCell) + (1.0_RKIND - sigav)*tumdav
+          Tdn = activeTracers(1,k,iCell) - sigav*tumdav
+          Sup = activeTracers(2,k,iCell) + (1.0_RKIND - sigav)*sumdav
+          Sdn = activeTracers(2,k,iCell) - sigav*sumdav
 
-          Bup(k) = gravity * (alphaT(k,iCell) * (Tup - 15.0) - betaS(k,iCell) * (Sup - 35.0))
-          Bdo(k) = gravity * (alphaT(k,iCell) * (Tdo - 15.0) - betaS(k,iCell) * (Sdo - 35.0))
+          Bup(k) = gravity * (alphaT(k,iCell) * (Tup - refT) - betaS(k,iCell) * (Sup - refS))
+          Bdn(k) = gravity * (alphaT(k,iCell) * (Tdn - refT) - betaS(k,iCell) * (Sdn - refS))
 
           if(k>1) THEN
-             BupEdge(k) = 0.5*(Bup(k-1) + Bup(k))
-             BdoEdge(k) = 0.5*(Bdo(k-1) + Bdo(k))
+             BupEdge(k) = 0.5_RKIND * (Bup(k-1) + Bup(k))
+             BdnEdge(k) = 0.5_RKIND * (Bdn(k-1) + Bdn(k))
           endif
        enddo
 
-       BdoEdge(nVertLevels+1) = BdoEdge(nVertLevels)
+       BdnEdge(nVertLevels+1) = BdnEdge(nVertLevels)
        BupEdge(nVertLevels+1) = BupEdge(nVertLevels)
 
-       BdoEdge(1) = BdoEdge(2)
+       BdnEdge(1) = BdnEdge(2)
        BupEdge(1) = BupEdge(2)
 
        do k=2,nVertLevels
 
-          sumv = 0
+          sumv = 0.0_RKIND
           ij=k
           lenup(k,iCell) = 0.0_RKIND
           do while(sumv <= tke(k) .and. ij < nVertLevels+1)
@@ -86,7 +87,7 @@ module ocn_adc_mixing_fused
 
                 sumv = sumv - (BupEdge(k) - Bup(ij))*(ze(ij-1,iCell)-ze(ij,iCell))
                 lenup(k,iCell) = lenup(k,iCell) - abs(ze(ij,iCell)-ze(ij+1,iCell))
-                lenup(k,iCell) = max(0.55,lenup(k,iCell) + abs((z1-zV)/(s1 - sumv)*(tke(k)-sumv)))
+                lenup(k,iCell) = max(0.55_RKIND,lenup(k,iCell) + abs((z1-zV)/(s1 - sumv)*(tke(k)-sumv)))
             !    if(Bup(k-1) - Bup(k) < 0) then
             !            minlen = abs(zm(k-1,i) - zm(k,i))
             !    else
@@ -107,11 +108,11 @@ module ocn_adc_mixing_fused
          end do
 
         !find lendown
-        sumv = 0
+        sumv = 0.0_RKIND
         ij=k
         lendn(k,iCell) = 0.0_RKIND
         do while(sumv <= tke(k) .and. ij>1)
-           sumv = sumv - (BdoEdge(k) - Bdo(ij-1))*(ze(ij-1,iCell)-ze(ij,iCell))
+           sumv = sumv - (BdnEdge(k) - Bdn(ij-1))*(ze(ij-1,iCell)-ze(ij,iCell))
            lendn(k,iCell) = lendn(k,iCell) + abs(ze(ij-1,iCell)-ze(ij,iCell))
            ij = ij - 1
 
@@ -120,9 +121,9 @@ module ocn_adc_mixing_fused
               s1 = sumv
               z1 = ze(ij,iCell)
               zV = ze(ij-1,iCell)
-              sumv = sumv + (BdoEdge(k) - Bdo(ij-1))*(ze(ij-1,iCell)-ze(ij,iCell))
+              sumv = sumv + (BdnEdge(k) - Bdn(ij-1))*(ze(ij-1,iCell)-ze(ij,iCell))
               lendn(k,iCell) = lendn(k,iCell) - abs(ze(ij-1,iCell)-ze(ij,iCell))
-              lendn(k,iCell) = max(0.55,lendn(k,iCell) + ((zV-z1)/(s1 - sumv)*(tke(k) - sumv)))
+              lendn(k,iCell) = max(0.55_RKIND,lendn(k,iCell) + ((zV-z1)/(s1 - sumv)*(tke(k) - sumv)))
 
            exit
            endif
@@ -309,7 +310,7 @@ module ocn_adc_mixing_fused
                     ((1.0_RKIND-areaFraction(k,  iCell))*KspsD(i1,k,  iCell) - &
                      (1.0_RKIND-areaFraction(k+1,iCell))*KspsD(i1,k+1,iCell)) / dz )
 
-            ! first and second terms in (52) of LR01a
+            ! first and second terms in (52) of LR01a, see also (20) of LR01b
             w3tend1(k,iCell) = wumdav**3*(Eav*(3.0_RKIND*sigav - 2.0_RKIND) + Dav*(3.0_RKIND*sigav - 1.0_RKIND))
             !LPV trying new formulation of d/dz(w4) and 3w2 d/dz(w2) -- Not convinced the LR01a equation is correct
             ! w3tend2 + w3tend3 = third + fourth terms in (52) of LR01a
@@ -427,7 +428,9 @@ module ocn_adc_mixing_fused
               1.0_RKIND/(1.0_RKIND - areaFraction(k,iCell))*((1.0_RKIND - sigav)* &
               KspsDav - (1.0_RKIND - sigavp1)*KspsDavp1) / dzmid)
 
+            ! See (48) of LR01a for the w2 equation
             ! dissipation by entrainment/detrainment of plumes
+            ! (18) of LR01b
             w2tend1(k,iCell) = -wumd(k,iCell)**2*(Entrainment(k,iCell) + Detrainment(k,iCell))
             ! turbulent transport
             w2tend2(k,iCell) = -(w3(i1,k-1,iCell) - w3(i1,k,iCell)) / dzmid
@@ -614,6 +617,7 @@ module ocn_adc_mixing_fused
             ws_spsD(k,iCell) = -KhD(k,iCell)*Sz
 
             !change length scale to lenup and lendown
+            ! (11) of LR01b
             Entrainment(k,iCell) = Cww_E*areaFraction(k,iCell)*(1.0_RKIND- &
               areaFraction(k,iCell))*Mc(k,iCell) / ( lendn(k,iCell) + smallNum )
             Detrainment(k,iCell) = Cww_D*areaFraction(k,iCell)*(1.0_RKIND- &
