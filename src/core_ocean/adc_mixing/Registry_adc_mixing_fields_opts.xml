@@ -1,518 +1,517 @@
-<nml_record name="adcMixingModel" mode="forward">
-		<nml_option name="config_adc_enable" type="logical" default_value=".false." units="unitless"
-			description="If true, the new mass flux RANS closure is called for mixing"
-			possible_values=".true. or .false."
-		/>
-		<nml_option name="config_adc_timestep" type="real" default_value="5" units="unitless"
-			description="timestep for the turbulence updates and subcycling (now in sec, probably should unify with MPAS later)"
-			possible_values="small positive reals (less than MPAS timestep)"
-    />
-    <nml_option name="config_adc_use_old_length_scale" type="logical" default_value=".false." units="unitless"
-      description="flag to use buoyancy length scale from previous closure, temporary"
-      possible_values=".true. or .false."
-    />
-    <nml_option name="config_adc_tau_o" type="real" default_value="1800" units="s^{-1}"
-      description="characterstic eddy turnover timescale"
-      possible_values="positive real numbers"
-      />
-    <nml_option name="config_adc_length_multiple" type="real" default_value="2.0" units="unitless"
-      description="value to multiply length scale by"
-      possible_values="small positive real numbers"
-      />
-    <nml_option name="config_adc_epsilon" type="real" default_value="1e-8" units="m^2/s^2"
-      description="small value below which KE, u2, w2, v2 is not allowed to go below"
-      possible_values="very small numbers 1e-8 to zero"
-      />
-    <nml_option name="config_adc_use_single_column" type="logical" default_value=".false." units="unitless"
-      description="if true, ADC code runs on 1 copy and is copied to the others to speed testing"
-      possible_values=".true. or .false."
-      />
-		<nml_option name="config_adc_sigmat" type="real" default_value="0.72" units="unitless"
-			description="sigma_t constant for RANS equations"
-			possible_values="can modify some, but highly recommend not altering"
-      />
-    <nml_option name="config_adc_Ko" type="real" default_value="4.574296" units="unitless"
-      description="Ko in RANS equations"
-      possible_values="can modify to cerain extent, but highly recommend not altering"
-      />
-		<nml_option name="config_adc_gamma1" type="real" default_value="0.33" units="unitless"
-			description="Buoyancy partitioning for pressure correlation term in RANS w2"
-			possible_values="0.33 and values close to it"
-		/>
-		<nml_option name="config_adc_beta5" type="real" default_value="0.5" units="unitless"
-			description="Buoyancy partitioning in wt equation for RANS"
-			possible_values="0.5 and values close to it"
-		/>
-		<nml_option name="config_adc_c1" type="real" default_value="4.0" units="unitless"
-			description="c_1 dissipation constant, value from Bougeault and Andre 1986"
-			possible_values="values near 4.0"
-		/>
-		<nml_option name="config_adc_c2" type="real" default_value="0.5" units="unitless"
-			description="c_2 dissipation constant, value from Bougeault and Andre 1986"
-			possible_values="values near -0.5"
-      />
-		<nml_option name="config_adc_Cmom" type="real" default_value="0.5" units="unitless"
-			description="third order down gradient coefficient, from lappen and randall 2001b"
-			possible_values="values near 0.5"
-      />
-    <nml_option name="config_adc_Ctherm" type="real" default_value="4.85" units="unitless"
-      description="thir order down gradient for buoyancy moments, from lappen and randall 2001b"
-      possible_values="values near 4.85"
-      />
-    <nml_option name="config_adc_Cmom_w3" type="real" default_value="6.0" units="unitless"
-      description="dissipation of w3 from LR01b"
-      possible_values="values near 6"
-      />
-    <nml_option name="config_adc_cpt" type="real" default_value="0.25" units="unitless"
-      description="coefficient of temp/salinity dissipation, from Burchard et al 2012"
-      possible_values="values near 0.25"
-      />
-    <nml_option name="config_adc_cps" type="real" default_value="0.25" units="unitless"
-      description="same as cpt above, but for salinity"
-      possible_values="values near 0.25"
-      />
-    <nml_option name="config_adc_cpv" type="real" default_value="0.25" units="unitless"
-      description="same as cpt/cps above, but for momentum"
-      possible_values="values near 0.25"
-      />
-    <nml_option name="config_adc_CwwE" type="real" default_value="1.0" units="unitless"
-      description="coefficient for entrainment in parameterization from LR01b"
-      possible_values="values near 1.0, also CwwD/CwwE must be near 1.5"
-      />
-    <nml_option name="config_adc_CwwD" type="real" default_value="1.5" units="unitless"
-      description="coefficient for detrainment in parameteriztaion from LR01b"
-      possible_values="values near 1.0, also CwwD/CwwE must be near 1.5"
-      />
-    <nml_option name="config_adc_kappaFL" type="real" default_value="0" units="m^2/s"
-      description="background diffusion coefficient for fluxes, second moments"
-      possible_values="small positive real numbers"
-      />
-    <nml_option name="config_adc_kappaVAR" type="real" default_value="0" units="m^2/s"
-      description="background diffusion coefficient for variances, i.e. T'^2"
-      possible_values="small positive real numbers"
-      />
-    <nml_option name="config_adc_kappaW3" type="real" default_value="0" units="m^2/s"
-      description="background diffusion coefficient for w3"
-      possible_values="small positive real numbers"
-      />
-	</nml_record>
-	<packages>
-		<package name="adcMixingPKG" description="This package includes variables required for the assumed distribution closure model."/>
-	</packages>
-	<var_struct name="adcDiagnosticArrays" time_levs="1" packages="adcMixingPKG">
-		<var name="ze" type="real" dimensions="nVertLevelsP1 nCells Time" units="m"
-			 description="depth coordinate at cell top referenced to zero at SSH"
-		/>
-		<var name="zm" type="real" dimensions="nVertLevels nCells Time" units="m"
-			 description="depth coordinate at cell mid referenced to zero at SSH"
-       />
-    <var name="epsSPS" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^{-3}"
-      description="dissipation of plume scale TKE"
-      />
-    <var name="length" type="real" dimensions="nVertLevelsP1 nCells Time" units="m"
-      description="master length scale for turbulent dissipation"
-      />
-    <var name="lendn" type="real" dimensions="nVertLevelsP1 nCells Time" units="m"
-      description="length scale for downward moving plumes"
-      />
-    <var name="lenup" type="real" dimensions="nVertLevelsP1 nCells Time" units="m"
-      description="length scale for upward moving plumes"
-      />
-    <var name="lenspsD" type="real" dimensions="nVertLevelsP1 nCells Time" units="m"
-      description="length scale associated with downward moving plumes"
-      />
-    <var name="lenspsU" type="real" dimensions="nVertLevelsP1 nCells Time" units="m"
-      description="length scale associated with upward moving plumes"
-      />
-    <var name="KhU" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s"
-      description="diffusivity for subplume scale temp/salinity fluxes (upward moving)"
-      />
-    <var name="KhD" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s"
-      description="diffusivity for subplume temp/salinity scale fluxes (downward moving)"
-      />
-    <var name="KmU" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s"
-      description="viscosity for subplume momentum fluxes (upward moving)"
-      />
-    <var name="KmD" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s"
-      description="viscosity for subplume momentum fluxes (downward moving)"
-      />
-    <var name="wt_spsU" type="real" dimensions="nVertLevelsP1 nCells Time" units="m C/s"
-      description="subplume upward moving temperature flux"
-      />
-    <var name="wt_spsD" type="real" dimensions="nVertLevelsP1 nCells Time" units="m C/s"
-      description="subplume downward moving temperature flux"
-      />
-     <var name="ws_spsU" type="real" dimensions="nVertLevelsP1 nCells Time" units="m C/s"
-      description="subplume upward moving salinity flux"
-      />
-    <var name="ws_spsD" type="real" dimensions="nVertLevelsP1 nCells Time" units="m C/s"
-      description="subplume downward moving salinity flux"
-      />
-    <var name="uw2" type="real" dimensions="nVertLevels nCells Time" units="m^3/s^3"
-      description="turbulent transport of E-W momentum flux"
-      />
-    <var name="vw2" type="real" dimensions="nVertLevels nCells Time" units="m^3/s^3"
-      description="turbulent transport of NS momentum flux"
-      />
-    <var name="u2w" type="real" dimensions="nVertLevels nCells Time" units="m^3/s^3"
-      description="turbulent transport EW momentum variance"
-      />
-    <var name="v2w" type="real" dimensions="nVertLevels nCells Time" units="m^3/s^3"
-      description="turbulent transport NS momentum variance"
-      />
-    <var name="w2t" type="real" dimensions="nVertLevels nCells Time" units="m^2 C/s^2"
-      description="turbulent transport of vertical temperature flux"
-      />
-    <var name="w2s" type="real" dimensions="nVertLevels nCells Time" units="m^2 PSU/s^2"
-      description="turbulent transport of vertical salinity flux"
-      />
-    <var name="wts" type="real" dimensions="nVertLevels nCells Time" units="m C PSU/s"
-      description="turbulent transport of temperature salinity covariance"
-      />
-    <var name="uvw" type="real" dimensions="nVertLevels nCells Time" units="m^3/s^3"
-      description="turbulent transport of u-v covariance"
-    />
-    <var name="uwt" type="real" dimensions="nVertLevels nCells Time" units="m^2 C /s^2"
-      description="turbulent transport of EW temperature flux"
-      />
-    <var name="vwt" type="real" dimensions="nVertLevels nCells Time" units="m^2 C /s^2"
-      description="turbulent transport of NS temperature flux"
-      />
-    <var name="uws" type="real" dimensions="nVertLevels nCells Time" units="m^2 PSU/s^2"
-      description="turbulent transport of EW salinity flux"
-      />
-    <var name="vws" type="real" dimensions="nVertLevels nCells Time" units="m^2 PSU/s^2"
-      description="turbulent transport of NS salinity flux"
-      />
-    <var name="ws2" type="real" dimensions="nVertLevels nCells Time" units="m PSU^2/s"
-      description="turbulent transport of salinity variance"
-      />
-    <var name="wt2" type="real" dimensions="nVertLevels nCells Time" units="m C^2/s"
-      description="turbulent transport of temperature variance"
-      />
-    <var name="areaFraction" type="real" dimensions="nVertLevelsP1 nCells Time" units="unitless"
-      description="area fraction of upward moving plumes"
-      />
-    <var name="Entrainment" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^2"
-      description="entrainment diagnosed from LR01b parameterization"
-      />
-    <var name="Detrainment" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^2"
-      description="detrainment diagnosed from LR01b parameterization"
-      />
-    <var name="tumd" type="real" dimensions="nVertLevelsP1 nCells Time" units="C"
-      description="upward moving temperature - downward moving temperature"
-      />
-    <var name="sumd" type="real" dimensions="nVertLevelsP1 nCells Time" units="PSU"
-      description="upward moving salinity - downward moving salinity"
-      />
-    <var name="wumd" type="real" dimensions="nVertLevelsP1 nCells Time" units="m/s"
-      description="upward moving vertical velocity - downward moving (negative) vertical velocity"
-      />
-    <var name="Mc" type="real" dimensions="nVertLevelsP1 nCells Time" units="m/s"
-      description="convective mass flux"
-      />
+    <nml_record name="adcMixingModel" mode="forward">
+        <nml_option name="config_adc_enable" type="logical" default_value=".false." units="unitless"
+            description="If true, the new mass flux RANS closure is called for mixing"
+            possible_values=".true. or .false."
+            />
+        <nml_option name="config_adc_timestep" type="real" default_value="5" units="unitless"
+            description="timestep for the turbulence updates and subcycling (now in sec, probably should unify with MPAS later)"
+            possible_values="small positive reals (less than MPAS timestep)"
+            />
+        <nml_option name="config_adc_use_old_length_scale" type="logical" default_value=".false." units="unitless"
+            description="flag to use buoyancy length scale from previous closure, temporary"
+            possible_values=".true. or .false."
+            />
+        <nml_option name="config_adc_tau_o" type="real" default_value="1800" units="s^{-1}"
+            description="characterstic eddy turnover timescale"
+            possible_values="positive real numbers"
+            />
+        <nml_option name="config_adc_length_multiple" type="real" default_value="2.0" units="unitless"
+            description="value to multiply length scale by"
+            possible_values="small positive real numbers"
+            />
+        <nml_option name="config_adc_epsilon" type="real" default_value="1e-8" units="m^2/s^2"
+            description="small value below which KE, u2, w2, v2 is not allowed to go below"
+            possible_values="very small numbers 1e-8 to zero"
+            />
+        <nml_option name="config_adc_use_single_column" type="logical" default_value=".false." units="unitless"
+            description="if true, ADC code runs on 1 copy and is copied to the others to speed testing"
+            possible_values=".true. or .false."
+            />
+        <nml_option name="config_adc_sigmat" type="real" default_value="0.72" units="unitless"
+            description="sigma_t constant for RANS equations"
+            possible_values="can modify some, but highly recommend not altering"
+            />
+        <nml_option name="config_adc_Ko" type="real" default_value="4.574296" units="unitless"
+            description="Ko in RANS equations"
+            possible_values="can modify to cerain extent, but highly recommend not altering"
+            />
+        <nml_option name="config_adc_gamma1" type="real" default_value="0.33" units="unitless"
+            description="Buoyancy partitioning for pressure correlation term in RANS w2"
+            possible_values="0.33 and values close to it"
+            />
+        <nml_option name="config_adc_beta5" type="real" default_value="0.5" units="unitless"
+            description="Buoyancy partitioning in wt equation for RANS"
+            possible_values="0.5 and values close to it"
+            />
+        <nml_option name="config_adc_c1" type="real" default_value="4.0" units="unitless"
+            description="c_1 dissipation constant, value from Bougeault and Andre 1986"
+            possible_values="values near 4.0"
+            />
+        <nml_option name="config_adc_c2" type="real" default_value="0.5" units="unitless"
+            description="c_2 dissipation constant, value from Bougeault and Andre 1986"
+            possible_values="values near -0.5"
+            />
+        <nml_option name="config_adc_Cmom" type="real" default_value="0.5" units="unitless"
+            description="third order down gradient coefficient, from lappen and randall 2001b"
+            possible_values="values near 0.5"
+            />
+        <nml_option name="config_adc_Ctherm" type="real" default_value="4.85" units="unitless"
+            description="thir order down gradient for buoyancy moments, from lappen and randall 2001b"
+            possible_values="values near 4.85"
+            />
+        <nml_option name="config_adc_Cmom_w3" type="real" default_value="6.0" units="unitless"
+            description="dissipation of w3 from LR01b"
+            possible_values="values near 6"
+            />
+        <nml_option name="config_adc_cpt" type="real" default_value="0.25" units="unitless"
+            description="coefficient of temp/salinity dissipation, from Burchard et al 2012"
+            possible_values="values near 0.25"
+            />
+        <nml_option name="config_adc_cps" type="real" default_value="0.25" units="unitless"
+            description="same as cpt above, but for salinity"
+            possible_values="values near 0.25"
+            />
+        <nml_option name="config_adc_cpv" type="real" default_value="0.25" units="unitless"
+            description="same as cpt/cps above, but for momentum"
+            possible_values="values near 0.25"
+            />
+        <nml_option name="config_adc_CwwE" type="real" default_value="1.0" units="unitless"
+            description="coefficient for entrainment in parameterization from LR01b"
+            possible_values="values near 1.0, also CwwD/CwwE must be near 1.5"
+            />
+        <nml_option name="config_adc_CwwD" type="real" default_value="1.5" units="unitless"
+            description="coefficient for detrainment in parameteriztaion from LR01b"
+            possible_values="values near 1.0, also CwwD/CwwE must be near 1.5"
+            />
+        <nml_option name="config_adc_kappaFL" type="real" default_value="0" units="m^2/s"
+            description="background diffusion coefficient for fluxes, second moments"
+            possible_values="small positive real numbers"
+            />
+        <nml_option name="config_adc_kappaVAR" type="real" default_value="0" units="m^2/s"
+            description="background diffusion coefficient for variances, i.e. T'^2"
+            possible_values="small positive real numbers"
+            />
+        <nml_option name="config_adc_kappaW3" type="real" default_value="0" units="m^2/s"
+            description="background diffusion coefficient for w3"
+            possible_values="small positive real numbers"
+            />
+    </nml_record>
+    <packages>
+        <package name="adcMixingPKG" description="This package includes variables required for the assumed distribution closure model."/>
+    </packages>
+    <var_struct name="adcDiagnosticArrays" time_levs="1" packages="adcMixingPKG">
+        <var name="ze" type="real" dimensions="nVertLevelsP1 nCells Time" units="m"
+            description="depth coordinate at cell top referenced to zero at SSH"
+            />
+        <var name="zm" type="real" dimensions="nVertLevels nCells Time" units="m"
+            description="depth coordinate at cell mid referenced to zero at SSH"
+            />
+        <var name="epsSPS" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^{-3}"
+            description="dissipation of plume scale TKE"
+            />
+        <var name="length" type="real" dimensions="nVertLevelsP1 nCells Time" units="m"
+            description="master length scale for turbulent dissipation"
+            />
+        <var name="lendn" type="real" dimensions="nVertLevelsP1 nCells Time" units="m"
+            description="length scale for downward moving plumes"
+            />
+        <var name="lenup" type="real" dimensions="nVertLevelsP1 nCells Time" units="m"
+            description="length scale for upward moving plumes"
+            />
+        <var name="lenspsD" type="real" dimensions="nVertLevelsP1 nCells Time" units="m"
+            description="length scale associated with downward moving plumes"
+            />
+        <var name="lenspsU" type="real" dimensions="nVertLevelsP1 nCells Time" units="m"
+            description="length scale associated with upward moving plumes"
+            />
+        <var name="KhU" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s"
+            description="diffusivity for subplume scale temp/salinity fluxes (upward moving)"
+            />
+        <var name="KhD" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s"
+            description="diffusivity for subplume temp/salinity scale fluxes (downward moving)"
+            />
+        <var name="KmU" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s"
+            description="viscosity for subplume momentum fluxes (upward moving)"
+            />
+        <var name="KmD" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s"
+            description="viscosity for subplume momentum fluxes (downward moving)"
+            />
+        <var name="wt_spsU" type="real" dimensions="nVertLevelsP1 nCells Time" units="m C/s"
+            description="subplume upward moving temperature flux"
+            />
+        <var name="wt_spsD" type="real" dimensions="nVertLevelsP1 nCells Time" units="m C/s"
+            description="subplume downward moving temperature flux"
+            />
+        <var name="ws_spsU" type="real" dimensions="nVertLevelsP1 nCells Time" units="m C/s"
+            description="subplume upward moving salinity flux"
+            />
+        <var name="ws_spsD" type="real" dimensions="nVertLevelsP1 nCells Time" units="m C/s"
+            description="subplume downward moving salinity flux"
+            />
+        <var name="uw2" type="real" dimensions="nVertLevels nCells Time" units="m^3/s^3"
+            description="turbulent transport of E-W momentum flux"
+            />
+        <var name="vw2" type="real" dimensions="nVertLevels nCells Time" units="m^3/s^3"
+            description="turbulent transport of NS momentum flux"
+            />
+        <var name="u2w" type="real" dimensions="nVertLevels nCells Time" units="m^3/s^3"
+            description="turbulent transport EW momentum variance"
+            />
+        <var name="v2w" type="real" dimensions="nVertLevels nCells Time" units="m^3/s^3"
+            description="turbulent transport NS momentum variance"
+            />
+        <var name="w2t" type="real" dimensions="nVertLevels nCells Time" units="m^2 C/s^2"
+            description="turbulent transport of vertical temperature flux"
+            />
+        <var name="w2s" type="real" dimensions="nVertLevels nCells Time" units="m^2 PSU/s^2"
+            description="turbulent transport of vertical salinity flux"
+            />
+        <var name="wts" type="real" dimensions="nVertLevels nCells Time" units="m C PSU/s"
+            description="turbulent transport of temperature salinity covariance"
+            />
+        <var name="uvw" type="real" dimensions="nVertLevels nCells Time" units="m^3/s^3"
+            description="turbulent transport of u-v covariance"
+            />
+        <var name="uwt" type="real" dimensions="nVertLevels nCells Time" units="m^2 C /s^2"
+            description="turbulent transport of EW temperature flux"
+            />
+        <var name="vwt" type="real" dimensions="nVertLevels nCells Time" units="m^2 C /s^2"
+            description="turbulent transport of NS temperature flux"
+            />
+        <var name="uws" type="real" dimensions="nVertLevels nCells Time" units="m^2 PSU/s^2"
+            description="turbulent transport of EW salinity flux"
+            />
+        <var name="vws" type="real" dimensions="nVertLevels nCells Time" units="m^2 PSU/s^2"
+            description="turbulent transport of NS salinity flux"
+            />
+        <var name="ws2" type="real" dimensions="nVertLevels nCells Time" units="m PSU^2/s"
+            description="turbulent transport of salinity variance"
+            />
+        <var name="wt2" type="real" dimensions="nVertLevels nCells Time" units="m C^2/s"
+            description="turbulent transport of temperature variance"
+            />
+        <var name="areaFraction" type="real" dimensions="nVertLevelsP1 nCells Time" units="unitless"
+            description="area fraction of upward moving plumes"
+            />
+        <var name="Entrainment" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^2"
+            description="entrainment diagnosed from LR01b parameterization"
+            />
+        <var name="Detrainment" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^2"
+            description="detrainment diagnosed from LR01b parameterization"
+            />
+        <var name="tumd" type="real" dimensions="nVertLevelsP1 nCells Time" units="C"
+            description="upward moving temperature - downward moving temperature"
+            />
+        <var name="sumd" type="real" dimensions="nVertLevelsP1 nCells Time" units="PSU"
+            description="upward moving salinity - downward moving salinity"
+            />
+        <var name="wumd" type="real" dimensions="nVertLevelsP1 nCells Time" units="m/s"
+            description="upward moving vertical velocity - downward moving (negative) vertical velocity"
+            />
+        <var name="Mc" type="real" dimensions="nVertLevelsP1 nCells Time" units="m/s"
+            description="convective mass flux"
+            />
+    </var_struct>
+    <var_struct name="adcTendArrays" time_levs="1" packages="adcMixingPKG">
+        <var name="w2tend1" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="entrainment production term -- similar to dissipation"
+            />
+        <var name="w2tend2" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="third order moment term (d / dz w^3)"
+            />
+        <var name="w2tend3" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="return to isotropy term"
+            />
+        <var name="w2tend4" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="buoyancy production term"
+            />
+        <var name="w2tend5" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="shear production term"
+            />
+        <var name="w3tend1" type="real" dimensions="nVertLevels nCells Time" units="m^2/s^3"
+            description="entrainment production term -- similar to dissipation"
+            />
+        <var name="w3tend2" type="real" dimensions="nVertLevels nCells Time" units="m^2/s^3"
+            description="fourth order moment term (d / dz w^4)"
+            />
+        <var name="w3tend3" type="real" dimensions="nVertLevels nCells Time" units="m^2/s^3"
+            description="w2 d/dz w2"
+            />
+        <var name="w3tend4" type="real" dimensions="nVertLevels nCells Time" units="m^2/s^3"
+            description="return to isotropy term"
+            />
+        <var name="w3tend5" type="real" dimensions="nVertLevels nCells Time" units="m^2/s^3"
+            description="third order moment of buoyancy, turb transport of buoyancy fluxes"
+            />
+        <var name="w3tend6" type="real" dimensions="nVertLevels nCells Time" units="m^2/s^3"
+            description="subplume terms"
+            />
+        <var name="wttend1" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="divergence of turbulent transport of flux"
+            />
+        <var name="wttend2" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="gradient production w^2 dTdz"
+            />
+        <var name="wttend3" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="buoyancy term"
+            />
+        <var name="wttend4" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="return to isotropy"
+            />
+        <var name="wttend5" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="shear production term"
+            />
+        <var name="wttend6" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="subplume scale production term"
+            />
+        <var name="wstend1" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="divergence of turbulent transport of flux"
+            />
+        <var name="wstend2" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="gradient production w^2 dTdz"
+            />
+        <var name="wstend3" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="buoyancy term"
+            />
+        <var name="wstend4" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="return to isotropy"
+            />
+        <var name="wstend5" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="shear production term"
+            />
+        <var name="uwtend1" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="divergence of turbulent transport of flux"
+            />
+        <var name="uwtend2" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="gradient production "
+            />
+        <var name="uwtend3" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="uv covariance"
+            />
+        <var name="uwtend4" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="horizontal buoyancy flux term"
+            />
+        <var name="uwtend5" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="return to isotropy"
+            />
+        <var name="vwtend1" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="divergence of turbulent transport of flux"
+            />
+        <var name="vwtend2" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="gradient production "
+            />
+        <var name="vwtend3" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="uv covariance"
+            />
+        <var name="vwtend4" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="horizontal buoyancy flux term"
+            />
+        <var name="vwtend5" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="return to isotropy"
+            />
+        <var name="u2tend1" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="divergence of turbulent transport of flux"
+            />
+        <var name="u2tend2" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="gradient production proportional to dUdz"
+            />
+        <var name="u2tend3" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="gradient production proportional to dVdz"
+            />
+        <var name="u2tend4" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="buoyancy production"
+            />
+        <var name="u2tend5" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="return to isotropy"
+            />
+        <var name="v2tend1" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="divergence of turbulent transport of flux"
+            />
+        <var name="v2tend2" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="gradient production proportional to dUdz"
+            />
+        <var name="v2tend3" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="gradient production proportional to dVdz"
+            />
+        <var name="v2tend4" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="buoyancy production"
+            />
+        <var name="v2tend5" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="return to isotropy"
+            />
+        <var name="u2cliptend" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="if less than zero, it is reset to zero, this stores when that is active"
+            />
+        <var name="v2cliptend" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="if less than zero, it is reset to zero, this stores when that is active"
+            />
+        <var name="w2cliptend" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="if less than zero, it is reset to zero, this stores when that is active"
+            />
+    </var_struct>
+    <var_struct name="adcPrognosticArrays" time_levs="2" packages="adcMixingPKG">
+        <var name="KspsU" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^{-2}"
+            description="sub plume scale TKE for upward moving plumes"
+            />
+        <var name="KspsD" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^{-2}"
+            description="sub plume scale TKE for downward moving plumes"
+            />
+        <var name="eps" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="prognostic dissipation rate"
+            />
+        <var name="u2" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^2"
+            description="EW velocity variance"
+            />
+        <var name="v2" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^2"
+            description="NS velocity variance"
+            />
+        <var name="w2" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^2"
+            description="vertical velocity variance"
+            />
+        <var name="wt" type="real" dimensions="nVertLevelsP1 nCells Time" units="m C/s"
+            description="vertical turbulent temperature flux"
+            />
+        <var name="ws" type="real" dimensions="nVertLevelsP1 nCells Time" units="m PSU/s"
+            description="vertical turbulent salinity flux"
+            />
+        <var name="uw" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^2"
+            description="vertical flux of zonal momentum"
+            />
+        <var name="vw" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^2"
+            description="vertical flux of NS momentum"
+            />
+        <var name="w3" type="real" dimensions="nVertLevels nCells Time" units="m^3/s^3"
+            description="vertical flux of vertical velocity variance -- skewness"
+            />
+        <var name="uv" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^2"
+            description="NS/EW momentum covariance"
+            />
+        <var name="t2" type="real" dimensions="nVertLevelsP1 nCells Time" units="C^2"
+            description="temperature variance"
+            />
+        <var name="s2" type="real" dimensions="nVertLevelsP1 nCells Time" units="PSU^2"
+            description="salinity variance"
+            />
+        <var name="ut" type="real" dimensions="nVertLevelsP1 nCells Time" units="m C/s"
+            description="horizontal temperature flux -- zonal direction"
+            />
+        <var name="vt" type="real" dimensions="nVertLevelsP1 nCells Time" units="m C/s"
+            description="horizontal temperature flux -- meridional direction"
+            />
+        <var name="us" type="real" dimensions="nVertLevelsP1 nCells Time" units="m PSU/s"
+            description="horizontal salinity flux -- zonal direction"
+            />
+        <var name="vs" type="real" dimensions="nVertLevelsP1 nCells Time" units="m PSU/s"
+            description="horizontal salinity flux -- meridional direction"
+            />
+        <var name="ts" type="real" dimensions="nVertLevelsP1 nCells Time" units="C PSU"
+            description="temperature salinity covariance"
+            />
+    </var_struct>
 
-	</var_struct>
-	<var_struct name="adcTendArrays" time_levs="1" packages="adcMixingPKG">
-    <var name="w2tend1" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="entrainment production term -- similar to dissipation"
-		/>
-    <var name="w2tend2" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-      description="third order moment term (d / dz w^3)"
-		/>
-    <var name="w2tend3" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="return to isotropy term"
-		/>
-    <var name="w2tend4" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="buoyancy production term"
-		/>
-    <var name="w2tend5" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="shear production term"
-       />
-    <var name="w3tend1" type="real" dimensions="nVertLevels nCells Time" units="m^2/s^3"
-			 description="entrainment production term -- similar to dissipation"
-		/>
-    <var name="w3tend2" type="real" dimensions="nVertLevels nCells Time" units="m^2/s^3"
-      description="fourth order moment term (d / dz w^4)"
-		/>
-    <var name="w3tend3" type="real" dimensions="nVertLevels nCells Time" units="m^2/s^3"
-      description="w2 d/dz w2"
-		/>
-    <var name="w3tend4" type="real" dimensions="nVertLevels nCells Time" units="m^2/s^3"
-			 description="return to isotropy term"
-		/>
-    <var name="w3tend5" type="real" dimensions="nVertLevels nCells Time" units="m^2/s^3"
-			 description="third order moment of buoyancy, turb transport of buoyancy fluxes"
-       />
-    <var name="w3tend6" type="real" dimensions="nVertLevels nCells Time" units="m^2/s^3"
-			 description="subplume terms"
-		/>
-    <var name="wttend1" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="divergence of turbulent transport of flux"
-		/>
-    <var name="wttend2" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-      description="gradient production w^2 dTdz"
-		/>
-    <var name="wttend3" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="buoyancy term"
-		/>
-    <var name="wttend4" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="return to isotropy"
-		/>
-    <var name="wttend5" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="shear production term"
-       />
-    <var name="wttend6" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="subplume scale production term"
-       />
-    <var name="wstend1" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="divergence of turbulent transport of flux"
-		/>
-    <var name="wstend2" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-      description="gradient production w^2 dTdz"
-		/>
-    <var name="wstend3" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="buoyancy term"
-		/>
-    <var name="wstend4" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="return to isotropy"
-		/>
-    <var name="wstend5" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="shear production term"
-       />
-    <var name="uwtend1" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="divergence of turbulent transport of flux"
-		/>
-    <var name="uwtend2" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-      description="gradient production "
-		/>
-    <var name="uwtend3" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="uv covariance"
-		/>
-    <var name="uwtend4" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="horizontal buoyancy flux term"
-		/>
-    <var name="uwtend5" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="return to isotropy"
-       />
-    <var name="vwtend1" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="divergence of turbulent transport of flux"
-		/>
-    <var name="vwtend2" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-      description="gradient production "
-		/>
-    <var name="vwtend3" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="uv covariance"
-		/>
-    <var name="vwtend4" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="horizontal buoyancy flux term"
-		/>
-    <var name="vwtend5" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="return to isotropy"
-       />
-    <var name="u2tend1" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="divergence of turbulent transport of flux"
-		/>
-    <var name="u2tend2" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-      description="gradient production proportional to dUdz"
-		/>
-    <var name="u2tend3" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="gradient production proportional to dVdz"
-		/>
-    <var name="u2tend4" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="buoyancy production"
-		/>
-    <var name="u2tend5" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="return to isotropy"
-       />
-    <var name="v2tend1" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="divergence of turbulent transport of flux"
-		/>
-    <var name="v2tend2" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-      description="gradient production proportional to dUdz"
-		/>
-    <var name="v2tend3" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="gradient production proportional to dVdz"
-		/>
-    <var name="v2tend4" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="buoyancy production"
-		/>
-    <var name="v2tend5" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-			 description="return to isotropy"
-    />
-    <var name="u2cliptend" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-       description="if less than zero, it is reset to zero, this stores when that is active"
-    />
-    <var name="v2cliptend" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-       description="if less than zero, it is reset to zero, this stores when that is active"
-    />
-    <var name="w2cliptend" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-       description="if less than zero, it is reset to zero, this stores when that is active"
-    />
-	</var_struct>
-  <var_struct name="adcPrognosticArrays" time_levs="2" packages="adcMixingPKG">
-    <var name="KspsU" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^{-2}"
-			 description="sub plume scale TKE for upward moving plumes"
-		/>
-    <var name="KspsD" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^{-2}"
-			 description="sub plume scale TKE for downward moving plumes"
-		/>
-   <var name="eps" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-       description="prognostic dissipation rate"
-    />
-    <var name="u2" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^2"
-			 description="EW velocity variance"
-		/>
-    <var name="v2" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^2"
-			 description="NS velocity variance"
-       />
-    <var name="w2" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^2"
-      description="vertical velocity variance"
-    />
-  <var name="wt" type="real" dimensions="nVertLevelsP1 nCells Time" units="m C/s"
-			 description="vertical turbulent temperature flux"
-		/>
-  <var name="ws" type="real" dimensions="nVertLevelsP1 nCells Time" units="m PSU/s"
-			 description="vertical turbulent salinity flux"
-       />
-  <var name="uw" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^2"
-    description="vertical flux of zonal momentum"
-    />
-  <var name="vw" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^2"
-    description="vertical flux of NS momentum"
-    />
-  <var name="w3" type="real" dimensions="nVertLevels nCells Time" units="m^3/s^3"
-    description="vertical flux of vertical velocity variance -- skewness"
-    />
-  <var name="uv" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^2"
-    description="NS/EW momentum covariance"
-    />
-  <var name="t2" type="real" dimensions="nVertLevelsP1 nCells Time" units="C^2"
-    description="temperature variance"
-    />
-  <var name="s2" type="real" dimensions="nVertLevelsP1 nCells Time" units="PSU^2"
-    description="salinity variance"
-    />
-  <var name="ut" type="real" dimensions="nVertLevelsP1 nCells Time" units="m C/s"
-    description="horizontal temperature flux -- zonal direction"
-    />
-  <var name="vt" type="real" dimensions="nVertLevelsP1 nCells Time" units="m C/s"
-    description="horizontal temperature flux -- meridional direction"
-    />
-   <var name="us" type="real" dimensions="nVertLevelsP1 nCells Time" units="m PSU/s"
-    description="horizontal salinity flux -- zonal direction"
-    />
-  <var name="vs" type="real" dimensions="nVertLevelsP1 nCells Time" units="m PSU/s"
-    description="horizontal salinity flux -- meridional direction"
-    />
-  <var name="ts" type="real" dimensions="nVertLevelsP1 nCells Time" units="C PSU"
-    description="temperature salinity covariance"
-    />
-	</var_struct>
+    <streams>
+        <stream name="adcTurbulenceOutput" type="output"
+                mode="forward;analysis"
+                filename_template="output/adcTurbulenceArrays.$Y-$M-$D.nc"
+                filename_interval="01-00-00_00:00:00"
+                output_interval="00-00-00_01:00:00"
+                reference_time="0001-01-01_00:00:00"
+                packages="mixedLayerDepthsAMPKG"
+                clobber_mode="truncate"
+                runtime_format="single_file">
 
-  	<streams>
-		<stream name="adcTurbulenceOutput" type="output"
-				mode="forward;analysis"
-				filename_template="output/adcTurbulenceArrays.$Y-$M-$D.nc"
-				filename_interval="01-00-00_00:00:00"
-				output_interval="00-00-00_01:00:00"
-				reference_time="0001-01-01_00:00:00"
-				packages="mixedLayerDepthsAMPKG"
-				clobber_mode="truncate"
-				runtime_format="single_file">
-
-			<stream name="mesh"/>
-			<var name="xtime"/>
-			<var name="KspsU"/>
-			<var name="KspsD"/>
-			<var name="eps"/>
-      <var name="length"/>
-      <var name="lendn"/>
-      <var name="lenup"/>
-      <var name="lenspsD"/>
-      <var name="lenspsU"/>
-      <var name="KhU"/>
-      <var name="KhD"/>
-      <var name="wt_spsU"/>
-      <var name="wt_spsD"/>
-      <var name="ws_spsU"/>
-      <var name="ws_spsD"/>
-      <var name="uw2"/>
-      <var name="vw2"/>
-      <var name="u2w"/>
-      <var name="v2w"/>
-      <var name="w2t"/>
-      <var name="w2s"/>
-      <var name="wt2"/>
-      <var name="ws2"/>
-      <var name="wts"/>
-      <var name="uvw"/>
-      <var name="uwt"/>
-      <var name="vwt"/>
-      <var name="uws"/>
-      <var name="vws"/>
-      <var name="sigma"/>
-      <var name="Entrainment"/>
-      <var name="Detrainment"/>
-      <var name="tumd"/>
-      <var name="sumd"/>
-      <var name="wumd"/>
-      <var name="w2tend1"/>
-      <var name="w2tend2"/>
-      <var name="w2tend3"/>
-      <var name="w2tend4"/>
-      <var name="w2tend5"/>
-      <var name="u2tend1"/>
-      <var name="u2tend2"/>
-      <var name="u2tend3"/>
-      <var name="u2tend4"/>
-      <var name="u2tend5"/>
-      <var name="v2tend1"/>
-      <var name="v2tend2"/>
-      <var name="v2tend3"/>
-      <var name="v2tend4"/>
-      <var name="v2tend5"/>
-      <var name="uwtend1"/>
-      <var name="uwtend2"/>
-      <var name="uwtend3"/>
-      <var name="uwtend4"/>
-      <var name="uwtend5"/>
-      <var name="vwtend1"/>
-      <var name="vwtend2"/>
-      <var name="vwtend3"/>
-      <var name="vwtend4"/>
-      <var name="vwtend5"/>
-      <var name="w3tend1"/>
-      <var name="w3tend2"/>
-      <var name="w3tend3"/>
-      <var name="w3tend4"/>
-      <var name="w3tend5"/>
-      <var name="w3tend6"/>
-      <var name="wttend1"/>
-      <var name="wttend2"/>
-      <var name="wttend3"/>
-      <var name="wttend4"/>
-      <var name="wttend5"/>
-      <var name="wstend1"/>
-      <var name="wstend2"/>
-      <var name="wstend3"/>
-      <var name="wstend4"/>
-      <var name="wstend5"/>
-      <var name="u2"/>
-      <var name="v2"/>
-      <var name="w2"/>
-      <var name="s2"/>
-      <var name="t2"/>
-      <var name="uw"/>
-      <var name="vw"/>
-      <var name="wt"/>
-      <var name="ws"/>
-      <var name="w3"/>
-      <var name="uv"/>
-      <var name="ut"/>
-      <var name="vt"/>
-      <var name="us"/>
-      <var name="vs"/>
-      <var name="ts"/>
-		</stream>
-	</streams>
+            <stream name="mesh"/>
+            <var name="xtime"/>
+            <var name="KspsU"/>
+            <var name="KspsD"/>
+            <var name="eps"/>
+            <var name="length"/>
+            <var name="lendn"/>
+            <var name="lenup"/>
+            <var name="lenspsD"/>
+            <var name="lenspsU"/>
+            <var name="KhU"/>
+            <var name="KhD"/>
+            <var name="wt_spsU"/>
+            <var name="wt_spsD"/>
+            <var name="ws_spsU"/>
+            <var name="ws_spsD"/>
+            <var name="uw2"/>
+            <var name="vw2"/>
+            <var name="u2w"/>
+            <var name="v2w"/>
+            <var name="w2t"/>
+            <var name="w2s"/>
+            <var name="wt2"/>
+            <var name="ws2"/>
+            <var name="wts"/>
+            <var name="uvw"/>
+            <var name="uwt"/>
+            <var name="vwt"/>
+            <var name="uws"/>
+            <var name="vws"/>
+            <var name="sigma"/>
+            <var name="Entrainment"/>
+            <var name="Detrainment"/>
+            <var name="tumd"/>
+            <var name="sumd"/>
+            <var name="wumd"/>
+            <var name="w2tend1"/>
+            <var name="w2tend2"/>
+            <var name="w2tend3"/>
+            <var name="w2tend4"/>
+            <var name="w2tend5"/>
+            <var name="u2tend1"/>
+            <var name="u2tend2"/>
+            <var name="u2tend3"/>
+            <var name="u2tend4"/>
+            <var name="u2tend5"/>
+            <var name="v2tend1"/>
+            <var name="v2tend2"/>
+            <var name="v2tend3"/>
+            <var name="v2tend4"/>
+            <var name="v2tend5"/>
+            <var name="uwtend1"/>
+            <var name="uwtend2"/>
+            <var name="uwtend3"/>
+            <var name="uwtend4"/>
+            <var name="uwtend5"/>
+            <var name="vwtend1"/>
+            <var name="vwtend2"/>
+            <var name="vwtend3"/>
+            <var name="vwtend4"/>
+            <var name="vwtend5"/>
+            <var name="w3tend1"/>
+            <var name="w3tend2"/>
+            <var name="w3tend3"/>
+            <var name="w3tend4"/>
+            <var name="w3tend5"/>
+            <var name="w3tend6"/>
+            <var name="wttend1"/>
+            <var name="wttend2"/>
+            <var name="wttend3"/>
+            <var name="wttend4"/>
+            <var name="wttend5"/>
+            <var name="wstend1"/>
+            <var name="wstend2"/>
+            <var name="wstend3"/>
+            <var name="wstend4"/>
+            <var name="wstend5"/>
+            <var name="u2"/>
+            <var name="v2"/>
+            <var name="w2"/>
+            <var name="s2"/>
+            <var name="t2"/>
+            <var name="uw"/>
+            <var name="vw"/>
+            <var name="wt"/>
+            <var name="ws"/>
+            <var name="w3"/>
+            <var name="uv"/>
+            <var name="ut"/>
+            <var name="vt"/>
+            <var name="us"/>
+            <var name="vs"/>
+            <var name="ts"/>
+        </stream>
+    </streams>
