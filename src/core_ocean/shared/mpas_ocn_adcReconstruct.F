@@ -294,12 +294,6 @@ module ocn_adc_mixing_fused
 
             dz = ze(k,iCell) - ze(k+1,iCell)
             !KE = sqrt(areaFraction(k,iCell)*KspsUav + (1.0 - areaFraction(k,iCell))*KspsDav)
-            ! Swumd = - 2.0_RKIND/3.0_RKIND*(KspsU(i1,k,iCell) - KspsU(i1,k+1,iCell)) / dz &
-            !    - 2.0_RKIND/3.0_RKIND*KspsUav*(log(areaFraction(k,iCell)) -           &
-            !   log(areaFraction(k+1,iCell))) / dz +         &
-            !   2.0_RKIND/3.0_RKIND*(KspsD(i1,k,iCell) - KspsD(i1,k+1,iCell)) / dz        &
-            !  + 2.0_RKIND/3.0_RKIND*KspsDav*(log(1.0-areaFraction(k,iCell)) -         &
-            !   log(1.0_RKIND-areaFraction(k+1,iCell))) /  dz
 
             ! last term (SPS) in (40) of LR01a, also using (35) of LR01b
             Swumd = - 2.0_RKIND/3.0_RKIND * ( &
@@ -340,12 +334,9 @@ module ocn_adc_mixing_fused
             ! TODO: check the pressure term
             w3tend4(k,iCell) = - C_mom_w3*KE / (1E-15_RKIND+ sqrt(2.0_RKIND)*lenAv)*w3(i1,k,iCell)
 
-            ! buoyancy term TODO: what is the factor of 0.9?
-            ! w3tend5(k,iCell) = 3.0_RKIND*gravity*(alphaT(k,iCell)*w2t(k,iCell) - &
-            !       betaS(k,iCell)*w2s(k,iCell))*0.9_RKIND
-
             ! the buoyancy term in the sources and sinks in (52) of LR01a
-            w3tend5(k,iCell) = 3.0_RKIND * (1.0_RKIND - 2.0_RKIND*sigav) * Mcav * wumdav * gravity * &
+            w3tend5(k,iCell) = 3.0_RKIND * (1.0_RKIND - c11) * (1.0_RKIND - 2.0_RKIND*sigav) * &
+                               Mcav * wumdav * gravity * &
                                (alphaT(k,iCell)*tumdav - betaS(k,iCell)*sumdav)
 
             ! the SPS term in the sources and sinks in (52) of LR01a

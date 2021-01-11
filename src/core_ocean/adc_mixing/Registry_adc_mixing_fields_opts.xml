@@ -51,6 +51,10 @@
             description="c_2 dissipation constant, value from Bougeault and Andre 1986"
             possible_values="values near -0.5"
             />
+        <nml_option name="config_adc_c11" type="real" default_value="0.1" units="unitless"
+            description="c_11 is the buoyancy contribution in the pressure correlation in w3 eqn"
+            possible_values="values near 0.1"
+            />
         <nml_option name="config_adc_Cmom" type="real" default_value="0.5" units="unitless"
             description="third order down gradient coefficient, from lappen and randall 2001b"
             possible_values="values near 0.5"
