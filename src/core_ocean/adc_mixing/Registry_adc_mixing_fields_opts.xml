@@ -283,6 +283,9 @@
         <var name="wstend5" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
             description="shear production term"
             />
+        <var name="wstend6" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="subplume scale production term"
+            />
         <var name="uwtend1" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
             description="divergence of turbulent transport of flux"
             />
@@ -496,11 +499,13 @@
             <var name="wttend3"/>
             <var name="wttend4"/>
             <var name="wttend5"/>
+            <var name="wttend6"/>
             <var name="wstend1"/>
             <var name="wstend2"/>
             <var name="wstend3"/>
             <var name="wstend4"/>
             <var name="wstend5"/>
+            <var name="wstend6"/>
             <var name="u2"/>
             <var name="v2"/>
             <var name="w2"/>

@@ -434,43 +434,81 @@ module ocn_adc_mixing_fused
             taups(k,iCell) = KE / (2.0_RKIND*sqrt(2.0_RKIND)*c_ps*length(k,iCell))
             taupv(k,iCell) = KE / (2.0_RKIND*sqrt(2.0_RKIND)*c_pv*length(k,iCell))
 
-            wttend1(k,iCell) = -(Entrainment(k,iCell) + Detrainment(k,iCell)) * &
-              wumd(k,iCell)*tumd(k,iCell) - (w2t(k-1,iCell) - w2t(k,iCell)) / dzmid
+            ! See (49) of LR01a for the wt equation
+            ! sources/sinks due to entrainment/detrainment + transport term
+            wttend1(k,iCell) = - (Entrainment(k,iCell) + Detrainment(k,iCell)) * &
+                                 wumd(k,iCell) * tumd(k,iCell) &
+                               - ( (1.0_RKIND - 2.0_RKIND*areaFraction(k-1,iCell)) * &
+                                   wumd(k-1,iCell) * tumd(k-1,iCell) * Mc(k-1,iCell) &
+                                 - (1.0_RKIND - 2.0_RKIND*areaFraction(k+1,iCell)) * &
+                                   wumd(k+1,iCell) * tumd(k+1,iCell) * Mc(k+1,iCell) &
+                                 ) / (ze(k-1,iCell) - ze(k+1,iCell))
+            ! gradient production term
+            wttend2(k,iCell) = - Mc(k,iCell) * wumd(k,iCell) * Tz
+            ! buoyancy term
+            wttend3(k,iCell) = (1.0_RKIND - gamma1) * gravity * &
+                               areaFraction(k,iCell) * (1.0_RKIND - areaFraction(k,iCell)) * &
+                               (alphaT(k,iCell)*tumd(k,iCell)**2 - &
+                                betaS(k,iCell)*tumd(k,iCell)*sumd(k,iCell))
+            ! pressure term: rapid term
+            wttend4(k,iCell) = - alpha3/4.0_RKIND * (ut(i1,k,iCell)*Uz + vt(i1,k,iCell)*Vz)
+            ! pressure term:
+            ! TODO: what is this term?
+            wttend5(k,iCell) = kappa_FL * (wt(i1,k-1,iCell) - wt(i1,k+1,iCell)) / &
+                               (ze(k-1,iCell) - ze(k+1,iCell))**2
+            ! sources/sinks due to subplume terms
+            wttend6(k,iCell) = areaFraction(k,iCell)*(1.0_RKIND - areaFraction(k,iCell)) * &
+                               tumd(k,iCell) * 0.5_RKIND * (Swumd(k-1,iCell) + Swumd(k,iCell)) &
+                             - Mc(k,iCell) * ( 1.0_RKIND / areaFraction(k,iCell) * &
+                               ( areaFraction(k-1,iCell) * wt_spsU(k-1,iCell) &
+                               - areaFraction(k+1,iCell) * wt_spsU(k+1,iCell) &
+                               ) / (ze(k-1,iCell) - ze(k+1,iCell)) &
+                                             - 1.0_RKIND / (1.0_RKIND - areaFraction(k,iCell)) * &
+                               ( (1.0_RKIND - areaFraction(k-1,iCell)) * wt_spsD(k-1,iCell) &
+                               - (1.0_RKIND - areaFraction(k+1,iCell)) * wt_spsD(k+1,iCell) &
+                               ) / (ze(k-1,iCell) - ze(k+1,iCell)) &
+                                             )
+            ! wt tendency
+            wttend(k,iCell) = wttend1(k,iCell) + wttend2(k,iCell) + wttend3(k,iCell) + &
+                              wttend4(k,iCell) + wttend5(k,iCell) + wttend6(k,iCell)
 
-            wttend2(k,iCell) = -w2(i1,k,iCell)*Tz
-            wttend3(k,iCell) = (1.0_RKIND - gamma1)*gravity*(alphaT(k,iCell) &
-              *t2(i1,k,iCell) - betaS(k,iCell)*ts(i1,k,iCell))
-            wttend4(k,iCell) = -alpha3/4.0_RKIND*(ut(i1,k,iCell)*Uz + &
-              vt(i1,k,iCell)*Vz)
-            wttend5(k,iCell) = kappa_FL*(wt(i1,k-1,iCell) -       &
-                  wt(i1,k+1,iCell)) / (ze(k-1,iCell) - ze(k+1,iCell))**2
-            wttend6(k,iCell) = areaFraction(k,iCell)*(1.0_RKIND - areaFraction(k,iCell))* &
-                  wumd(k,iCell)*(1.0_RKIND/areaFraction(k,iCell)*((areaFraction(k-1,iCell)* &
-                  wt_spsU(k-1,iCell) - areaFraction(k+1,iCell)*wt_spsU(k+1,iCell)) / &
-                  (ze(k-1,iCell) - ze(k+1,iCell))) - 1.0_RKIND/(1.0_RKIND-areaFraction(k,iCell))* &
-                  ((1.0_RKIND-areaFraction(k-1,iCell))*wt_spsD(k-1,iCell) - (1.0_RKIND - &
-                  areaFraction(k+1,iCell))*wt_spsD(k+1,iCell)) /  (ze(k-1,iCell) - ze(k+1,iCell))) + &
-                  2.0_RKIND/3.0_RKIND*areaFraction(k,iCell)*(1.0_RKIND - areaFraction(k,iCell))* &
-                  tumd(k,iCell)*(1.0_RKIND/areaFraction(k,iCell)*((areaFraction(k-1,iCell)* &
-                  KspsU(i1,k-1,iCell) - areaFraction(k+1,iCell)*KspsU(i1,k+1,iCell)) / &
-                  (ze(k-1,iCell) - ze(k+1,iCell))) - 1.0_RKIND/(1.0_RKIND-areaFraction(k,iCell))* &
-                  ((1.0_RKIND-areaFraction(k-1,iCell))*KspsD(i1,k-1,iCell) - (1.0_RKIND - &
-                  areaFraction(k+1,iCell))*KspsD(i1,k+1,iCell)) /  (ze(k-1,iCell) - ze(k+1,iCell)))
-
-            wttend(k,iCell) = wttend1(k,iCell) + wttend2(k,iCell) +        &
-              wttend3(k,iCell) + wttend4(k,iCell) + wttend5(k,iCell) + wttend6(k,iCell)
-
-            wstend1(k,iCell) = -(w2s(k-1,iCell) - w2s(k,iCell)) / dzmid
-            wstend2(k,iCell) = -w2(i1,k,iCell)*Sz
-            wstend3(k,iCell) = (1.0_RKIND - gamma1)*gravity*(alphaT(k,iCell)* &
-              ts(i1,k,iCell) - betaS(k,iCell)*s2(i1,k,iCell))
-            wstend4(k,iCell) = -alpha3/4.0_RKIND*(us(i1,k,iCell)*Uz + &
-              vs(i1,k,iCell)*Vz)
-            wsTend5(k,iCell) = kappa_FL*(ws(i1,k-1,iCell) -     &
-              ws(i1,k+1,iCell)) / (ze(k-1,iCell) - ze(k+1,iCell))**2
-
-            wstend(k,iCell) = wstend1(k,iCell) + wstend2(k,iCell) + &
-              wstend3(k,iCell) + wstend4(k,iCell) + wstend5(k,iCell)
+            ! See (49) of LR01a for the wt equation
+            ! sources/sinks due to entrainment/detrainment + transport term
+            wstend1(k,iCell) = - (Entrainment(k,iCell) + Detrainment(k,iCell)) * &
+                                 wumd(k,iCell)*sumd(k,iCell) &
+                               - ( (1.0_RKIND - 2.0_RKIND*areaFraction(k-1,iCell)) * &
+                                   wumd(k-1,iCell) * sumd(k-1,iCell) * Mc(k-1,iCell) &
+                                 - (1.0_RKIND - 2.0_RKIND*areaFraction(k+1,iCell)) * &
+                                   wumd(k+1,iCell) * sumd(k+1,iCell) * Mc(k+1,iCell) &
+                                 ) / (ze(k-1,iCell) - ze(k+1,iCell))
+            ! gradient production term
+            wstend2(k,iCell) = - Mc(k,iCell) * wumd(k,iCell) * Sz
+            ! buoyancy term
+            wstend3(k,iCell) = (1.0_RKIND - gamma1) * gravity * &
+                               areaFraction(k,iCell) * (1.0_RKIND - areaFraction(k,iCell)) * &
+                               (alphaT(k,iCell)*tumd(k,iCell)*sumd(k,iCell) - &
+                                betaS(k,iCell)*sumd(k,iCell)**2)
+            ! pressure term: rapid term
+            wstend4(k,iCell) = - alpha3/4.0_RKIND * (us(i1,k,iCell)*Uz + vs(i1,k,iCell)*Vz)
+            ! pressure term:
+            ! TODO: what is this term?
+            wsTend5(k,iCell) = kappa_FL * (ws(i1,k-1,iCell) - ws(i1,k+1,iCell)) / &
+                               (ze(k-1,iCell) - ze(k+1,iCell))**2
+            ! sources/sinks due to subplume terms
+            wstend6(k,iCell) = areaFraction(k,iCell)*(1.0_RKIND - areaFraction(k,iCell)) * &
+                               sumd(k,iCell) * 0.5_RKIND * (Swumd(k-1,iCell) + Swumd(k,iCell)) &
+                             - Mc(k,iCell) * ( 1.0_RKIND / areaFraction(k,iCell) * &
+                               ( areaFraction(k-1,iCell) * ws_spsU(k-1,iCell) &
+                               - areaFraction(k+1,iCell) * ws_spsU(k+1,iCell) &
+                               ) / (ze(k-1,iCell) - ze(k+1,iCell)) &
+                                             - 1.0_RKIND / (1.0_RKIND - areaFraction(k,iCell)) * &
+                               ( (1.0_RKIND - areaFraction(k-1,iCell)) * ws_spsD(k-1,iCell) &
+                               - (1.0_RKIND - areaFraction(k+1,iCell)) * ws_spsD(k+1,iCell) &
+                               ) / (ze(k-1,iCell) - ze(k+1,iCell)) &
+                                             )
+            ! ws tendency
+            wstend(k,iCell) = wstend1(k,iCell) + wstend2(k,iCell) + wstend3(k,iCell) + &
+                              wstend4(k,iCell) + wstend5(k,iCell) + wstend6(k,iCell)
 
             uwtend1(k,iCell) = -(uw2(k-1,iCell) - uw2(k,iCell)) / dzmid
             uwtend2(k,iCell) = 0.5_RKIND*((0.8_RKIND - 4.0_RKIND*alpha1/3.0_RKIND)*0.5_RKIND*KE**2 +  &
