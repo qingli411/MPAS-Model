@@ -347,7 +347,7 @@ module ocn_adc_mixing_fused
             w3tend(k,iCell) = w3tend1(k,iCell) + w3tend2(k,iCell) + w3tend3(k,iCell) + &
                               w3tend4(k,iCell) + w3tend5(k,iCell) + w3tend6(k,iCell)
 
-            if(k>1 .and. k < nVertLevels) then
+            if (k>1 .and. k < nVertLevels) then
                ! TODO: why do we need a diffusion term?
                w3tend(k,iCell) = w3tend(k,iCell) + kappa_w3*(w3(i1,k-1,iCell) &
                   - w3(i1,k+1,iCell)) / (zm(k-1,iCell) - zm(k+1,iCell))**2
@@ -676,35 +676,36 @@ module ocn_adc_mixing_fused
             ! >
 
             if (.not. config_adc_use_old_length_scale) then
-              !epsilon tendency is next
-              KEm1 = 0.5_RKIND*(u2(i1,k-1,iCell) + v2(i1,k-1,iCell) + w2(i1,k-1,iCell))
-              KE   = 0.5_RKIND*(u2(i1,k,iCell) + v2(i1,k,iCell) + w2(i1,k,iCell))
-              KEp1 = 0.5_RKIND*(u2(i1,k+1,iCell) + v2(i1,k+1,iCell) + w2(i1,k+1,iCell))
-              tauM1 = 2.0_RKIND*KEm1 / (eps(i1,k-1,iCell) + 1.0E-15_RKIND)
-              tau   = 2.0_RKIND*KE / (eps(i1,k,iCell) + 1.0E-15_RKIND)
-              tauP1 = 2.0_RKIND*KEp1 / (eps(i1,k+1,iCell) + 1.0E-15_RKIND)
-              tauAV = 0.5_RKIND*(tauUP + tauDN)
+               !epsilon tendency is next
+               KEm1  = 0.5_RKIND * (u2(i1,k-1,iCell) + v2(i1,k-1,iCell) + w2(i1,k-1,iCell))
+               KE    = 0.5_RKIND * (u2(i1,k,iCell) + v2(i1,k,iCell) + w2(i1,k,iCell))
+               KEp1  = 0.5_RKIND * (u2(i1,k+1,iCell) + v2(i1,k+1,iCell) + w2(i1,k+1,iCell))
+               tauM1 = 2.0_RKIND * KEm1 / (eps(i1,k-1,iCell) + smallNum )
+               tau   = 2.0_RKIND * KE / (eps(i1,k,iCell) + smallNum)
+               tauP1 = 2.0_RKIND * KEp1 / (eps(i1,k+1,iCell) + smallNum)
+               tauAV = 0.5_RKIND * (tauUP + tauDN)
 
-              tomUP = 0.5577_RKIND/1.3_RKIND*(0.5_RKIND*(KEm1+KE))**2/(0.5_RKIND*(eps(i1,k-1,iCell) + &
-                eps(i1,k,iCell)) + 1.0E-15_RKIND)*(eps(i1,k-1,iCell) - &
-                eps(i1,k,iCell)) / (ze(k-1,iCell) - ze(k,iCell) + 1.0E-10_RKIND)
-              tomDN = 0.5577_RKIND/1.3_RKIND*(0.5_RKIND*(KE+KEp1))**2/(0.5_RKIND*(eps(i1,k,iCell) + &
-                eps(i1,k+1,iCell)) + 1.0E-15_RKIND)*(eps(i1,k,iCell) - &
-                eps(i1,k+1,iCell)) / (ze(k,iCell) - ze(k+1,iCell) + 1.0E-10_RKIND)
+               tomUP = 0.5577_RKIND/1.3_RKIND * (0.5_RKIND*(KEm1+KE))**2 / &
+                       (0.5_RKIND*(eps(i1,k-1,iCell) + eps(i1,k,iCell)) + smallNum) * &
+                       (eps(i1,k-1,iCell) - eps(i1,k,iCell)) / (ze(k-1,iCell) - ze(k,iCell))
+               tomDN = 0.5577_RKIND/1.3_RKIND * (0.5_RKIND*(KE+KEp1))**2 / &
+                       (0.5_RKIND*(eps(i1,k,iCell) + eps(i1,k+1,iCell)) + smallNum) * &
+                       (eps(i1,k,iCell) - eps(i1,k+1,iCell)) / (ze(k,iCell) - ze(k+1,iCell))
 
-              epstend(k,iCell) = (tomUP - tomDN) / (zm(k-1,iCell) - zm(k,iCell) + 1.0E-10_RKIND) - &
-              !-0.8_RKIND*((tomUP / (0.5_RKIND*(tauM1 + tau) + 1.0E-10_RKIND) - tomDN / &
-               ! (0.5_RKIND*(tau + tauP1) + 1.0E-10_RKIND)) / (zm(k-1,iCell) - zm(k,iCell))) - &
-                2.88_RKIND/(tau + 1.0E-10_RKIND)*uw(i1,k,iCell)*(uvel(k-1,iCell) - uvel(k,iCell)) / &
-                (zm(k-1,iCell) - zm(k,iCell)) - &
-                2.88_RKIND/(tau + 1.0E-10_RKIND)*vw(i1,k,iCell)*(vvel(k-1,iCell) - vvel(k,iCell)) / &
-                (zm(k-1,iCell) - zm(k,iCell)) + &
-                2.88_RKIND/(tau + 1.0E-10_RKIND)*gravity*(alphaT(k,iCell)*wt(i1,k,iCell) - betaS(k,iCell)* &
-                ws(i1,k,iCell)) - 3.84_RKIND*eps(i1,k,iCell)/(tau + 1.0E-10_RKIND)
+               epstend(k,iCell) = (tomUP - tomDN) / (zm(k-1,iCell) - zm(k,iCell)) - &
+               !-0.8_RKIND*((tomUP / (0.5_RKIND*(tauM1 + tau) + 1.0E-10_RKIND) - tomDN / &
+                ! (0.5_RKIND*(tau + tauP1) + 1.0E-10_RKIND)) / (zm(k-1,iCell) - zm(k,iCell))) - &
+                                  2.88_RKIND/(tau + smallNum) * uw(i1,k,iCell) * &
+                                  (uvel(k-1,iCell) - uvel(k,iCell)) / (zm(k-1,iCell) - zm(k,iCell)) - &
+                                  2.88_RKIND/(tau + smallNum) * vw(i1,k,iCell) * &
+                                  (vvel(k-1,iCell) - vvel(k,iCell)) / (zm(k-1,iCell) - zm(k,iCell)) + &
+                                  2.88_RKIND/(tau + smallNum) * B - &
+                                  3.84_RKIND * eps(i1,k,iCell)/(tau + smallNum)
             endif
 
-            !finally update all subplume fluxes
-            if(BVF(k,iCell) <= 0.0_RKIND) then
+            ! finally update all subplume fluxes
+            ! (32) and (33) of LR01b
+            if (BVF(k,iCell) <= 0.0_RKIND) then
               lenspsU(k,iCell) = dzmid
               lenspsD(k,iCell) = dzmid
             else
@@ -712,6 +713,7 @@ module ocn_adc_mixing_fused
               lenspsD(k,iCell) = min(dz,0.76_RKIND*sqrt(KspsD(i1,k,iCell)/BVF(k,iCell)))
             endif
 
+            ! (34) of LR01b
             KmU(k,iCell) = 0.1_RKIND*lenspsU(k,iCell)*sqrt( KspsU(i1,k,iCell) )
             KhU(k,iCell) = (1.0_RKIND+2.0_RKIND*lenspsU(k,iCell)/dz)*KmU(k,iCell)
             wt_spsU(k,iCell) =  -KhU(k,iCell)*Tz
@@ -724,42 +726,59 @@ module ocn_adc_mixing_fused
 
             !change length scale to lenup and lendown
             ! (11) of LR01b
-            Entrainment(k,iCell) = Cww_E*areaFraction(k,iCell)*(1.0_RKIND- &
-              areaFraction(k,iCell))*Mc(k,iCell) / ( lendn(k,iCell) + smallNum )
-            Detrainment(k,iCell) = Cww_D*areaFraction(k,iCell)*(1.0_RKIND- &
-              areaFraction(k,iCell))*Mc(k,iCell) / ( lenup(k,iCell) + smallNum )
+            Entrainment(k,iCell) = Cww_E * areaFraction(k,iCell) * (1.0_RKIND-areaFraction(k,iCell)) * &
+                                   Mc(k,iCell) / ( lendn(k,iCell) + smallNum )
+            Detrainment(k,iCell) = Cww_D * areaFraction(k,iCell) * (1.0_RKIND-areaFraction(k,iCell)) * &
+                                   Mc(k,iCell) / ( lenup(k,iCell) + smallNum )
 
-            if(k==2) then
+            ! (31) of LR01b
+            if (k==2) then
               Cval = 3.96_RKIND
             else
-              Cval = (0.19_RKIND+0.51_RKIND*lenspsU(k,iCell)/dzmid)
+              Cval = 0.19_RKIND+0.51_RKIND*lenspsU(k,iCell)/dzmid
             endif
 
-            KspsUtend(k,iCell) = -gravity*(alphaT(k,iCell)*wt_spsU(k,iCell) - &
-              betaS(k,iCell)*ws_spsU(k,ICell)) + ((KmU(k-1,iCell) +                 &
-              KmU(k,iCell))*(KspsU(i1,k-1,iCell) - KspsU(i1,k,iCell)) /         &
-              (ze(k-1,iCell) - ze(k,iCell)) - (KmU(k,iCell) +             &
-              KmU(k+1,iCell)) * (KspsU(i1,k,iCell) - KspsU(i1,k+1,iCell)) /     &
-              (ze(k,iCell) - ze(k+1,iCell))) / dzmid -                                 &
-              Cval*KspsU(i1,k,iCell)**1.5_RKIND/(1.0E-15 + lenspsU(k,iCell)) +                     &
-              eps(i1,k,iCell) / (2.0_RKIND*areaFraction(k,iCell)) + KmU(k,iCell)* &
-              (Uz**2 + Vz**2)
+            ! subplume scale TKE equation
+            ! (28) of LR01b
+            KspsUtend(k,iCell) = &
+            ! buoyancy
+                     - gravity * (alphaT(k,iCell)*wt_spsU(k,iCell) - betaS(k,iCell)*ws_spsU(k,iCell)) &
+            ! transport of SPS TKE and pressure term: (29) of LR01b
+                     + ((KmU(k-1,iCell) + KmU(k,iCell)) * (KspsU(i1,k-1,iCell) - KspsU(i1,k,iCell)) / &
+                        (ze(k-1,iCell) - ze(k,iCell)) &
+                      - (KmU(k,iCell) + KmU(k+1,iCell)) * (KspsU(i1,k,iCell) - KspsU(i1,k+1,iCell)) / &
+                        (ze(k,iCell) - ze(k+1,iCell)) &
+                       ) / dzmid &
+            ! dissipation: (30) of LR01b
+                     - Cval*KspsU(i1,k,iCell)**1.5_RKIND / lenspsU(k,iCell) &
+            ! TODO: what is this term?
+                     + eps(i1,k,iCell) / (2.0_RKIND*areaFraction(k,iCell)) &
+            ! shear production
+                     + KmU(k,iCell) * (Uz**2 + Vz**2)
 
-            if(k==2) then
+            if (k==2) then
               Cval = 3.96_RKIND
             else
-              Cval = (0.19_RKIND+0.51_RKIND*lenspsD(k,iCell)/dz)
+              Cval = 0.19_RKIND+0.51_RKIND*lenspsD(k,iCell)/dzmid
             endif
 
-            KspsDtend(k,iCell) = -gravity*(alphaT(k,iCell)*wt_spsD(k,iCell) - &
-              betaS(k,iCell)*ws_spsD(k,iCell)) + ((KmD(k-1,iCell) +                 &
-              KmD(k,iCell))*(KspsD(i1,k-1,iCell) - KspsD(i1,k,iCell)) /         &
-              (ze(k-1,iCell) - ze(k,iCell)) - (KmD(k,iCell) +             &
-              KmD(k+1,iCell)) * (KspsD(i1,k,iCell) - KspsD(i1,k+1,iCell)) /     &
-              (ze(k,iCell) - ze(k+1,iCell))) / dz -                                 &
-              Cval*KspsD(i1,k,iCell)**1.5_RKIND / lenspsD(k,iCell) +                   &
-              eps(i1,k,iCell) / (2.0_RKIND*(1.0_RKIND - areaFraction(k,iCell))) + &
-              KmD(k,iCell)*(Uz**2 + Vz**2)
+            ! subplume scale TKE equation
+            ! (28) of LR01b
+            KspsDtend(k,iCell) = &
+            ! buoyancy
+                     - gravity * (alphaT(k,iCell)*wt_spsD(k,iCell) - betaS(k,iCell)*ws_spsD(k,iCell)) &
+            ! transport of SPS TKE and pressure term: (29) of LR01b
+                     + ((KmD(k-1,iCell) + KmD(k,iCell)) * (KspsD(i1,k-1,iCell) - KspsD(i1,k,iCell)) / &
+                        (ze(k-1,iCell) - ze(k,iCell)) &
+                      - (KmD(k,iCell) + KmD(k+1,iCell)) * (KspsD(i1,k,iCell) - KspsD(i1,k+1,iCell)) / &
+                        (ze(k,iCell) - ze(k+1,iCell)) &
+                       ) / dzmid &
+            ! dissipation: (30) of LR01b
+                     - Cval*KspsD(i1,k,iCell)**1.5_RKIND / lenspsD(k,iCell) &
+            ! TODO: what is this term?
+                     + eps(i1,k,iCell) / (2.0_RKIND*(1.0_RKIND - areaFraction(k,iCell))) &
+            ! shear production
+                     + KmD(k,iCell) * (Uz**2 + Vz**2)
 
           enddo ! nVertLevels
         enddo ! nCells
