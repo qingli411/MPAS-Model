@@ -45,7 +45,7 @@ module ocn_turbulence
 
    real(kind=RKIND),public :: epsilon, &! small value below which w2, v2, u2 cannot go
                        sigmat, Ko, gamma1, beta5, c1, c2, c8, c10, c11, &
-                       alpha1, alpha2, alpha3, B1, Kt, c_1, c_2, c_mom, &
+                       alpha0, alpha1, alpha2, alpha3, B1, Kt, c_1, c_2, c_mom, &
                        c_therm, c_mom_w3, c_pt, c_ps, c_pv, &
                        kappa_FL, kappa_w3, kappa_VAR, Cww_D, Cww_E
 
@@ -151,6 +151,7 @@ module ocn_turbulence
       c2 = 3.84_RKIND
       c8 = 3.0_RKIND
       c10 = 5.0_RKIND
+      alpha0 = 0.8_RKIND
       alpha1 = 0.984_RKIND
       alpha2 = 0.568_RKIND
       alpha3 = 0.8_RKIND
@@ -527,6 +528,7 @@ module ocn_turbulence
       !$acc                   c8,           &
       !$acc                   c10,          &
       !$acc                   c11,          &
+      !$acc                   alpha0,       &
       !$acc                   alpha1,       &
       !$acc                   alpha2,       &
       !$acc                   alpha3,       &
@@ -709,6 +711,7 @@ module ocn_turbulence
       !$acc                   c8,           &
       !$acc                   c10,          &
       !$acc                   c11,          &
+      !$acc                   alpha0,       &
       !$acc                   alpha1,       &
       !$acc                   alpha2,       &
       !$acc                   alpha3,       &
@@ -1110,6 +1113,7 @@ module ocn_turbulence
       c8 = 0.0_RKIND
       c10 = 0.0_RKIND
       c11 = 0.0_RKIND
+      alpha0 = 0.0_RKIND
       alpha1 = 0.0_RKIND
       alpha2 = 0.0_RKIND
       alpha3 = 0.0_RKIND
@@ -1142,6 +1146,7 @@ module ocn_turbulence
       !$acc                   c8,           &
       !$acc                   c10,          &
       !$acc                   c11,          &
+      !$acc                   alpha0,       &
       !$acc                   alpha1,       &
       !$acc                   alpha2,       &
       !$acc                   alpha3,       &
