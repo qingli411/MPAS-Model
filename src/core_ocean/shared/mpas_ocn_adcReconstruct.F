@@ -348,9 +348,9 @@ module ocn_adc_mixing_fused
                               w3tend4(k,iCell) + w3tend5(k,iCell) + w3tend6(k,iCell)
 
             if (k>1 .and. k < nVertLevels) then
-               ! TODO: why do we need a diffusion term?
-               w3tend(k,iCell) = w3tend(k,iCell) + kappa_w3*(w3(i1,k-1,iCell) &
-                  - w3(i1,k+1,iCell)) / (zm(k-1,iCell) - zm(k+1,iCell))**2
+              ! TODO: why do we need a diffusion term?
+              w3tend(k,iCell) = w3tend(k,iCell) + kappa_w3*(w3(i1,k-1,iCell) &
+                 - w3(i1,k+1,iCell)) / (zm(k-1,iCell) - zm(k+1,iCell))**2
             endif
 
             ! now get all the downgradient TOMs
@@ -676,31 +676,31 @@ module ocn_adc_mixing_fused
             ! >
 
             if (.not. config_adc_use_old_length_scale) then
-               !epsilon tendency is next
-               KEm1  = 0.5_RKIND * (u2(i1,k-1,iCell) + v2(i1,k-1,iCell) + w2(i1,k-1,iCell))
-               KE    = 0.5_RKIND * (u2(i1,k,iCell) + v2(i1,k,iCell) + w2(i1,k,iCell))
-               KEp1  = 0.5_RKIND * (u2(i1,k+1,iCell) + v2(i1,k+1,iCell) + w2(i1,k+1,iCell))
-               tauM1 = 2.0_RKIND * KEm1 / (eps(i1,k-1,iCell) + smallNum )
-               tau   = 2.0_RKIND * KE / (eps(i1,k,iCell) + smallNum)
-               tauP1 = 2.0_RKIND * KEp1 / (eps(i1,k+1,iCell) + smallNum)
-               tauAV = 0.5_RKIND * (tauUP + tauDN)
+              !epsilon tendency is next
+              KEm1  = 0.5_RKIND * (u2(i1,k-1,iCell) + v2(i1,k-1,iCell) + w2(i1,k-1,iCell))
+              KE    = 0.5_RKIND * (u2(i1,k,iCell) + v2(i1,k,iCell) + w2(i1,k,iCell))
+              KEp1  = 0.5_RKIND * (u2(i1,k+1,iCell) + v2(i1,k+1,iCell) + w2(i1,k+1,iCell))
+              tauM1 = 2.0_RKIND * KEm1 / (eps(i1,k-1,iCell) + smallNum )
+              tau   = 2.0_RKIND * KE / (eps(i1,k,iCell) + smallNum)
+              tauP1 = 2.0_RKIND * KEp1 / (eps(i1,k+1,iCell) + smallNum)
+              tauAV = 0.5_RKIND * (tauUP + tauDN)
 
-               tomUP = 0.5577_RKIND/1.3_RKIND * (0.5_RKIND*(KEm1+KE))**2 / &
-                       (0.5_RKIND*(eps(i1,k-1,iCell) + eps(i1,k,iCell)) + smallNum) * &
-                       (eps(i1,k-1,iCell) - eps(i1,k,iCell)) / (ze(k-1,iCell) - ze(k,iCell))
-               tomDN = 0.5577_RKIND/1.3_RKIND * (0.5_RKIND*(KE+KEp1))**2 / &
-                       (0.5_RKIND*(eps(i1,k,iCell) + eps(i1,k+1,iCell)) + smallNum) * &
-                       (eps(i1,k,iCell) - eps(i1,k+1,iCell)) / (ze(k,iCell) - ze(k+1,iCell))
+              tomUP = 0.5577_RKIND/1.3_RKIND * (0.5_RKIND*(KEm1+KE))**2 / &
+                      (0.5_RKIND*(eps(i1,k-1,iCell) + eps(i1,k,iCell)) + smallNum) * &
+                      (eps(i1,k-1,iCell) - eps(i1,k,iCell)) / (ze(k-1,iCell) - ze(k,iCell))
+              tomDN = 0.5577_RKIND/1.3_RKIND * (0.5_RKIND*(KE+KEp1))**2 / &
+                      (0.5_RKIND*(eps(i1,k,iCell) + eps(i1,k+1,iCell)) + smallNum) * &
+                      (eps(i1,k,iCell) - eps(i1,k+1,iCell)) / (ze(k,iCell) - ze(k+1,iCell))
 
-               epstend(k,iCell) = (tomUP - tomDN) / (zm(k-1,iCell) - zm(k,iCell)) - &
-               !-0.8_RKIND*((tomUP / (0.5_RKIND*(tauM1 + tau) + 1.0E-10_RKIND) - tomDN / &
-                ! (0.5_RKIND*(tau + tauP1) + 1.0E-10_RKIND)) / (zm(k-1,iCell) - zm(k,iCell))) - &
-                                  2.88_RKIND/(tau + smallNum) * uw(i1,k,iCell) * &
-                                  (uvel(k-1,iCell) - uvel(k,iCell)) / (zm(k-1,iCell) - zm(k,iCell)) - &
-                                  2.88_RKIND/(tau + smallNum) * vw(i1,k,iCell) * &
-                                  (vvel(k-1,iCell) - vvel(k,iCell)) / (zm(k-1,iCell) - zm(k,iCell)) + &
-                                  2.88_RKIND/(tau + smallNum) * B - &
-                                  3.84_RKIND * eps(i1,k,iCell)/(tau + smallNum)
+              epstend(k,iCell) = (tomUP - tomDN) / (zm(k-1,iCell) - zm(k,iCell)) - &
+              !-0.8_RKIND*((tomUP / (0.5_RKIND*(tauM1 + tau) + 1.0E-10_RKIND) - tomDN / &
+               ! (0.5_RKIND*(tau + tauP1) + 1.0E-10_RKIND)) / (zm(k-1,iCell) - zm(k,iCell))) - &
+                                 2.88_RKIND/(tau + smallNum) * uw(i1,k,iCell) * &
+                                 (uvel(k-1,iCell) - uvel(k,iCell)) / (zm(k-1,iCell) - zm(k,iCell)) - &
+                                 2.88_RKIND/(tau + smallNum) * vw(i1,k,iCell) * &
+                                 (vvel(k-1,iCell) - vvel(k,iCell)) / (zm(k-1,iCell) - zm(k,iCell)) + &
+                                 2.88_RKIND/(tau + smallNum) * B - &
+                                 3.84_RKIND * eps(i1,k,iCell)/(tau + smallNum)
             endif
 
             ! finally update all subplume fluxes
@@ -786,92 +786,92 @@ module ocn_adc_mixing_fused
         !In this step we update second moments except w3 which needs updated w2
         do iCell = 1,nCells
           do k = 2,nVertLevels
-              !update second order moment tendency here
-              w2(i2,k,iCell) = (w2(i1,k,iCell) + dt_small*w2tend(k,iCell)) / &
-                (1.0_RKIND + dt_small*invTaupv(k,iCell)*2.0_RKIND/3.0_RKIND)
-              if(w2(i2,k,iCell) < epsilon) then
-                w2cliptend(k,iCell) = epsilon-w2(i2,k,iCell)
-                w2(i2,k,iCell) = epsilon
-              endif
+            !update second order moment tendency here
+            w2(i2,k,iCell) = (w2(i1,k,iCell) + dt_small*w2tend(k,iCell)) / &
+                             (1.0_RKIND + dt_small*invTaupv(k,iCell)*2.0_RKIND/3.0_RKIND)
+            if (w2(i2,k,iCell) < epsilon) then
+              w2cliptend(k,iCell) = epsilon-w2(i2,k,iCell)
+              w2(i2,k,iCell) = epsilon
+            endif
 
-              if(abs(w2(i2,k,iCell)) > 1.0_RKIND) then
-                 call mpas_log_write("ERROR: w2 out of range, w2 = $r, location = $i, $i", &
-                  MPAS_LOG_CRIT,realArgs=(/w2(i2,k,iCell)/),intArgs=(/k,iCell/))
-              endif
+            if (abs(w2(i2,k,iCell)) > 1.0_RKIND) then
+              call mpas_log_write("ERROR: w2 out of range, w2 = $r, location = $i, $i", &
+                                  MPAS_LOG_CRIT,realArgs=(/w2(i2,k,iCell)/),intArgs=(/k,iCell/))
+            endif
 
-              u2(i2,k,iCell) = (u2(i1,k,iCell) + dt_small*u2tend(k,iCell)) / &
-                (1.0_RKIND + dt_small*invTaupv(k,iCell)*2.0_RKIND/3.0_RKIND)
-              if(u2(i2,k,iCell) < 0.0_RKIND) then
-                 u2cliptend(k,iCell) = -u2(i2,k,iCell)
-                 u2(i2,k,iCell) = 0.0_RKIND
-              endif
+            u2(i2,k,iCell) = (u2(i1,k,iCell) + dt_small*u2tend(k,iCell)) / &
+                             (1.0_RKIND + dt_small*invTaupv(k,iCell)*2.0_RKIND/3.0_RKIND)
+            if (u2(i2,k,iCell) < 0.0_RKIND) then
+              u2cliptend(k,iCell) = -u2(i2,k,iCell)
+              u2(i2,k,iCell) = 0.0_RKIND
+            endif
 
-              v2(i2,k,iCell) = (v2(i1,k,iCell) + dt_small*v2tend(k,iCell)) / &
-                (1.0_RKIND + dt_small*invTaupv(k,iCell)*2.0_RKIND/3.0_RKIND)
-              if(v2(i2,k,iCell) < 0.0_RKIND) then
-                 v2cliptend(k,iCell) = -v2(i2,k,iCell)
-                 v2(i2,k,iCell) = 0.0_RKIND
-              endif
+            v2(i2,k,iCell) = (v2(i1,k,iCell) + dt_small*v2tend(k,iCell)) / &
+                             (1.0_RKIND + dt_small*invTaupv(k,iCell)*2.0_RKIND/3.0_RKIND)
+            if (v2(i2,k,iCell) < 0.0_RKIND) then
+              v2cliptend(k,iCell) = -v2(i2,k,iCell)
+              v2(i2,k,iCell) = 0.0_RKIND
+            endif
 
-              uw(i2,k,iCell) = uw(i1,k,iCell) + dt_small*uwtend(k,iCell)
-              vw(i2,k,iCell) = vw(i1,k,iCell) + dt_small*vwtend(k,iCell)
-              uv(i2,k,iCell) = uv(i1,k,iCell) + dt_small*uvtend(k,iCell)
-              ut(i2,k,iCell) = ut(i1,k,iCell) + dt_small*uttend(k,iCell)
-              wt(i2,k,iCell) = (wt(i1,k,iCell) + dt_small*wttend(k,iCell)) / &
-                (1.0_RKIND + dt_small*invTaupt(k,iCell))
-              vt(i2,k,iCell) = vt(i1,k,iCell) + dt_small*vttend(k,iCell)
-              us(i2,k,iCell) = us(i1,k,iCell) + dt_small*ustend(k,iCell)
-              vs(i2,k,iCell) = vs(i1,k,iCell) + dt_small*vstend(k,iCell)
-              ws(i2,k,iCell) = (ws(i1,k,iCell) + dt_small*wstend(k,iCell)) / &
-                 (1.0_RKIND + dt_small*invTaups(k,iCell))
-              if(abs(wt(i2,k,iCell)) > 1.0_RKIND) then
-                call mpas_log_write("ERROR: wt out of range, wt = $r, location = $i, $i", &
-                   MPAS_LOG_CRIT,realArgs=(/wt(i2,k,iCell)/),intArgs=(/k,iCell/))
-              endif
+            uw(i2,k,iCell) = uw(i1,k,iCell) + dt_small*uwtend(k,iCell)
+            vw(i2,k,iCell) = vw(i1,k,iCell) + dt_small*vwtend(k,iCell)
+            uv(i2,k,iCell) = uv(i1,k,iCell) + dt_small*uvtend(k,iCell)
+            ut(i2,k,iCell) = ut(i1,k,iCell) + dt_small*uttend(k,iCell)
+            vt(i2,k,iCell) = vt(i1,k,iCell) + dt_small*vttend(k,iCell)
+            wt(i2,k,iCell) = (wt(i1,k,iCell) + dt_small*wttend(k,iCell)) / &
+                             (1.0_RKIND + dt_small*invTaupt(k,iCell))
+            us(i2,k,iCell) = us(i1,k,iCell) + dt_small*ustend(k,iCell)
+            vs(i2,k,iCell) = vs(i1,k,iCell) + dt_small*vstend(k,iCell)
+            ws(i2,k,iCell) = (ws(i1,k,iCell) + dt_small*wstend(k,iCell)) / &
+                             (1.0_RKIND + dt_small*invTaups(k,iCell))
+            if (abs(wt(i2,k,iCell)) > 1.0_RKIND) then
+              call mpas_log_write("ERROR: wt out of range, wt = $r, location = $i, $i", &
+                                  MPAS_LOG_CRIT,realArgs=(/wt(i2,k,iCell)/),intArgs=(/k,iCell/))
+            endif
 
-              if(abs(ws(i2,k,iCell)) > 1.0_RKIND) then
-                 call mpas_log_write("ERROR: ws out of range, ws = $r, location = $i, $i", &
-                   MPAS_LOG_CRIT,realArgs=(/ws(i2,k,iCell)/),intArgs=(/k,iCell/))
-              endif
+            if (abs(ws(i2,k,iCell)) > 1.0_RKIND) then
+              call mpas_log_write("ERROR: ws out of range, ws = $r, location = $i, $i", &
+                                  MPAS_LOG_CRIT,realArgs=(/ws(i2,k,iCell)/),intArgs=(/k,iCell/))
+            endif
 
-              if(abs(u2(i2,k,iCell)) > 1.0_RKIND) then
-                 call mpas_log_write("ERROR: u2 out of range, u2 = $r, location = $i, $i", &
-                   MPAS_LOG_CRIT,realArgs=(/u2(i2,k,iCell)/),intArgs=(/k,iCell/))
-              endif
+            if (abs(u2(i2,k,iCell)) > 1.0_RKIND) then
+              call mpas_log_write("ERROR: u2 out of range, u2 = $r, location = $i, $i", &
+                                  MPAS_LOG_CRIT,realArgs=(/u2(i2,k,iCell)/),intArgs=(/k,iCell/))
+            endif
 
-              if(abs(v2(i2,k,iCell)) > 1.0_RKIND) then
-                 call mpas_log_write("ERROR: v2 out of range, v2 = $r, location = $i, $i", &
-                   MPAS_LOG_CRIT,realArgs=(/v2(i2,k,iCell)/),intArgs=(/k,iCell/))
-              endif
+            if (abs(v2(i2,k,iCell)) > 1.0_RKIND) then
+              call mpas_log_write("ERROR: v2 out of range, v2 = $r, location = $i, $i", &
+                                  MPAS_LOG_CRIT,realArgs=(/v2(i2,k,iCell)/),intArgs=(/k,iCell/))
+            endif
 
-              if(.not. config_adc_use_old_length_scale)then
-                 eps(i2,k,iCell) = eps(i1,k,iCell) + dt_small*epstend(k,iCell)
-                 if (eps(i2,k,iCell) < 1.0E-10_RKIND) then
-                    eps(i2,k,iCell) = 1.0E-10_RKIND
-                 endif
-                 !Amrapalli: 16.6 here can be tuned if needed, would show up in u2 and v2 primarily
-                 ! also in KEspsU/D
-                 KE = 0.5_RKIND*(u2(i2,k,iCell) + v2(i2,k,iCell) + w2(i2,k,iCell))
-                 length(k,iCell) = KE**1.5_RKIND / 16.6_RKIND*eps(i2,k,iCell)
-               else
-                 KE = 0.5_RKIND*(u2(i2,k,iCell) + v2(i2,k,iCell) + w2(i2,k,iCell))
-                 eps(:,k,iCell) = KE**1.5_RKIND / 16.6_RKIND*length(k,iCell)
-               endif
-              KspsU(i2,k,iCell) = max(epsilon, KspsU(i1,k,iCell) + dt_small*KspsUtend(k,iCell))
-              KspsD(i2,k,iCell) = max(epsilon, KspsD(i1,k,iCell) + dt_small*KspsDtend(k,iCell))
+            if (.not. config_adc_use_old_length_scale)then
+              eps(i2,k,iCell) = eps(i1,k,iCell) + dt_small*epstend(k,iCell)
+              if (eps(i2,k,iCell) < 1.0E-10_RKIND) then
+                eps(i2,k,iCell) = 1.0E-10_RKIND
+              endif
+              !Amrapalli: 16.6 here can be tuned if needed, would show up in u2 and v2 primarily
+              ! also in KEspsU/D
+              KE = 0.5_RKIND * (u2(i2,k,iCell) + v2(i2,k,iCell) + w2(i2,k,iCell))
+              length(k,iCell) = KE**1.5_RKIND / 16.6_RKIND * eps(i2,k,iCell)
+            else
+              KE = 0.5_RKIND * (u2(i2,k,iCell) + v2(i2,k,iCell) + w2(i2,k,iCell))
+              eps(:,k,iCell) = KE**1.5_RKIND / 16.6_RKIND * length(k,iCell)
+            endif
+            KspsU(i2,k,iCell) = max(epsilon, KspsU(i1,k,iCell) + dt_small*KspsUtend(k,iCell))
+            KspsD(i2,k,iCell) = max(epsilon, KspsD(i1,k,iCell) + dt_small*KspsDtend(k,iCell))
 
           enddo !nVertLevels
         enddo !nCells for second order moment tendencies
 
         ! update the third order w3 and mean fields
         do iCell = 1,nCells
-          do k=1,nVertLevels
+          do k = 1,nVertLevels
             w3check = (w2(i2,k,iCell) + w2(i2,k+1,iCell))**1.5_RKIND
-            w3(i2,k,iCell) = min(w3(i1,k,iCell) + dt_small*w3tend(k,iCell),w3check)
+            w3(i2,k,iCell) = min(w3(i1,k,iCell) + dt_small*w3tend(k,iCell), w3check)
 
             if(abs(w3(i2,k,iCell)) > 1.0_RKIND) then
               call mpas_log_write("ERROR: w3 out of range, w3 = $r, location = $i, $i", &
-                MPAS_LOG_CRIT,realArgs=(/w3(i2,k,iCell)/),intArgs=(/k,iCell/))
+                                  MPAS_LOG_CRIT,realArgs=(/w3(i2,k,iCell)/),intArgs=(/k,iCell/))
             endif
           enddo
         enddo
@@ -880,29 +880,29 @@ module ocn_adc_mixing_fused
 !  enddo !end iteration loop -- substepping is done.
     !now that substepping is done, apply computed fluxes to update mean fields.
     !you can collapse this loop too.
-        do iCell = 1, nCells
-          do k=1,nVertLevels
-              utemp = uvel(k,iCell)
-              vtemp = vvel(k,iCell)
-              uvel(k,iCell) = uvel(k,iCell) - dt_small*(uw(i1,k,iCell) - uw(i1,k+1,iCell)) /  &
-                        (ze(k,iCell) - ze(k+1,iCell)) !+ dt_small*fCell(iCell)*vtemp
+        do iCell = 1,nCells
+          do k = 1,nVertLevels
+            utemp = uvel(k,iCell)
+            vtemp = vvel(k,iCell)
+            uvel(k,iCell) = uvel(k,iCell) - dt_small*(uw(i1,k,iCell) - uw(i1,k+1,iCell)) /  &
+                            (ze(k,iCell) - ze(k+1,iCell)) !+ dt_small*fCell(iCell)*vtemp
 
-              vvel(k,iCell) = vvel(k,iCell) - dt_small*(vw(i1,k,iCell) - vw(i1,k+1,iCell)) /  &
-                        (ze(k,iCell) - ze(k+1,iCell)) !- dt_small*fCell(iCell)*utemp
+            vvel(k,iCell) = vvel(k,iCell) - dt_small*(vw(i1,k,iCell) - vw(i1,k+1,iCell)) /  &
+                            (ze(k,iCell) - ze(k+1,iCell)) !- dt_small*fCell(iCell)*utemp
 
-              wtSumUp = wt(i1,k,iCell) + areaFraction(k,iCell)*wt_spsU(k,iCell) + &
-                (1.0_RKIND - areaFraction(k,iCell))*wt_spsD(k,iCell)
-              wtSumDn = wt(i1,k+1,iCell) + areaFraction(k+1,iCell)*wt_spsU(k+1,iCell) + &
-                (1.0_RKIND - areaFraction(k+1,iCell))*wt_spsD(k+1,iCell)
-              wsSumUp = ws(i1,k,iCell) + areaFraction(k,iCell)*ws_spsU(k,iCell) + &
-                (1.0_RKIND - areaFraction(k,iCell))*ws_spsD(k,iCell)
-              wsSumDn = ws(i1,k+1,iCell) + areaFraction(k+1,iCell)*ws_spsU(k+1,iCell) + &
-                (1.0_RKIND - areaFraction(k+1,iCell))*ws_spsD(k+1,iCell)
+            wtSumUp = wt(i1,k,iCell) + areaFraction(k,iCell)*wt_spsU(k,iCell) + &
+                      (1.0_RKIND - areaFraction(k,iCell))*wt_spsD(k,iCell)
+            wtSumDn = wt(i1,k+1,iCell) + areaFraction(k+1,iCell)*wt_spsU(k+1,iCell) + &
+                      (1.0_RKIND - areaFraction(k+1,iCell))*wt_spsD(k+1,iCell)
+            wsSumUp = ws(i1,k,iCell) + areaFraction(k,iCell)*ws_spsU(k,iCell) + &
+                      (1.0_RKIND - areaFraction(k,iCell))*ws_spsD(k,iCell)
+            wsSumDn = ws(i1,k+1,iCell) + areaFraction(k+1,iCell)*ws_spsU(k+1,iCell) + &
+                      (1.0_RKIND - areaFraction(k+1,iCell))*ws_spsD(k+1,iCell)
 
-              activeTracers(1,k,iCell) = activeTracers(1,k,iCell) - dt_small*(wtSumUp - &
-                wtSumDn) / (ze(k,iCell) - ze(k+1,iCell))
-              activeTracers(2,k,iCell) = activeTracers(2,k,iCell) - dt_small*(wsSumUp - &
-                wsSumDn) / (ze(k,iCell) - ze(k+1,iCell))
+            activeTracers(1,k,iCell) = activeTracers(1,k,iCell) - dt_small*(wtSumUp - wtSumDn) / &
+                                       (ze(k,iCell) - ze(k+1,iCell))
+            activeTracers(2,k,iCell) = activeTracers(2,k,iCell) - dt_small*(wsSumUp - wsSumDn) / &
+                                       (ze(k,iCell) - ze(k+1,iCell))
           enddo
         enddo
       enddo
