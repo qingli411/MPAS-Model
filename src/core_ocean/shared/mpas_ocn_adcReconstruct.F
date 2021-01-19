@@ -170,7 +170,7 @@ module ocn_adc_mixing_fused
       real (kind=RKIND) :: sfcFrictionVelocity, wtSumUp, wtSumDn, wsSumUp, wsSumDn
 
       real (kind=RKIND), dimension(nVertLevels,nCells) :: Swumd
-      real (kind=RKIND), dimension(nVertLevels,nCells) :: invTaupt, invTaups, invTaupv
+      real (kind=RKIND), dimension(nVertLevels,nCells) :: invTaupt, invTaups, invTaupv, invTaupw3
       real (kind=RKIND), dimension(nVertLevels+1,nCells) :: wttend, wstend, uwtend, vwtend, u2tend, v2tend, &
         uttend, vttend, ustend, vstend, uvtend
       real (kind=RKIND), dimension(nVertLevels,nCells) :: epstend
@@ -288,13 +288,17 @@ module ocn_adc_mixing_fused
             Mcav    = 0.5_RKIND*(Mc(k,iCell) + Mc(k+1,iCell))
             lenav   = 0.5_RKIND*(length(k,iCell) + length(k+1,iCell))
 
+            ! subplume scale TKE
             KEsps = sigav*KspsUav + (1.0_RKIND - sigav)*KspsDav
-            ! TODO: rename the velocity scale
+            ! velocity scale
             ! TODO: Should we include the subplume scale KE in the velocity scale?
-            KE = sqrt((u2av+v2av+w2av) + 0.0*KEsps)
+            vscale = sqrt((u2av+v2av+w2av) + 0.0*KEsps)
 
+            ! TODO: rename C_mon_w3
+            invTaupw3(k,iCell) = C_mom_w3 * vscale / (sqrt(2.0_RKIND) * lenAv)
+
+            ! layer thickness
             dz = ze(k,iCell) - ze(k+1,iCell)
-            !KE = sqrt(areaFraction(k,iCell)*KspsUav + (1.0 - areaFraction(k,iCell))*KspsDav)
 
             ! last term (SPS) in (40) of LR01a, also using (35) of LR01b
             Swumd(k,iCell) = - 2.0_RKIND/3.0_RKIND * ( &
@@ -331,21 +335,17 @@ module ocn_adc_mixing_fused
                                  - (1.0_RKIND - 2.0_RKIND*areaFraction(k+1,iCell))*wumd(k+1,iCell)**2 &
                                  ) / dz
 
-            ! the pressure term in the sources and sinks in (52) of LR01a
-            ! TODO: check the pressure term
-            w3tend4(k,iCell) = - C_mom_w3*KE / (1E-15_RKIND+ sqrt(2.0_RKIND)*lenAv)*w3(i1,k,iCell)
-
             ! the buoyancy term in the sources and sinks in (52) of LR01a
-            w3tend5(k,iCell) = 3.0_RKIND * (1.0_RKIND - c11) * (1.0_RKIND - 2.0_RKIND*sigav) * &
+            w3tend4(k,iCell) = 3.0_RKIND * (1.0_RKIND - c11) * (1.0_RKIND - 2.0_RKIND*sigav) * &
                                Mcav * wumdav * gravity * &
                                (alphaT(k,iCell)*tumdav - betaS(k,iCell)*sumdav)
 
             ! the SPS term in the sources and sinks in (52) of LR01a
-            w3tend6(k,iCell) = 3.0_RKIND * (1.0_RKIND - 2.0_RKIND*sigav) * Mcav * wumdav * Swumd(k,iCell)
+            w3tend5(k,iCell) = 3.0_RKIND * (1.0_RKIND - 2.0_RKIND*sigav) * Mcav * wumdav * Swumd(k,iCell)
 
             ! w3 tendency
             w3tend(k,iCell) = w3tend1(k,iCell) + w3tend2(k,iCell) + w3tend3(k,iCell) + &
-                              w3tend4(k,iCell) + w3tend5(k,iCell) + w3tend6(k,iCell)
+                              w3tend4(k,iCell) + w3tend5(k,iCell)
 
             if (k>1 .and. k < nVertLevels) then
               ! TODO: why do we need a diffusion term?
@@ -434,9 +434,9 @@ module ocn_adc_mixing_fused
 
             ! inverse of the time scale
             ! TODO: check the coefficients
-            invTaupt(k,iCell) = vscale / (2.0_RKIND*sqrt(2.0_RKIND) * c_pt * length(k,iCell))
-            invTaups(k,iCell) = vscale / (2.0_RKIND*sqrt(2.0_RKIND) * c_ps * length(k,iCell))
-            invTaupv(k,iCell) = vscale / (2.0_RKIND*sqrt(2.0_RKIND) * c_pv * length(k,iCell))
+            invTaupt(k,iCell) = vscale / (sqrt(2.0_RKIND) * c_pt * length(k,iCell))
+            invTaups(k,iCell) = vscale / (sqrt(2.0_RKIND) * c_ps * length(k,iCell))
+            invTaupv(k,iCell) = vscale / (sqrt(2.0_RKIND) * c_pv * length(k,iCell))
 
             ! See (49) of LR01a for the wt equation
             ! sources/sinks due to entrainment/detrainment + transport term
@@ -530,10 +530,8 @@ module ocn_adc_mixing_fused
             ! TODO: use (1-cb) to replace beta5 here
             uwtend4(k,iCell) = beta5 * gravity * &
                                (alphaT(k,iCell)*ut(i1,k,iCell) - betaS(k,iCell)*us(i1,k,iCell))
-            ! return to isotropy + diffusion
-            ! TODO: move return to isotropy to time stepping?
-            uwtend5(k,iCell) = - invTaupv(k,iCell) * uw(i1,k,iCell) + &
-                               kappa_FL * (uw(i1,k-1,iCell) - uw(i1,k+1,iCell)) / &
+            ! diffusion
+            uwtend5(k,iCell) = kappa_FL * (uw(i1,k-1,iCell) - uw(i1,k+1,iCell)) / &
                                (ze(k-1,iCell) - ze(k+1,iCell))**2
             ! uw tendency
             uwtend(k,iCell) = uwtend1(k,iCell) + uwtend2(k,iCell) + uwtend3(k,iCell) + &
@@ -553,11 +551,9 @@ module ocn_adc_mixing_fused
             ! TODO: use (1-cb) to replace beta5 here
             vwtend4(k,iCell) = beta5 * gravity * &
                                (alphaT(k,iCell)*vt(i1,k,iCell) - betaS(k,iCell)*vs(i1,k,iCell))
-            ! return to isotropy + diffusion
-            ! TODO: move return to isotropy to time stepping?
-            vwtend5(k,iCell) = - invTaupv(k,iCell) * vw(i1,k,iCell) + &
-                                 kappa_FL * (vw(i1,k-1,iCell) - vw(i1,k+1,iCell)) / &
-                                 (ze(k-1,iCell) - ze(k+1,iCell))**2
+            ! diffusion
+            vwtend5(k,iCell) = kappa_FL * (vw(i1,k-1,iCell) - vw(i1,k+1,iCell)) / &
+                               (ze(k-1,iCell) - ze(k+1,iCell))**2
             ! vw tendency
             vwtend(k,iCell) = vwtend1(k,iCell) + vwtend2(k,iCell) + vwtend3(k,iCell) + &
                               vwtend4(k,iCell) + vwtend5(k,iCell)
@@ -569,9 +565,6 @@ module ocn_adc_mixing_fused
             ! shear production + rapid pressure term
                              - (1.0_RKIND - 0.5_RKIND*(alpha1+alpha2)) * &
                                (uw(i1,k,iCell)*Vz + vw(i1,k,iCell)*Uz) &
-            ! return to isotropy
-            ! TODO: move return to isotropy to time stepping?
-                             - invTaupv(k,iCell) * uv(i1,k,iCell) &
             ! diffusion
                              + kappa_VAR * (uv(i1,k-1,iCell) - uv(i1,k+1,iCell)) / &
                                (ze(k-1,iCell) - ze(k+1,iCell))**2
@@ -625,10 +618,7 @@ module ocn_adc_mixing_fused
             ! gradient term
                              - uw(i1,k,iCell) * Tz &
             ! rapid pressure term
-                             - (1.0_RKIND - alpha3) * wt(i1,k,iCell) * Uz &
-            ! return to isotropy
-            ! TODO: move return to isotropy to time stepping?
-                             - invTaupt(k,iCell) * ut(i1,k,iCell)
+                             - (1.0_RKIND - alpha3) * wt(i1,k,iCell) * Uz
 
             ! vt tendency
             vttend(k,iCell) = &
@@ -637,10 +627,7 @@ module ocn_adc_mixing_fused
             ! gradient term
                              - vw(i1,k,iCell) * Tz &
             ! rapid pressure term
-                             - (1.0_RKIND - alpha3) * wt(i1,k,iCell) * Vz &
-            ! return to isotropy
-            ! TODO: move return to isotropy to time stepping?
-                             - invTaupt(k,iCell) * vt(i1,k,iCell)
+                             - (1.0_RKIND - alpha3) * wt(i1,k,iCell) * Vz
 
             ! us tendency
             ustend(k,iCell) = &
@@ -649,10 +636,7 @@ module ocn_adc_mixing_fused
             ! gradient term
                              - uw(i1,k,iCell) * Sz &
             ! rapid pressure term
-                             - (1.0_RKIND - alpha3) * ws(i1,k,iCell) * Uz &
-            ! return to isotropy
-            ! TODO: move return to isotropy to time stepping?
-                             - invTaups(k,iCell) * us(i1,k,iCell)
+                             - (1.0_RKIND - alpha3) * ws(i1,k,iCell) * Uz
 
             ! vs tendency
             vstend(k,iCell) = &
@@ -661,10 +645,7 @@ module ocn_adc_mixing_fused
             ! gradient term
                              - vw(i1,k,iCell) * Sz &
             ! rapid pressure term
-                             - (1.0_RKIND - alpha3) * ws(i1,k,iCell) * Vz &
-            ! return to isotropy
-            ! TODO: move return to isotropy to time stepping?
-                             - invTaups(k,iCell) * vs(i1,k,iCell)
+                             - (1.0_RKIND - alpha3) * ws(i1,k,iCell) * Vz
 
             ! TODO: not used? <
             t2(i2,k,iCell) = tumd(k,iCell)**2*areaFraction(k,iCell)* &
@@ -813,15 +794,22 @@ module ocn_adc_mixing_fused
               v2(i2,k,iCell) = 0.0_RKIND
             endif
 
-            uw(i2,k,iCell) = uw(i1,k,iCell) + dt_small*uwtend(k,iCell)
-            vw(i2,k,iCell) = vw(i1,k,iCell) + dt_small*vwtend(k,iCell)
-            uv(i2,k,iCell) = uv(i1,k,iCell) + dt_small*uvtend(k,iCell)
-            ut(i2,k,iCell) = ut(i1,k,iCell) + dt_small*uttend(k,iCell)
-            vt(i2,k,iCell) = vt(i1,k,iCell) + dt_small*vttend(k,iCell)
+            uw(i2,k,iCell) = (uw(i1,k,iCell) + dt_small*uwtend(k,iCell)) / &
+                             (1.0_RKIND + dt_small*invTaupv(k,iCell))
+            vw(i2,k,iCell) = (vw(i1,k,iCell) + dt_small*vwtend(k,iCell)) / &
+                             (1.0_RKIND + dt_small*invTaupv(k,iCell))
+            uv(i2,k,iCell) = (uv(i1,k,iCell) + dt_small*uvtend(k,iCell)) / &
+                             (1.0_RKIND + dt_small*invTaupv(k,iCell))
+            ut(i2,k,iCell) = (ut(i1,k,iCell) + dt_small*uttend(k,iCell)) / &
+                             (1.0_RKIND + dt_small*invTaupt(k,iCell))
+            vt(i2,k,iCell) = (vt(i1,k,iCell) + dt_small*vttend(k,iCell)) / &
+                             (1.0_RKIND + dt_small*invTaupt(k,iCell))
             wt(i2,k,iCell) = (wt(i1,k,iCell) + dt_small*wttend(k,iCell)) / &
                              (1.0_RKIND + dt_small*invTaupt(k,iCell))
-            us(i2,k,iCell) = us(i1,k,iCell) + dt_small*ustend(k,iCell)
-            vs(i2,k,iCell) = vs(i1,k,iCell) + dt_small*vstend(k,iCell)
+            us(i2,k,iCell) = (us(i1,k,iCell) + dt_small*ustend(k,iCell)) / &
+                             (1.0_RKIND + dt_small*invTaups(k,iCell))
+            vs(i2,k,iCell) = (vs(i1,k,iCell) + dt_small*vstend(k,iCell)) / &
+                             (1.0_RKIND + dt_small*invTaups(k,iCell))
             ws(i2,k,iCell) = (ws(i1,k,iCell) + dt_small*wstend(k,iCell)) / &
                              (1.0_RKIND + dt_small*invTaups(k,iCell))
             if (abs(wt(i2,k,iCell)) > 1.0_RKIND) then
@@ -867,7 +855,9 @@ module ocn_adc_mixing_fused
         do iCell = 1,nCells
           do k = 1,nVertLevels
             w3check = (w2(i2,k,iCell) + w2(i2,k+1,iCell))**1.5_RKIND
-            w3(i2,k,iCell) = min(w3(i1,k,iCell) + dt_small*w3tend(k,iCell), w3check)
+            w3temp  = (w3(i1,k,iCell) + dt_small*w3tend(k,iCell)) / &
+                      (1.0_RKIND + dt_small*invTaupw3(k,iCell))
+            w3(i2,k,iCell) = min(w3temp, w3check)
 
             if(abs(w3(i2,k,iCell)) > 1.0_RKIND) then
               call mpas_log_write("ERROR: w3 out of range, w3 = $r, location = $i, $i", &
