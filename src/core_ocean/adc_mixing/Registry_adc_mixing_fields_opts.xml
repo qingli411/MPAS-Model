@@ -457,7 +457,7 @@
             <var name="vwt"/>
             <var name="uws"/>
             <var name="vws"/>
-            <var name="sigma"/>
+            <var name="areaFraction"/>
             <var name="Entrainment"/>
             <var name="Detrainment"/>
             <var name="tumd"/>
