@@ -152,7 +152,7 @@ module ocn_adc_mixing_fused
       real (kind=RKIND) :: len0, len2_1, len2_2, sfcBuoy, lengthT, bvfT
       real (kind=RKIND) :: KEm1, KEp1, tauUP, tauDN, tomUP, tomDN
       real (kind=RKIND) :: tauM1, tau, tauP1, tauAV, utemp, vtemp
-      real (kind=RKIND) :: B, Cval, diff, wtav, dzmid, Ksps, Sz, Tz, w4k, w4kp1, w2k, w2kp1
+      real (kind=RKIND) :: wb, Cval, diff, wtav, dzmid, Ksps, Sz, Tz, w4k, w4kp1, w2k, w2kp1
       real (kind=RKIND) :: lareaFraction, wstar, wbsfc, w3av, tempMoment
       real (kind=RKIND) :: sfcFrictionVelocity, wtSumUp, wtSumDn, wsSumUp, wsSumDn
 
@@ -378,7 +378,7 @@ module ocn_adc_mixing_fused
             ! on w level
             dzmid = (zm(k-1,iCell) - zm(k,iCell))
             dz = ze(k,iCell) - ze(k+1,iCell)
-            B = gravity*(alphaT(k,iCell)*wt(i1,k,iCell) - betaS(k,iCell)*ws(i1,k,iCell))
+            wb = gravity*(alphaT(k,iCell)*wt(i1,k,iCell) - betaS(k,iCell)*ws(i1,k,iCell))
 
             Uz = (uvel(k-1,iCell) - uvel(k,iCell)) / dzmid
             Vz = (vvel(k-1,iCell) - vvel(k,iCell)) / dzmid
@@ -404,7 +404,7 @@ module ocn_adc_mixing_fused
             ! pressure term: slow, return to isotropy
             ! the missing w2 term is added when time-stepping the w2 equation
             ! TODO: is it consisten with the u2 and v2 equations?
-            w2tend3(k,iCell) = vscale / (1.0E-15_RKIND + c_pv*2.0_RKIND*sqrt(2.0_RKIND)* &
+            w2tend3(k,iCell) = vscale / (1.0E-15_RKIND + c_pv*sqrt(2.0_RKIND)* &
                                length(k,iCell))*(u2(i1,k,iCell) + v2(i1,k,iCell))/3.0_RKIND
             ! buoyancy term + the buoyancy contribution in the pressure term
             w2tend4(k,iCell) = (2.0_RKIND - 4.0_RKIND/3.0_RKIND*C_2) * &
@@ -566,7 +566,7 @@ module ocn_adc_mixing_fused
             u2tend3(k,iCell) = - 2.0_RKIND/3.0_RKIND*alpha1 * vw(i1,k,iCell) * Vz
             ! buoyancy term
             ! TODO: use (1-cb) to replace beta5 here
-            u2tend4(k,iCell) = 2.0_RKIND/3.0_RKIND * (1.0_RKIND-beta5) * B
+            u2tend4(k,iCell) = 2.0_RKIND/3.0_RKIND * (1.0_RKIND-beta5) * wb
             ! return to isotropy
             ! TODO: note that the term proportional to u2 is in time stepping
             ! TODO: what is the eps term?
@@ -587,7 +587,7 @@ module ocn_adc_mixing_fused
             v2tend3(k,iCell) = (1.0_RKIND/3.0_RKIND*alpha1 + alpha2 - 2.0_RKIND) * vw(i1,k,iCell) * Vz
             ! buoyancy term
             ! TODO: use (1-cb) to replace beta5 here
-            v2tend4(k,iCell) = 2.0_RKIND/3.0_RKIND * (1.0_RKIND-beta5) * B
+            v2tend4(k,iCell) = 2.0_RKIND/3.0_RKIND * (1.0_RKIND-beta5) * wb
             ! return to isotropy
             ! TODO: note that the term proportional to v2 is in time stepping
             ! TODO: what is the eps term?
@@ -668,7 +668,7 @@ module ocn_adc_mixing_fused
                                  (uvel(k-1,iCell) - uvel(k,iCell)) / (zm(k-1,iCell) - zm(k,iCell)) - &
                                  2.88_RKIND/(tau + smallNum) * vw(i1,k,iCell) * &
                                  (vvel(k-1,iCell) - vvel(k,iCell)) / (zm(k-1,iCell) - zm(k,iCell)) + &
-                                 2.88_RKIND/(tau + smallNum) * B - &
+                                 2.88_RKIND/(tau + smallNum) * wb - &
                                  3.84_RKIND * eps(i1,k,iCell)/(tau + smallNum)
             endif
 
