@@ -712,7 +712,7 @@ contains
       call ocn_vmix_coefs(meshPool, statePool, forcingPool, diagnosticsPool, scratchPool, err, timeLevel)
       call mpas_timer_stop('vmix coefs')
 
-      if(config_adc_enable) then
+      if (config_use_adc) then
         call ocn_vmix_adc_mix(meshPool, statePool, forcingPool, diagnosticsPool, mixedLayerDepthsAMPool, dt, &
                err, 2)
       else

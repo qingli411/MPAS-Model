@@ -391,13 +391,13 @@ contains
       call ocn_vel_hmix_tend(meshPool, scratchPool, divergence, relativeVorticity, normalVelocity, tangentialVelocity, viscosity, &
          tend_normalVelocity, err)
 
-       if(.not. config_adc_enable) then
+      if (.not. config_use_adc) then
       !
       ! velocity tendency: forcing and bottom drag
       !
-      call ocn_vel_forcing_tend(meshPool, normalVelocity, surfaceFluxAttenuationCoefficient, &
-              surfaceStress, kineticEnergyCell, layerThicknessEdge, &
-                                tend_normalVelocity, err)
+        call ocn_vel_forcing_tend(meshPool, normalVelocity, surfaceFluxAttenuationCoefficient, &
+                                  surfaceStress, kineticEnergyCell, layerThicknessEdge, &
+                                  tend_normalVelocity, err)
       endif
       !
       ! velocity tendency: zero if drying
@@ -680,7 +680,7 @@ contains
                !
                ! fill components of surface tracer flux
                !
-               if (.not. config_adc_enable .and. config_use_tracerGroup_surface_bulk_forcing) then
+               if (.not. config_use_adc .and. config_use_tracerGroup_surface_bulk_forcing) then
                   !$omp do schedule(runtime)
                   do iCell = 1, nCells
                     tracerGroupSurfaceFluxRunoff(:, iCell) = 0.0_RKIND

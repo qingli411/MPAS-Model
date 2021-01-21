@@ -160,7 +160,7 @@ module ocn_core_interface
       character (len=StrKIND), pointer :: config_pressure_gradient_type
       character (len=StrKIND), pointer :: config_sw_absorption_type
 
-      logical, pointer :: config_adc_enable
+      logical, pointer :: config_use_adc
       logical, pointer :: config_use_bulk_wind_stress
       logical, pointer :: config_use_bulk_thickness_flux
       logical, pointer :: config_compute_active_tracer_budgets
@@ -226,8 +226,8 @@ module ocn_core_interface
       !
       ! Test if new assumed distribution closure is active
       call mpas_pool_get_package(packagePool, 'adcMixingPKGActive', adcMixingPKGActive)
-      call mpas_pool_get_config(configPool, 'config_adc_enable', config_adc_enable)
-      if ( config_adc_enable ) then
+      call mpas_pool_get_config(configPool, 'config_use_adc', config_use_adc)
+      if ( config_use_adc ) then
         adcMixingPKGActive = .true.
       end if
 

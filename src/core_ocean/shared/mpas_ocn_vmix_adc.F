@@ -417,16 +417,16 @@ contains
       !
       err=0
 
-      adcOn = config_adc_enable
+      adcOn = config_use_adc
 
       !
       ! only initialize if Assumed Distribution Closure is turned on
       !
-      if (.not.config_adc_enable) return
+      if (.not.config_use_adc) return
 
       if(config_use_cvmix) then
         call mpas_log_write( "Cannot use ADC mixing and CVMix at the same time:" // &
-               "set either config_use_cvmix or config_adc_enable to .false.", MPAS_LOG_CRIT)
+               "set either config_use_cvmix or config_use_adc to .false.", MPAS_LOG_CRIT)
       endif
 
       if(.not. config_AM_mixedLayerDepths_enable) then
@@ -465,7 +465,7 @@ contains
             do k = 1, nVertLevels+1
                KspsU(:,k,iCell) = epsilon
                KspsD(:,k,iCell) = epsilon
-               w2(:,k,iCell) = 1.0E-8_RKIND 
+               w2(:,k,iCell) = 1.0E-8_RKIND
                areaFraction(k,iCell) = 0.5_RKIND
                tumd(k,iCell) = 0.0_RKIND
                sumd(k,iCell) = 0.0_RKIND

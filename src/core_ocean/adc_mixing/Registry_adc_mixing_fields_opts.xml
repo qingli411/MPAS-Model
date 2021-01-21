@@ -1,5 +1,5 @@
     <nml_record name="adcMixingModel" mode="forward">
-        <nml_option name="config_adc_enable" type="logical" default_value=".false." units="unitless"
+        <nml_option name="config_use_adc" type="logical" default_value=".false." units="unitless"
             description="If true, the new mass flux RANS closure is called for mixing"
             possible_values=".true. or .false."
             />
@@ -11,14 +11,6 @@
             description="flag to use buoyancy length scale from previous closure, temporary"
             possible_values=".true. or .false."
             />
-        <nml_option name="config_adc_tau_o" type="real" default_value="1800" units="s^{-1}"
-            description="characterstic eddy turnover timescale"
-            possible_values="positive real numbers"
-            />
-        <nml_option name="config_adc_length_multiple" type="real" default_value="2.0" units="unitless"
-            description="value to multiply length scale by"
-            possible_values="small positive real numbers"
-            />
         <nml_option name="config_adc_epsilon" type="real" default_value="1e-8" units="m^2/s^2"
             description="small value below which KE, u2, w2, v2 is not allowed to go below"
             possible_values="very small numbers 1e-8 to zero"
@@ -27,57 +19,57 @@
             description="if true, ADC code runs on 1 copy and is copied to the others to speed testing"
             possible_values=".true. or .false."
             />
-        <nml_option name="config_adc_sigmat" type="real" default_value="0.72" units="unitless"
-            description="sigma_t constant for RANS equations"
-            possible_values="can modify some, but highly recommend not altering"
+        <nml_option name="config_adc_alpha0" type="real" default_value="0.8" units="unitless"
+            description="the first coefficient of the rapid pressure term for momentum"
+            possible_values="positive values"
             />
-        <nml_option name="config_adc_Ko" type="real" default_value="4.574296" units="unitless"
-            description="Ko in RANS equations"
-            possible_values="can modify to cerain extent, but highly recommend not altering"
+        <nml_option name="config_adc_alpha1" type="real" default_value="0.98" units="unitless"
+            description="the second coefficient of the rapid pressure term for momentum"
+            possible_values="positive values"
             />
-        <nml_option name="config_adc_gamma1" type="real" default_value="0.33" units="unitless"
-            description="Buoyancy partitioning for pressure correlation term in RANS w2"
-            possible_values="0.33 and values close to it"
+        <nml_option name="config_adc_alpha2" type="real" default_value="0.57" units="unitless"
+            description="the third coefficient of the rapid pressure term for momentum"
+            possible_values="postive values"
             />
-        <nml_option name="config_adc_beta5" type="real" default_value="0.5" units="unitless"
-            description="Buoyancy partitioning in wt equation for RANS"
-            possible_values="0.5 and values close to it"
+        <nml_option name="config_adc_alpha1_tracer" type="real" default_value="0.6" units="unitless"
+            description="the second coefficient of the rapid pressure term for momentum"
+            possible_values="positive values"
             />
-        <nml_option name="config_adc_c1" type="real" default_value="4.0" units="unitless"
-            description="c_1 dissipation constant, value from Bougeault and Andre 1986"
-            possible_values="values near 4.0"
+        <nml_option name="config_adc_alpha2_tracer" type="real" default_value="1.0" units="unitless"
+            description="the third coefficient of the rapid pressure term for momentum"
+            possible_values="positive values"
             />
-        <nml_option name="config_adc_c2" type="real" default_value="0.5" units="unitless"
-            description="c_2 dissipation constant, value from Bougeault and Andre 1986"
-            possible_values="values near -0.5"
+        <nml_option name="config_adc_Cb" type="real" default_value="0.4" units="unitless"
+            description="coefficient of the buoyancy pressure term for momentum"
+            possible_values="positive values"
             />
-        <nml_option name="config_adc_c11" type="real" default_value="0.1" units="unitless"
-            description="c_11 is the buoyancy contribution in the pressure correlation in w3 eqn"
-            possible_values="values near 0.1"
+        <nml_option name="config_adc_Cb_tracer" type="real" default_value="0.333333" units="unitless"
+            description="coefficient of the buoyancy pressure term for tracers"
+            possible_values="positive values"
+            />
+        <nml_option name="config_adc_Cb_w3" type="real" default_value="0.1" units="unitless"
+            description="coefficient of the buoyancy pressure term for w3"
+            possible_values="positive values"
+            />
+        <nml_option name="config_adc_Cslow" type="real" default_value="2.5" units="unitless"
+            description="coefficient of the slow pressure term for momentum"
+            possible_values="positive values"
+            />
+        <nml_option name="config_adc_Cslow_tracer" type="real" default_value="3.0" units="unitless"
+            description="coefficient of the slow pressure term for tracers"
+            possible_values="positive values"
+            />
+        <nml_option name="config_adc_Cslow_w3" type="real" default_value="6.5" units="unitless"
+            description="coefficient of the slow pressure term for w3"
+            possible_values="positive values"
             />
         <nml_option name="config_adc_Cmom" type="real" default_value="0.5" units="unitless"
             description="third order down gradient coefficient, from lappen and randall 2001b"
             possible_values="values near 0.5"
             />
         <nml_option name="config_adc_Ctherm" type="real" default_value="4.85" units="unitless"
-            description="thir order down gradient for buoyancy moments, from lappen and randall 2001b"
+            description="third order down gradient for buoyancy moments, from lappen and randall 2001b"
             possible_values="values near 4.85"
-            />
-        <nml_option name="config_adc_Cmom_w3" type="real" default_value="6.0" units="unitless"
-            description="dissipation of w3 from LR01b"
-            possible_values="values near 6"
-            />
-        <nml_option name="config_adc_cpt" type="real" default_value="0.25" units="unitless"
-            description="coefficient of temp/salinity dissipation, from Burchard et al 2012"
-            possible_values="values near 0.25"
-            />
-        <nml_option name="config_adc_cps" type="real" default_value="0.25" units="unitless"
-            description="same as cpt above, but for salinity"
-            possible_values="values near 0.25"
-            />
-        <nml_option name="config_adc_cpv" type="real" default_value="0.25" units="unitless"
-            description="same as cpt/cps above, but for momentum"
-            possible_values="values near 0.25"
             />
         <nml_option name="config_adc_CwwE" type="real" default_value="1.0" units="unitless"
             description="coefficient for entrainment in parameterization from LR01b"
@@ -227,10 +219,13 @@
             description="return to isotropy term"
             />
         <var name="w2tend4" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-            description="buoyancy production term"
+            description="buoyancy production + buoyancy pressure term"
             />
         <var name="w2tend5" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
-            description="shear production term"
+            description="rapid pressure term"
+            />
+        <var name="w2tend6" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
+            description="subplume term"
             />
         <var name="w3tend1" type="real" dimensions="nVertLevels nCells Time" units="m^2/s^3"
             description="entrainment production term -- similar to dissipation"
@@ -246,9 +241,6 @@
             />
         <var name="w3tend5" type="real" dimensions="nVertLevels nCells Time" units="m^2/s^3"
             description="third order moment of buoyancy, turb transport of buoyancy fluxes"
-            />
-        <var name="w3tend6" type="real" dimensions="nVertLevels nCells Time" units="m^2/s^3"
-            description="subplume terms"
             />
         <var name="wttend1" type="real" dimensions="nVertLevelsP1 nCells Time" units="m^2/s^3"
             description="divergence of turbulent transport of flux"
@@ -468,6 +460,7 @@
             <var name="w2tend3"/>
             <var name="w2tend4"/>
             <var name="w2tend5"/>
+            <var name="w2tend6"/>
             <var name="u2tend1"/>
             <var name="u2tend2"/>
             <var name="u2tend3"/>
@@ -493,7 +486,6 @@
             <var name="w3tend3"/>
             <var name="w3tend4"/>
             <var name="w3tend5"/>
-            <var name="w3tend6"/>
             <var name="wttend1"/>
             <var name="wttend2"/>
             <var name="wttend3"/>

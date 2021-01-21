@@ -45,7 +45,7 @@ module ocn_forward_mode
    use ocn_thick_ale
    use ocn_thick_surface_flux
 
-   use ocn_turbulence 
+   use ocn_turbulence
    use ocn_vmix_adc
    use ocn_vel_pressure_grad
    use ocn_vel_vadv
@@ -599,7 +599,7 @@ module ocn_forward_mode
            call mpas_timer_stop("land_ice_build_arrays")
 
            call ocn_frazil_forcing_build_arrays(domain, meshPool, forcingPool, diagnosticsPool, statePool, err)
-           
+
            call ocn_tidal_forcing_build_array(domain, meshPool, forcingPool, diagnosticsPool, statePool, err)
 
            block_ptr => block_ptr % next
@@ -738,7 +738,7 @@ module ocn_forward_mode
 
       call ocn_analysis_finalize(domain, ierr)
 
-      if(config_adc_enable) call ocn_vmix_adc_finalize(ierr)
+      if (config_use_adc) call ocn_vmix_adc_finalize(ierr)
 
       call mpas_destroy_clock(domain % clock, ierr)
 

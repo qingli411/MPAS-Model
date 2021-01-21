@@ -157,7 +157,7 @@ module ocn_adc_mixing_fused
       real (kind=RKIND) :: sfcFrictionVelocity, wtSumUp, wtSumDn, wsSumUp, wsSumDn
 
       real (kind=RKIND), dimension(nVertLevels,nCells) :: Swumd
-      real (kind=RKIND), dimension(nVertLevels,nCells) :: invTaupt, invTaups, invTaupv, invTaupw3
+      real (kind=RKIND), dimension(nVertLevels,nCells) :: invTau, invTauAv
       real (kind=RKIND), dimension(nVertLevels+1,nCells) :: wttend, wstend, uwtend, vwtend, u2tend, v2tend, &
         uttend, vttend, ustend, vstend, uvtend
       real (kind=RKIND), dimension(nVertLevels,nCells) :: epstend
@@ -280,9 +280,8 @@ module ocn_adc_mixing_fused
             ! velocity scale
             ! TODO: Should we include the subplume scale KE in the velocity scale?
             vscale = sqrt((u2av+v2av+w2av) + 0.0*KEsps)
-
-            ! TODO: rename C_mon_w3
-            invTaupw3(k,iCell) = C_mom_w3 * vscale / (sqrt(2.0_RKIND) * lenAv)
+            ! inverse of the time scale
+            invTauAv(k,iCell) = vscale / (sqrt(2.0_RKIND) * lenAv)
 
             ! layer thickness
             dz = ze(k,iCell) - ze(k+1,iCell)
@@ -324,7 +323,7 @@ module ocn_adc_mixing_fused
                                  ) / dz
 
             ! the buoyancy term in the sources and sinks in (52) of LR01a
-            w3tend4(k,iCell) = - 3.0_RKIND * (1.0_RKIND - c11) * (1.0_RKIND - 2.0_RKIND*sigav) * &
+            w3tend4(k,iCell) = - 3.0_RKIND * (1.0_RKIND - Cb_w3) * (1.0_RKIND - 2.0_RKIND*sigav) * &
                                  Mcav * wumdav * gravity * &
                                  (alphaT(k,iCell)*tumdav - betaS(k,iCell)*sumdav)
 
@@ -349,15 +348,15 @@ module ocn_adc_mixing_fused
             KE    = 0.5_RKIND * (u2(i1,k,iCell) + v2(i1,k,iCell) + w2(i1,k,iCell))
             KEp1  = 0.5_RKIND * (u2(i1,k+1,iCell) + v2(i1,k+1,iCell) + w2(i1,k+1,iCell))
             lenav = 0.5_RKIND * (length(k,iCell) + length(k+1,iCell))
-            diff = C_mom * sqrt(0.5_RKIND*(KE + KEp1)) * lenav
+            diff = Cmom * sqrt(0.5_RKIND*(KE + KEp1)) * lenav
             dz = ze(k,iCell) - ze(k+1,iCell)
-            uw2(k,iCell) = - diff * (uw(i1,k,iCell) - uw(i1,k+1,iCell)) / dz
-            vw2(k,iCell) = - diff * (vw(i1,k,iCell) - vw(i1,k+1,iCell)) / dz
-            u2w(k,iCell) = - diff * (u2(i1,k,iCell) - u2(i1,k+1,iCell)) / dz
-            v2w(k,iCell) = - diff * (v2(i1,k,iCell) - v2(i1,k+1,iCell)) / dz
-            uvw(k,iCell) = - diff * (uv(i1,k,iCell) - uv(i1,k+1,iCell)) / dz
+            uw2(k,iCell) = - 1.2_RKIND * diff * (uw(i1,k,iCell) - uw(i1,k+1,iCell)) / dz
+            vw2(k,iCell) = - 1.2_RKIND * diff * (vw(i1,k,iCell) - vw(i1,k+1,iCell)) / dz
+            u2w(k,iCell) = - 0.6_RKIND * diff * (u2(i1,k,iCell) - u2(i1,k+1,iCell)) / dz
+            v2w(k,iCell) = - 0.6_RKIND * diff * (v2(i1,k,iCell) - v2(i1,k+1,iCell)) / dz
+            uvw(k,iCell) = - 0.6_RKIND * diff * (uv(i1,k,iCell) - uv(i1,k+1,iCell)) / dz
 
-            diff = C_therm * sqrt(0.5_RKIND*(KE + KEp1)) * lenav
+            diff = Ctherm * sqrt(0.5_RKIND*(KE + KEp1)) * lenav
             uwt(k,iCell) = - diff * (ut(i1,k,iCell) - ut(i1,k+1,iCell)) / dz
             vwt(k,iCell) = - diff * (vt(i1,k,iCell) - vt(i1,k+1,iCell)) / dz
             uws(k,iCell) = - diff * (us(i1,k,iCell) - us(i1,k+1,iCell)) / dz
@@ -378,7 +377,8 @@ module ocn_adc_mixing_fused
             ! on w level
             dzmid = (zm(k-1,iCell) - zm(k,iCell))
             dz = ze(k,iCell) - ze(k+1,iCell)
-            wb = gravity*(alphaT(k,iCell)*wt(i1,k,iCell) - betaS(k,iCell)*ws(i1,k,iCell))
+            wb = Mc(k,iCell) * gravity * &
+                 (alphaT(k,iCell)*tumd(k,iCell) - betaS(k,iCell)*sumd(k,iCell))
 
             Uz = (uvel(k-1,iCell) - uvel(k,iCell)) / dzmid
             Vz = (vvel(k-1,iCell) - vvel(k,iCell)) / dzmid
@@ -388,8 +388,11 @@ module ocn_adc_mixing_fused
             KEsps = areaFraction(k,iCell) * KspsD(i1,k,iCell) +  &
                     (1.0_RKIND-areaFraction(k,iCell)) * KspsU(i1,k,iCell)
             KE = 0.5_RKIND * (u2(i1,k,iCell) + v2(i1,k,iCell) + w2(i1,k,iCell))
+            ! velocity scale
             ! TODO: Should we include the subplume scale KE in the velocity scale?
             vscale = sqrt(2.0_RKIND * KE)
+            ! inverse of the time scale
+            invTau(k,iCell) = vscale / (sqrt(2.0_RKIND) * length(k,iCell))
 
             ! See (48) of LR01a for the w2 equation
             ! dissipation by entrainment/detrainment of plumes
@@ -401,30 +404,20 @@ module ocn_adc_mixing_fused
                                  - Mc(k+1,iCell) * &
                                (1.0_RKIND - 2.0_RKIND*areaFraction(k+1,iCell)) * wumd(k+1,iCell)**2 &
                                ) / (ze(k-1,iCell) - ze(k+1,iCell))
-            ! pressure term: slow, return to isotropy
+            ! pressure term: slow
             ! the missing w2 term is added when time-stepping the w2 equation
-            ! TODO: is it consisten with the u2 and v2 equations?
-            w2tend3(k,iCell) = vscale / (1.0E-15_RKIND + c_pv*sqrt(2.0_RKIND)* &
-                               length(k,iCell))*(u2(i1,k,iCell) + v2(i1,k,iCell))/3.0_RKIND
+            w2tend3(k,iCell) = Cslow * invTau(k,iCell) * (u2(i1,k,iCell) + v2(i1,k,iCell))/3.0_RKIND
             ! buoyancy term + the buoyancy contribution in the pressure term
-            w2tend4(k,iCell) = (2.0_RKIND - 4.0_RKIND/3.0_RKIND*C_2) * &
-                               Mc(k,iCell) * gravity * &
-                               (alphaT(k,iCell)*tumd(k,iCell) - betaS(k,iCell)*sumd(k,iCell))
-            ! pressure term: rapid + subplume scale term
-            ! TODO: use MF formulation for uw and vw as well?
+            w2tend4(k,iCell) = (2.0_RKIND - 4.0_RKIND/3.0_RKIND*Cb) * wb
+            ! pressure term: rapid
             w2tend5(k,iCell) = (1.0_RKIND/3.0_RKIND*alpha1 - alpha2) * &
-                               (uw(i1,k,iCell)*Uz + vw(i1,k,iCell)*Vz) + &
-                               Mc(k,iCell) * (Swumd(k-1,iCell) + Swumd(k,iCell))
+                               (uw(i1,k,iCell)*Uz + vw(i1,k,iCell)*Vz)
+            ! subplume scale term
+            w2tend6(k,iCell) = Mc(k,iCell) * (Swumd(k-1,iCell) + Swumd(k,iCell))
 
             ! w2 tendency
             w2tend(k,iCell) = w2tend1(k,iCell) + w2tend2(k,iCell) + w2tend3(k,iCell) + &
-                              w2tend4(k,iCell) + w2tend5(k,iCell)
-
-            ! inverse of the time scale
-            ! TODO: check the coefficients
-            invTaupt(k,iCell) = vscale / (sqrt(2.0_RKIND) * c_pt * length(k,iCell))
-            invTaups(k,iCell) = vscale / (sqrt(2.0_RKIND) * c_ps * length(k,iCell))
-            invTaupv(k,iCell) = vscale / (sqrt(2.0_RKIND) * c_pv * length(k,iCell))
+                              w2tend4(k,iCell) + w2tend5(k,iCell) + w2tend6(k,iCell)
 
             ! See (49) of LR01a for the wt equation
             ! sources/sinks due to entrainment/detrainment + transport term
@@ -438,12 +431,13 @@ module ocn_adc_mixing_fused
             ! gradient production term
             wttend2(k,iCell) = - Mc(k,iCell) * wumd(k,iCell) * Tz
             ! buoyancy term
-            wttend3(k,iCell) = (1.0_RKIND - gamma1) * gravity * &
+            wttend3(k,iCell) = (1.0_RKIND - Cb_tracer) * gravity * &
                                areaFraction(k,iCell) * (1.0_RKIND - areaFraction(k,iCell)) * &
                                (alphaT(k,iCell)*tumd(k,iCell)**2 - &
                                 betaS(k,iCell)*tumd(k,iCell)*sumd(k,iCell))
             ! pressure term: rapid term
-            wttend4(k,iCell) = - alpha3/4.0_RKIND * (ut(i1,k,iCell)*Uz + vt(i1,k,iCell)*Vz)
+            wttend4(k,iCell) = (alpha1_tracer - alpha2_tracer) / 2.0_RKIND * &
+                               (ut(i1,k,iCell)*Uz + vt(i1,k,iCell)*Vz)
             ! pressure term:
             ! the missing wt term is added when time-stepping wt equation
             ! TODO: why do we need a diffusion term?
@@ -477,12 +471,13 @@ module ocn_adc_mixing_fused
             ! gradient production term
             wstend2(k,iCell) = - Mc(k,iCell) * wumd(k,iCell) * Sz
             ! buoyancy term
-            wstend3(k,iCell) = (1.0_RKIND - gamma1) * gravity * &
+            wstend3(k,iCell) = (1.0_RKIND - Cb_tracer) * gravity * &
                                areaFraction(k,iCell) * (1.0_RKIND - areaFraction(k,iCell)) * &
                                (alphaT(k,iCell)*tumd(k,iCell)*sumd(k,iCell) - &
                                 betaS(k,iCell)*sumd(k,iCell)**2)
             ! pressure term: rapid term
-            wstend4(k,iCell) = - alpha3/4.0_RKIND * (us(i1,k,iCell)*Uz + vs(i1,k,iCell)*Vz)
+            wstend4(k,iCell) = (alpha1_tracer - alpha2_tracer) / 2.0_RKIND * &
+                               (us(i1,k,iCell)*Uz + vs(i1,k,iCell)*Vz)
             ! pressure term:
             ! the missing ws term is added when time-stepping ws equation
             ! TODO: why do we need a diffusion term?
@@ -515,8 +510,7 @@ module ocn_adc_mixing_fused
             ! rapid pressure term: dV/dz
             uwtend3(k,iCell) = 0.5_RKIND * (alpha1 - alpha2) * uv(i1,k,iCell) * Vz
             ! buoyancy term
-            ! TODO: use (1-cb) to replace beta5 here
-            uwtend4(k,iCell) = beta5 * gravity * &
+            uwtend4(k,iCell) = (1.0_RKIND - Cb) * gravity * &
                                (alphaT(k,iCell)*ut(i1,k,iCell) - betaS(k,iCell)*us(i1,k,iCell))
             ! diffusion
             uwtend5(k,iCell) = kappa_FL * (uw(i1,k-1,iCell) - uw(i1,k+1,iCell)) / &
@@ -536,8 +530,7 @@ module ocn_adc_mixing_fused
                                              (alpha1 + alpha2 - 2.0_RKIND) * w2(i1,k,iCell) &
                                            ) * Vz
             ! buoyancy term
-            ! TODO: use (1-cb) to replace beta5 here
-            vwtend4(k,iCell) = beta5 * gravity * &
+            vwtend4(k,iCell) = (1.0_RKIND - Cb) * gravity * &
                                (alphaT(k,iCell)*vt(i1,k,iCell) - betaS(k,iCell)*vs(i1,k,iCell))
             ! diffusion
             vwtend5(k,iCell) = kappa_FL * (vw(i1,k-1,iCell) - vw(i1,k+1,iCell)) / &
@@ -565,15 +558,14 @@ module ocn_adc_mixing_fused
             ! rapid pressure term: dV/dz
             u2tend3(k,iCell) = - 2.0_RKIND/3.0_RKIND*alpha1 * vw(i1,k,iCell) * Vz
             ! buoyancy term
-            ! TODO: use (1-cb) to replace beta5 here
-            u2tend4(k,iCell) = 2.0_RKIND/3.0_RKIND * (1.0_RKIND-beta5) * wb
+            u2tend4(k,iCell) = 2.0_RKIND/3.0_RKIND * Cb * wb
             ! return to isotropy
             ! TODO: note that the term proportional to u2 is in time stepping
             ! TODO: what is the eps term?
 !            u2tend5(k,iCell) = -2.0_RKIND/3.0_RKIND*eps(i1,k,iCell) + &
 !              invTaupv(k,iCell)*(2.0_RKIND*KE/3.0_RKIND - u2(i1,k,iCell))
             u2tend5(k,iCell) = - 2.0_RKIND/3.0_RKIND*eps(i1,k,iCell) + &
-                               invTaupv(k,iCell) * (v2(i1,k,iCell) + w2(i1,k,iCell)) / 3.0_RKIND
+                               Cslow * invTau(k,iCell) * (v2(i1,k,iCell) + w2(i1,k,iCell)) / 3.0_RKIND
             ! u2 tendency
             u2tend(k,iCell) = u2tend1(k,iCell) + u2tend2(k,iCell) + u2tend3(k,iCell) + &
                               u2tend4(k,iCell) + u2tend5(k,iCell)
@@ -586,15 +578,14 @@ module ocn_adc_mixing_fused
             ! shear production + rapid pressure term: dV/dz
             v2tend3(k,iCell) = (1.0_RKIND/3.0_RKIND*alpha1 + alpha2 - 2.0_RKIND) * vw(i1,k,iCell) * Vz
             ! buoyancy term
-            ! TODO: use (1-cb) to replace beta5 here
-            v2tend4(k,iCell) = 2.0_RKIND/3.0_RKIND * (1.0_RKIND-beta5) * wb
+            v2tend4(k,iCell) = 2.0_RKIND/3.0_RKIND * Cb * wb
             ! return to isotropy
             ! TODO: note that the term proportional to v2 is in time stepping
             ! TODO: what is the eps term?
 !            v2tend5(k,iCell) = -2.0_RKIND/3.0_RKIND*eps(i1,k,iCell) + invTaupv(k,iCell)* &
 !              (2.0_RKIND*KE/3. - v2(i1,k,iCell))
             v2tend5(k,iCell) = - 2.0_RKIND/3.0_RKIND*eps(i1,k,iCell) + &
-                               invTaupv(k,iCell) * (u2(i1,k,iCell) + w2(i1,k,iCell)) / 3.0_RKIND
+                               Cslow * invTau(k,iCell) * (u2(i1,k,iCell) + w2(i1,k,iCell)) / 3.0_RKIND
             ! v2 tendency
             v2tend(k,iCell) = v2tend1(k,iCell) + v2tend2(k,iCell) + v2tend3(k,iCell) + &
                               v2tend4(k,iCell) + v2tend5(k,iCell)
@@ -606,7 +597,7 @@ module ocn_adc_mixing_fused
             ! gradient term
                              - uw(i1,k,iCell) * Tz &
             ! rapid pressure term
-                             - (1.0_RKIND - alpha3) * wt(i1,k,iCell) * Uz
+                             - (1.0_RKIND - 0.5_RKIND*(alpha1_tracer+alpha2_tracer)) * wt(i1,k,iCell) * Uz
 
             ! vt tendency
             vttend(k,iCell) = &
@@ -615,7 +606,7 @@ module ocn_adc_mixing_fused
             ! gradient term
                              - vw(i1,k,iCell) * Tz &
             ! rapid pressure term
-                             - (1.0_RKIND - alpha3) * wt(i1,k,iCell) * Vz
+                             - (1.0_RKIND - 0.5_RKIND*(alpha1_tracer+alpha2_tracer)) * wt(i1,k,iCell) * Vz
 
             ! us tendency
             ustend(k,iCell) = &
@@ -624,7 +615,7 @@ module ocn_adc_mixing_fused
             ! gradient term
                              - uw(i1,k,iCell) * Sz &
             ! rapid pressure term
-                             - (1.0_RKIND - alpha3) * ws(i1,k,iCell) * Uz
+                             - (1.0_RKIND - 0.5_RKIND*(alpha1_tracer+alpha2_tracer)) * ws(i1,k,iCell) * Uz
 
             ! vs tendency
             vstend(k,iCell) = &
@@ -633,7 +624,7 @@ module ocn_adc_mixing_fused
             ! gradient term
                              - vw(i1,k,iCell) * Sz &
             ! rapid pressure term
-                             - (1.0_RKIND - alpha3) * ws(i1,k,iCell) * Vz
+                             - (1.0_RKIND - 0.5_RKIND*(alpha1_tracer+alpha2_tracer)) * ws(i1,k,iCell) * Vz
 
             ! TODO: not used? <
             t2(i2,k,iCell) = tumd(k,iCell)**2*areaFraction(k,iCell)* &
@@ -757,7 +748,7 @@ module ocn_adc_mixing_fused
           do k = 2,nVertLevels
             !update second order moment tendency here
             w2(i2,k,iCell) = (w2(i1,k,iCell) + dt_small*w2tend(k,iCell)) / &
-                             (1.0_RKIND + dt_small*invTaupv(k,iCell)*2.0_RKIND/3.0_RKIND)
+                             (1.0_RKIND + dt_small*Cslow*invTau(k,iCell)*2.0_RKIND/3.0_RKIND)
             if (w2(i2,k,iCell) < epsilon) then
               w2cliptend(k,iCell) = epsilon-w2(i2,k,iCell)
               w2(i2,k,iCell) = epsilon
@@ -769,37 +760,37 @@ module ocn_adc_mixing_fused
             endif
 
             u2(i2,k,iCell) = (u2(i1,k,iCell) + dt_small*u2tend(k,iCell)) / &
-                             (1.0_RKIND + dt_small*invTaupv(k,iCell)*2.0_RKIND/3.0_RKIND)
+                             (1.0_RKIND + dt_small*Cslow*invTau(k,iCell)*2.0_RKIND/3.0_RKIND)
             if (u2(i2,k,iCell) < 0.0_RKIND) then
               u2cliptend(k,iCell) = -u2(i2,k,iCell)
               u2(i2,k,iCell) = 0.0_RKIND
             endif
 
             v2(i2,k,iCell) = (v2(i1,k,iCell) + dt_small*v2tend(k,iCell)) / &
-                             (1.0_RKIND + dt_small*invTaupv(k,iCell)*2.0_RKIND/3.0_RKIND)
+                             (1.0_RKIND + dt_small*Cslow*invTau(k,iCell)*2.0_RKIND/3.0_RKIND)
             if (v2(i2,k,iCell) < 0.0_RKIND) then
               v2cliptend(k,iCell) = -v2(i2,k,iCell)
               v2(i2,k,iCell) = 0.0_RKIND
             endif
 
             uw(i2,k,iCell) = (uw(i1,k,iCell) + dt_small*uwtend(k,iCell)) / &
-                             (1.0_RKIND + dt_small*invTaupv(k,iCell))
+                             (1.0_RKIND + dt_small*Cslow*invTau(k,iCell))
             vw(i2,k,iCell) = (vw(i1,k,iCell) + dt_small*vwtend(k,iCell)) / &
-                             (1.0_RKIND + dt_small*invTaupv(k,iCell))
+                             (1.0_RKIND + dt_small*Cslow*invTau(k,iCell))
             uv(i2,k,iCell) = (uv(i1,k,iCell) + dt_small*uvtend(k,iCell)) / &
-                             (1.0_RKIND + dt_small*invTaupv(k,iCell))
+                             (1.0_RKIND + dt_small*Cslow*invTau(k,iCell))
             ut(i2,k,iCell) = (ut(i1,k,iCell) + dt_small*uttend(k,iCell)) / &
-                             (1.0_RKIND + dt_small*invTaupt(k,iCell))
+                             (1.0_RKIND + dt_small*Cslow_tracer*invTau(k,iCell))
             vt(i2,k,iCell) = (vt(i1,k,iCell) + dt_small*vttend(k,iCell)) / &
-                             (1.0_RKIND + dt_small*invTaupt(k,iCell))
+                             (1.0_RKIND + dt_small*Cslow_tracer*invTau(k,iCell))
             wt(i2,k,iCell) = (wt(i1,k,iCell) + dt_small*wttend(k,iCell)) / &
-                             (1.0_RKIND + dt_small*invTaupt(k,iCell))
+                             (1.0_RKIND + dt_small*Cslow_tracer*invTau(k,iCell))
             us(i2,k,iCell) = (us(i1,k,iCell) + dt_small*ustend(k,iCell)) / &
-                             (1.0_RKIND + dt_small*invTaups(k,iCell))
+                             (1.0_RKIND + dt_small*Cslow_tracer*invTau(k,iCell))
             vs(i2,k,iCell) = (vs(i1,k,iCell) + dt_small*vstend(k,iCell)) / &
-                             (1.0_RKIND + dt_small*invTaups(k,iCell))
+                             (1.0_RKIND + dt_small*Cslow_tracer*invTau(k,iCell))
             ws(i2,k,iCell) = (ws(i1,k,iCell) + dt_small*wstend(k,iCell)) / &
-                             (1.0_RKIND + dt_small*invTaups(k,iCell))
+                             (1.0_RKIND + dt_small*Cslow_tracer*invTau(k,iCell))
             if (abs(wt(i2,k,iCell)) > 1.0_RKIND) then
               call mpas_log_write("ERROR: wt out of range, wt = $r, location = $i, $i", &
                                   MPAS_LOG_CRIT,realArgs=(/wt(i2,k,iCell)/),intArgs=(/k,iCell/))
@@ -844,7 +835,7 @@ module ocn_adc_mixing_fused
           do k = 1,nVertLevels
             w3check = - (w2(i2,k,iCell) + w2(i2,k+1,iCell))**1.5_RKIND
             w3temp  = (w3(i1,k,iCell) + dt_small*w3tend(k,iCell)) / &
-                      (1.0_RKIND + dt_small*invTaupw3(k,iCell))
+                      (1.0_RKIND + dt_small*Cslow_w3*invTauAv(k,iCell))
             w3(i2,k,iCell) = max(w3temp, w3check)
 
             if(abs(w3(i2,k,iCell)) > 1.0_RKIND) then
