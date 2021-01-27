@@ -859,7 +859,7 @@ module ocn_turbulence
       lenupTmp = lenup
       lendnTmp = lendn
       lenspsDTmp = lenspsD
-      lenspsUTmp = lenspsUTmp
+      lenspsUTmp = lenspsU
       KhUTmp = KhU
       KhDTmp = KhD
       KmUTmp = KmU
