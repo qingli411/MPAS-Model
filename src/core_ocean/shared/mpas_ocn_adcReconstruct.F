@@ -559,9 +559,8 @@ module ocn_adc_mixing_fused
             u2tend3(k,iCell) = - 2.0_RKIND/3.0_RKIND*alpha1 * vw(i1,k,iCell) * Vz
             ! buoyancy term
             u2tend4(k,iCell) = 2.0_RKIND/3.0_RKIND * Cb * wb
-            ! return to isotropy
+            ! dissipation + return to isotropy
             ! TODO: note that the term proportional to u2 is in time stepping
-            ! TODO: what is the eps term?
 !            u2tend5(k,iCell) = -2.0_RKIND/3.0_RKIND*eps(i1,k,iCell) + &
 !              invTaupv(k,iCell)*(2.0_RKIND*KE/3.0_RKIND - u2(i1,k,iCell))
             u2tend5(k,iCell) = - 2.0_RKIND/3.0_RKIND*eps(i1,k,iCell) + &
@@ -579,9 +578,8 @@ module ocn_adc_mixing_fused
             v2tend3(k,iCell) = (1.0_RKIND/3.0_RKIND*alpha1 + alpha2 - 2.0_RKIND) * vw(i1,k,iCell) * Vz
             ! buoyancy term
             v2tend4(k,iCell) = 2.0_RKIND/3.0_RKIND * Cb * wb
-            ! return to isotropy
+            ! dissipation + return to isotropy
             ! TODO: note that the term proportional to v2 is in time stepping
-            ! TODO: what is the eps term?
 !            v2tend5(k,iCell) = -2.0_RKIND/3.0_RKIND*eps(i1,k,iCell) + invTaupv(k,iCell)* &
 !              (2.0_RKIND*KE/3. - v2(i1,k,iCell))
             v2tend5(k,iCell) = - 2.0_RKIND/3.0_RKIND*eps(i1,k,iCell) + &
@@ -710,8 +708,8 @@ module ocn_adc_mixing_fused
                         (ze(k,iCell) - ze(k+1,iCell)) &
                        ) / dzmid &
             ! dissipation: (30) of LR01b
-                     - Cval*KspsU(i1,k,iCell)**1.5_RKIND / lenspsU(k,iCell) &
-            ! TODO: what is this term?
+                     - Cval*KspsU(i1,k,iCell)**1.5_RKIND / (lenspsU(k,iCell) + smallNum) &
+            ! large scale dissipation
                      + eps(i1,k,iCell) / (2.0_RKIND*(1.0_RKIND-areaFraction(k,iCell))) &
             ! shear production
                      + KmU(k,iCell) * (Uz**2 + Vz**2)
@@ -734,8 +732,8 @@ module ocn_adc_mixing_fused
                         (ze(k,iCell) - ze(k+1,iCell)) &
                        ) / dzmid &
             ! dissipation: (30) of LR01b
-                     - Cval*KspsD(i1,k,iCell)**1.5_RKIND / lenspsD(k,iCell) &
-            ! TODO: what is this term?
+                     - Cval*KspsD(i1,k,iCell)**1.5_RKIND / (lenspsD(k,iCell) + smallNum) &
+            ! large scale dissipation
                      + eps(i1,k,iCell) / (2.0_RKIND*areaFraction(k,iCell)) &
             ! shear production
                      + KmD(k,iCell) * (Uz**2 + Vz**2)

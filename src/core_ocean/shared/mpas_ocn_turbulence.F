@@ -1074,7 +1074,7 @@ module ocn_turbulence
      integer, intent(inout) :: ierr
 !   deallocate stuff, set integers and constants to zero, nullify stuff on gpu
 
-      epsilon = 0.0_RKIND
+      epsilon       = 0.0_RKIND
       alpha0        = 0.0_RKIND
       alpha1        = 0.0_RKIND
       alpha2        = 0.0_RKIND
