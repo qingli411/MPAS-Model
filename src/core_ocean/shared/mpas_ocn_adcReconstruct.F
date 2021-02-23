@@ -700,7 +700,7 @@ module ocn_adc_mixing_fused
             ! (28) of LR01b
             KspsUtend(k,iCell) = &
             ! buoyancy
-                     - gravity * (alphaT(k,iCell)*wt_spsU(k,iCell) - betaS(k,iCell)*ws_spsU(k,iCell)) &
+                       gravity * (alphaT(k,iCell)*wt_spsU(k,iCell) - betaS(k,iCell)*ws_spsU(k,iCell)) &
             ! transport of SPS TKE and pressure term: (29) of LR01b
                      + ((KmU(k-1,iCell) + KmU(k,iCell)) * (KspsU(i1,k-1,iCell) - KspsU(i1,k,iCell)) / &
                         (ze(k-1,iCell) - ze(k,iCell)) &
@@ -724,7 +724,7 @@ module ocn_adc_mixing_fused
             ! (28) of LR01b
             KspsDtend(k,iCell) = &
             ! buoyancy
-                     - gravity * (alphaT(k,iCell)*wt_spsD(k,iCell) - betaS(k,iCell)*ws_spsD(k,iCell)) &
+                       gravity * (alphaT(k,iCell)*wt_spsD(k,iCell) - betaS(k,iCell)*ws_spsD(k,iCell)) &
             ! transport of SPS TKE and pressure term: (29) of LR01b
                      + ((KmD(k-1,iCell) + KmD(k,iCell)) * (KspsD(i1,k-1,iCell) - KspsD(i1,k,iCell)) / &
                         (ze(k-1,iCell) - ze(k,iCell)) &
