@@ -55,7 +55,6 @@ module ocn_vmix_adc
    !--------------------------------------------------------------------
 
    logical :: adcOn
-   real (kind=RKIND) :: backgroundVisc, backgroundDiff
    integer :: local_nCells
    integer, parameter :: num_water_types = 5
    real (kind=RKIND), dimension(num_water_types) ::                       &
@@ -152,12 +151,11 @@ contains
       integer, pointer :: nVertLevels, nVertLevelsP1
       integer, dimension(:), pointer :: nCellsArray, nEdgesArray
       integer, dimension(:,:), pointer :: cellsOnEdge
-     real (kind=RKIND), dimension(:), allocatable :: zonalAverage, meridionalAverage, uw_sfc, &
-                           vw_sfc, ws_sfc, wt_sfc
+      real (kind=RKIND), dimension(:), allocatable :: uw_sfc, vw_sfc, ws_sfc, wt_sfc
 
       real (kind=RKIND), dimension(:,:), allocatable :: utend, vtend, ttend, stend
-      real (kind=RKIND) :: fac, dep1, dep2, fracAbsorbed, fracAbsorbedRunoff,  &
-                           etime
+      real (kind=RKIND) :: fac, dep1, dep2, fracAbsorbed, fracAbsorbedRunoff, &
+                           utendEdge, vtendEdge
 
       !-----------------------------------------------------------------
       !
@@ -234,8 +232,6 @@ contains
       call mpas_pool_get_array(forcingPool, 'surfaceStress', surfaceStress)
       call mpas_pool_get_array(forcingPool, 'surfaceStressMagnitude', surfaceStressMagnitude)
 
-      allocate(zonalAverage(nVertLevels),meridionalAverage(nVertLevels))
-
       nCells = nCellsArray( 4 )
       nEdges = nEdgesArray( 3 )
 
@@ -246,7 +242,7 @@ contains
       !$omp do schedule(runtime)
       do iEdge=1,nEdges
          surfaceStress(iEdge) = 0.0_RKIND
-      enddo
+      end do
       !$omp end do
 
       !$omp do schedule(runtime)
@@ -264,110 +260,123 @@ contains
 
       call ocn_surface_land_ice_fluxes_vel(meshPool, diagnosticsPool, surfaceStress, surfaceStressMagnitude, err)
 
-      if(config_use_activeTracers_surface_bulk_forcing) then
-        call ocn_surface_bulk_forcing_tracers(meshPool, "activeTracers", forcingPool, activeTracers,  &
-                                            tracerGroupSurfaceFlux, tracerGroupSurfaceFluxRunoff, &
-                                            tracerGroupSurfaceFluxRemoved, dt, layerThickness, err)
-      endif
+      if (config_use_activeTracers_surface_bulk_forcing) then
+         call ocn_surface_bulk_forcing_tracers(meshPool, "activeTracers", forcingPool, activeTracers, &
+                                               tracerGroupSurfaceFlux, tracerGroupSurfaceFluxRunoff, &
+                                               tracerGroupSurfaceFluxRemoved, dt, layerThickness, err)
+      end if
 
       call ocn_surface_land_ice_fluxes_tracers(meshPool, "activeTracers", forcingPool, tracerGroupSurfaceFlux, err)
 
       call ocn_surface_bulk_forcing_thick(meshPool, forcingPool, surfaceThicknessFlux, surfaceThicknessFluxRunoff, err)
 
-      !need surface thickness flux too
-
       call mpas_pool_get_array(forcingPool, 'penetrativeTemperatureFlux', penetrativeTemperatureFlux)
 
+      ! water type parameters
       fac = rfac(config_jerlov_water_type)
       dep1 = depth1(config_jerlov_water_type)
       dep2 = depth2(config_jerlov_water_type)
 
       !$omp do schedule(runtime)
       do iCell = 1, nCells
-
+         ! set surface forcing
          fracAbsorbed = 1.0_RKIND - exp( max(-layerThickness(1, iCell) / config_flux_attenuation_coefficient, -100.0_RKIND) )
-         fracAbsorbedRunoff = 1.0_RKIND - exp( max(-layerThickness(1, iCell) / config_flux_attenuation_coefficient_runoff, &
-                              -100.0_RKIND) )
+         fracAbsorbedRunoff = 1.0_RKIND - exp( max(-layerThickness(1, iCell) / config_flux_attenuation_coefficient_runoff, -100.0_RKIND) )
 
-         wt_sfc(iCell) = tracerGroupSurfaceFlux(indexTemperature, iCell) - fracAbsorbed * surfaceThicknessFlux(iCell) * &
-                        activeTracers(indexTemperature,1,iCell) + tracerGroupSurfaceFluxRunoff(indexTemperature,iCell) * &
-                        fracAbsorbedRunoff
+         wt_sfc(iCell) = tracerGroupSurfaceFlux(indexTemperature, iCell) &
+                       - fracAbsorbed * surfaceThicknessFlux(iCell) * activeTracers(indexTemperature,1,iCell) &
+                       + fracAbsorbedRunoff * tracerGroupSurfaceFluxRunoff(indexTemperature,iCell)
 
-         ws_sfc(iCell) = tracerGroupSurfaceFlux(indexSalinity, iCell) - fracAbsorbed * surfaceThicknessFlux(iCell) *  &
-                        activeTracers(indexSalinity,1,iCell)
+         ws_sfc(iCell) = tracerGroupSurfaceFlux(indexSalinity, iCell) &
+                       - fracAbsorbed * surfaceThicknessFlux(iCell) * activeTracers(indexSalinity,1,iCell)
 
          uw_sfc(iCell) = stressZonal(iCell) / rho_sw
 
-         if(abs(stressMeridional(iCell)) < 1e-6_RKIND) then
-                 stressMeridional(iCell) = 0.0_RKIND
-         endif
-
          vw_sfc(iCell) = stressMeridional(iCell) / rho_sw
 
+         ! set vertical grid
          ze(1,iCell) = 0.0_RKIND
          zm(1,iCell) = -layerThickness(1,iCell)/2.0_RKIND
          do k=2,maxLevelCell(iCell)
             ze(k,iCell) = ze(k-1,iCell) - layerThickness(k-1,iCell)
             zm(k,iCell) = ze(k, iCell) - layerThickness(k,iCell)/2.0_RKIND
-         enddo
+         end do
          k = maxLevelCell(iCell)+1
          ze(k,iCell) = ze(k-1,iCell) - layerThickness(k-1,iCell)
          do k = maxLevelCell(iCell) + 1, nVertLevels
             ze(k+1,iCell) = ze(maxLevelCell(iCell)+1,iCell)
             zm(k,iCell) = ze(maxLevelCell(iCell)+1,iCell)
-         enddo
+         end do
+      end do
+      !$omp end do
 
-     enddo
-     !$omp end do
-     !call the individual ADC function and pass the array members maybe?  probably not
-     !this will update T in place, so verify it sends time level n+1
-     ntracers = size(activeTracers, dim=1)
+      !this will update T in place, so verify it sends time level n+1
 
-     if ( config_adc_use_single_column ) THEN
-       local_nCells = 1
-     else
-       local_nCells = nCells
-     endif
+      ntracers = size(activeTracers, dim=1)
 
-     utend(:,:nCells) = velocityZonal(:,:nCells)
-     vtend(:,:nCells) = velocityMeridional(:,:nCells)
-     ttend(:,:nCells) = activeTracers(1,:,:nCells)
-     stend(:,:nCells) = activeTracers(2,:,:nCells)
+      if ( config_adc_use_single_column ) then
+         local_nCells = 1
+      else
+         local_nCells = nCells
+      end if
 
-     call compute_ADC_tends(local_nCells, nVertLevels, ntracers, dt, activeTracers, velocityZonal, velocityMeridional, &
-         BruntVaisalaFreqTop, uw_sfc, vw_sfc, -wt_sfc, ws_sfc, inSituThermalExpansionCoeff,        &
-          inSituSalineContractionCoeff, fCell, dThreshMLD)
+      ! use xtend arrays to store velocity and tracers before ADC
+      !$omp do schedule(runtime)
+      do iCell = 1, nCells
+         do k = 1, nVertLevels
+            utend(k,iCell) = velocityZonal(k,iCell)
+            vtend(k,iCell) = velocityMeridional(k,iCell)
+            ttend(k,iCell) = activeTracers(indexTemperature,k,iCell)
+            stend(k,iCell) = activeTracers(indexSalinity,k,iCell)
+         end do
+      end do
+      !$omp end do
 
-     utend(:,:nCells) = (velocityZonal(:,:nCells) - utend(:,:nCells)) / dt
-     vtend(:,:nCells) = (velocityMeridional(:,:nCells) - vtend(:,:nCells)) / dt
-        !need to add interpolation back to N. Velocity!
-     if ( config_adc_use_single_column ) THEN
-       !$omp do schedule(runtime)
-       do iCell = 2, nCells
-         activeTracers(:,:,iCell) = activeTracers(:,:,1)
-         utend(:,iCell) = utend(:,1)
-         vtend(:,iCell) = vtend(:,1)
-       end do
-       !$omp end do
-     end if
+      ! do ADC
+      call compute_ADC_tends(local_nCells, nVertLevels, ntracers, dt, &
+                             activeTracers, velocityZonal, velocityMeridional, BruntVaisalaFreqTop, &
+                             uw_sfc, vw_sfc, -wt_sfc, ws_sfc, &
+                             inSituThermalExpansionCoeff, inSituSalineContractionCoeff, fCell, dThreshMLD)
 
-     !$omp do schedule(runtime)
-     do iEdge = 1,nEdges
-       cell1 = cellsOnEdge(1,iEdge)
-       cell2 = cellsOnEdge(2,iEdge)
+      ! compute the tendencies
+      !$omp do schedule(runtime)
+      do iCell = 1, nCells
+         do k = 1, nVertLevels
+            utend(k,iCell) = (velocityZonal(k,iCell)      - utend(k,iCell)) / dt
+            vtend(k,iCell) = (velocityMeridional(k,iCell) - vtend(k,iCell)) / dt
+         end do
+      end do
+      !$omp end do
 
-       zonalAverage = 0.5_RKIND*(utend(:,cell1) + utend(:,cell2))
-       meridionalAverage = 0.5_RKIND*(vtend(:,cell1) + vtend(:,cell2))
+      !need to add interpolation back to N. Velocity!
+      if ( config_adc_use_single_column ) then
+         !$omp do schedule(runtime)
+         do iCell = 2, nCells
+            do k = 1, nVertLevels
+               activeTracers(indexTemperature,k,iCell) = activeTracers(indexTemperature,k,1)
+               activeTracers(indexSalinity,k,iCell) = activeTracers(indexSalinity,k,1)
+               utend(k,iCell) = utend(k,1)
+               vtend(k,iCell) = vtend(k,1)
+            end do
+         end do
+         !$omp end do
+      end if
 
-       normalVelocity(:,iEdge) = normalVelocity(:,iEdge) + dt*(cos(angleEdge(iEdge)) * zonalAverage &
-                + sin(angleEdge(iEdge)) * meridionalAverage)
-     end do
-     !$omp end do
+      !$omp do schedule(runtime)
+      do iEdge = 1, nEdges
+         cell1 = cellsOnEdge(1,iEdge)
+         cell2 = cellsOnEdge(2,iEdge)
+         do k = 1, nVertLevels
+            utendEdge = 0.5_RKIND*(utend(k,cell1) + utend(k,cell2))
+            vtendEdge = 0.5_RKIND*(vtend(k,cell1) + vtend(k,cell2))
+            normalVelocity(k,iEdge) = normalVelocity(k,iEdge) &
+                                    + dt * (cos(angleEdge(iEdge)) * utendEdge + sin(angleEdge(iEdge)) * vtendEdge)
+         end do
+      end do
+      !$omp end do
 
-     deallocate(zonalAverage, meridionalAverage, uw_sfc)
-     deallocate(vw_sfc, ws_sfc, wt_sfc)
-     deallocate(utend,vtend,ttend,stend)
-         !--------------------------------------------------------------------
+      deallocate(uw_sfc, vw_sfc, ws_sfc, wt_sfc)
+      deallocate(utend,vtend,ttend,stend)
 
    end subroutine ocn_vmix_adc_mix!}}}
 
@@ -424,14 +433,14 @@ contains
       !
       if (.not.config_use_adc) return
 
-      if(config_use_cvmix) then
-        call mpas_log_write( "Cannot use ADC mixing and CVMix at the same time:" // &
+      if (config_use_cvmix) then
+         call mpas_log_write( "Cannot use ADC mixing and CVMix at the same time:" // &
                "set either config_use_cvmix or config_use_adc to .false.", MPAS_LOG_CRIT)
-      endif
+      end if
 
-      if(.not. config_AM_mixedLayerDepths_enable) then
-        call mpas_log_write("ADC mixing requires the MLD calculation to be enabled!", MPAS_LOG_CRIT)
-      endif
+      if (.not. config_AM_mixedLayerDepths_enable) then
+         call mpas_log_write("ADC mixing requires the MLD calculation to be enabled!", MPAS_LOG_CRIT)
+      end if
 
       !
       ! pull nVertLevels out of the mesh structure
@@ -443,7 +452,7 @@ contains
       if ( mod(dt, config_adc_timestep) .ne. 0 ) then
          numiterations = ceiling(dt/config_adc_timestep)
          config_adc_timestep = dt / numiterations
-          call mpas_log_write( "WARNING: timestep for ADC scheme was not an even multiple of" // &
+         call mpas_log_write( "WARNING: timestep for ADC scheme was not an even multiple of" // &
                "config_dt, config_adc_timestep has been reset appropriately", MPAS_LOG_WARN)
       end if
 
@@ -462,9 +471,9 @@ contains
          call mpas_pool_get_dimension(meshPool, 'nCellsArray', nCellsArray)
          nCells = nCellsArray( size(nCellsArray) )
          do iCell = 1, nCells
-            do k = 1,nVertLevels
+            do k = 1, nVertLevels
                w3(:,k,iCell) = 0.0_RKIND
-            enddo
+            end do
             do k = 1, nVertLevels+1
                KspsU(:,k,iCell) = epsilon
                KspsD(:,k,iCell) = epsilon
@@ -484,18 +493,17 @@ contains
                us(:,k,iCell) = 0.0_RKIND
                vs(:,k,iCell) = 0.0_RKIND
                ws(:,k,iCell) = 0.0_RKIND
-               eps(:,k,iCell) = 1.0E-13_RKIND
                eps(:,k,iCell) = 0.0_RKIND
-            enddo
+            end do
             length(1,iCell) = 0.5_RKIND*layerThickness(1,iCell)
             do k=2,nVertLevels
-              length(k,iCell) = 0.5_RKIND*(layerThickness(k-1,iCell) + &
-                    layerThickness(k,iCell))
-            enddo
+               length(k,iCell) = 0.5_RKIND*(layerThickness(k-1,iCell) + layerThickness(k,iCell))
+            end do
             length(nVertLevels+1,iCell) = 0.5_RKIND*layerThickness(nVertLevels,iCell)
-         enddo
+         end do
          block => block % next
-      enddo
+      end do
+
    end subroutine ocn_vmix_adc_init!}}}
 
 !***********************************************************************
