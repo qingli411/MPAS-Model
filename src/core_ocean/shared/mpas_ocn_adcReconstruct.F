@@ -30,21 +30,21 @@ module ocn_adc_mixing_fused
     integer :: iCell, k, ij, i
 
     real (kind=RKIND), dimension(nVertLevels) :: B, Bup, Bdn
-    real (kind=RKIND), dimension(nVertLevels+1) :: KEsps, tke, BupEdge, BdnEdge, BEdge
+    real (kind=RKIND), dimension(nVertLevels+1) :: tke, BupEdge, BdnEdge, BEdge
     real (kind=RKIND) :: sigav, tumdav, sumdav, Tup, Tdn, Sup, Sdn
     real (kind=RKIND) :: sumv, sumv0
     real (kind=RKIND), parameter :: refT = 15.0_RKIND, refS = 35.0_RKIND, minlen = 0.55_RKIND
 
     !NOTE: will need to convert to some form of displaced density in the mpas framework soon
     !possibly go back to a more traditional length scale formulation
-    do iCell = 1,nCells
-       do k = 1,nVertLevels+1
-          KEsps(k) = areaFraction(k,iCell) * KspsD(i1,k,iCell) + &
-                     (1.0_RKIND - areaFraction(k,iCell)) * KspsU(i1,k,iCell)
-          tke(k) = 0.5_RKIND*(u2(i1,k,iCell) + v2(i1,k,iCell) + w2(i1,k,iCell)) ! + KEsps(k)
-       enddo
+    do iCell = 1, nCells
+       ! level interfaces
+       do k = 1, nVertLevels+1
+          tke(k) = 0.5_RKIND * (u2(i1,k,iCell) + v2(i1,k,iCell) + w2(i1,k,iCell))
+       end do
 
-       do k = 1,nVertLevels
+       ! level centers
+       do k = 1, nVertLevels
           B(k) = gravity * (alphaT(k,iCell) * (activeTracers(1,k,iCell) - refT) - &
                             betaS(k,iCell)  * (activeTracers(2,k,iCell) - refS))
 
@@ -60,12 +60,12 @@ module ocn_adc_mixing_fused
           Bup(k) = gravity * (alphaT(k,iCell) * (Tup - refT) - betaS(k,iCell) * (Sup - refS))
           Bdn(k) = gravity * (alphaT(k,iCell) * (Tdn - refT) - betaS(k,iCell) * (Sdn - refS))
 
-          if(k>1) THEN
+          if (k>1) then
              BupEdge(k) = 0.5_RKIND * (Bup(k-1) + Bup(k))
              BdnEdge(k) = 0.5_RKIND * (Bdn(k-1) + Bdn(k))
              BEdge(k)   = 0.5_RKIND * (B(k-1) + B(k))
-          endif
-       enddo
+          end if
+       end do
 
        BdnEdge(nVertLevels+1) = BdnEdge(nVertLevels)
        BupEdge(nVertLevels+1) = BupEdge(nVertLevels)
@@ -75,22 +75,24 @@ module ocn_adc_mixing_fused
        BupEdge(1) = BupEdge(2)
        BEdge(1)   = BEdge(2)
 
-       do k = 2,nVertLevels
+       ! leve centers
+       do k = 2, nVertLevels
           ! updraft length scale
           sumv  = 0.0_RKIND
           sumv0 = 0.0_RKIND
           ij=k
           lenup(k,iCell) = 0.0_RKIND
           do while(sumv0 <= tke(k) .and. ij > 1)
+             ! TODO: ze -> zm?
              sumv = sumv0 + (BEdge(ij) - BupEdge(k)) * (ze(ij-1,iCell)-ze(ij,iCell))
-             if (sumv > tke(k)) THEN
+             if (sumv > tke(k)) then
                 lenup(k,iCell) = max(minlen, &
                                      lenup(k,iCell) + &
                                      abs(ze(ij-1,iCell)-ze(ij,iCell))*(tke(k)-sumv0)/(sumv-sumv0))
                 exit
              else
                 lenup(k,iCell) = lenup(k,iCell) + abs(ze(ij-1,iCell)-ze(ij,iCell))
-             endif
+             end if
              sumv0 = sumv
              ij = ij - 1
           end do
@@ -102,14 +104,14 @@ module ocn_adc_mixing_fused
           lendn(k,iCell) = 0.0_RKIND
           do while(sumv0 <= tke(k) .and. ij < nVertLevels+1)
              sumv = sumv0 + (BdnEdge(k) - BEdge(ij)) * (ze(ij-1,iCell)-ze(ij,iCell))
-             if (sumv > tke(k)) THEN
+             if (sumv > tke(k)) then
                 lendn(k,iCell) = max(minlen, &
                                      lendn(k,iCell) + &
                                      abs(ze(ij-1,iCell)-ze(ij,iCell))*(tke(k)-sumv0)/(sumv-sumv0))
                 exit
              else
                 lendn(k,iCell) = lendn(k,iCell) + abs(ze(ij-1,iCell)-ze(ij,iCell))
-             endif
+             end if
              sumv0 = sumv
              ij = ij + 1
           end do
@@ -119,10 +121,14 @@ module ocn_adc_mixing_fused
           ! write(*,*) k, iCell, lenup(k,iCell), lendn(k,iCell)
        enddo
        ! write(*,*) '----'
+       length(1,iCell) = minlen
+       lenup(1,iCell)  = minlen
+       lendn(1,iCell)  = minlen
+       length(nVertLevels+1,iCell) = minlen
+       lenup(nVertLevels+1,iCell)  = minlen
+       lendn(nVertLevels+1,iCell)  = minlen
     enddo
 
-    length(1,iCell) = 0.55_RKIND
-    length(nVertLevels+1,iCell) = 0.55_RKIND
 
   end subroutine dissipation_lengths2
 
@@ -137,30 +143,24 @@ module ocn_adc_mixing_fused
       real (kind=RKIND), dimension(nCells), intent(in) :: uwsfc, vwsfc, wtsfc, wssfc, fCell
       real (kind=RKIND), dimension(nCells), intent(inout) :: boundaryLayerDepth
       real (kind=RKIND), dimension(nVertLevels,nCells), intent(inout) :: BVF
-      integer :: niter, iIter,iCell,k, supercycle
+      integer :: niter, iIter, iCell, k
 
       real (kind=RKIND) :: dt_small
 
-      real (kind=RKIND), dimension(nVertLevels+1,nCells) :: w2tend
-      real (kind=RKIND), dimension(nVertLevels,nCells) :: w3tend
+      real (kind=RKIND) :: Sw, Eav, Dav, sigav, wumdav, tumdav, sumdav
+      real (kind=RKIND) :: KE, KEp1, Mcav, lenav, u2av, v2av, w2av, w3av
+      real (kind=RKIND) :: w3temp, w3check, Uz, Vz, dz, vscale
 
-      real (kind=RKIND) :: Sw, St, Ss, Eav, Dav, sigav, wumdav, tumdav, sumdav
-      real (kind=RKIND) :: KspsUav, KspsDav, KE, Mcav, lenav,u2av,v2av,w2av
-      real (kind=RKIND) :: w3temp, w3check, mval, KEsps, Uz, Vz, dz, vscale
-
-      real (kind=RKIND) :: invLen, l, len1, len2, lenmax, integrandTop, integrandBot
-      real (kind=RKIND) :: len0, len2_1, len2_2, sfcBuoy, lengthT, bvfT
-      real (kind=RKIND) :: KEm1, KEp1, tauUP, tauDN, tomUP, tomDN
-      real (kind=RKIND) :: tauM1, tau, tauP1, tauAV, utemp, vtemp
-      real (kind=RKIND) :: wb, Cval, diff, wtav, dzmid, Ksps, Sz, Tz, w4k, w4kp1, w2k, w2kp1
-      real (kind=RKIND) :: lareaFraction, wstar, wbsfc, w3av, tempMoment
-      real (kind=RKIND) :: sfcFrictionVelocity, wtSumUp, wtSumDn, wsSumUp, wsSumDn
+      real (kind=RKIND) :: utemp, vtemp
+      real (kind=RKIND) :: wb, Cval, diff, wtav, dzmid, Ksps, Sz, Tz
+      real (kind=RKIND) :: lareaFraction, wstar, wbsfc
+      real (kind=RKIND) :: ustarSquared, wtSumUp, wtSumDn, wsSumUp, wsSumDn
 
       real (kind=RKIND), dimension(nVertLevels,nCells) :: Swumd
       real (kind=RKIND), dimension(nVertLevels,nCells) :: invTau, invTauAv
-      real (kind=RKIND), dimension(nVertLevels+1,nCells) :: wttend, wstend, uwtend, vwtend, u2tend, v2tend, &
-        uttend, vttend, ustend, vstend, uvtend
-      real (kind=RKIND), dimension(nVertLevels,nCells) :: epstend
+      real (kind=RKIND), dimension(nVertLevels,nCells) :: w3tend
+      real (kind=RKIND), dimension(nVertLevels+1,nCells) :: wttend, uttend, vttend, wstend, ustend, vstend
+      real (kind=RKIND), dimension(nVertLevels+1,nCells) :: w2tend, uwtend, vwtend, u2tend, v2tend, uvtend
       real (kind=RKIND), dimension(nVertLevels+1,nCells) :: KspsUtend, KspsDtend
       real (kind=RKIND), parameter :: smallNum = 1.0e-12_RKIND
 
@@ -171,13 +171,13 @@ module ocn_adc_mixing_fused
 
       !on further examination build_diagnostics array can live outside the iter loop
       ! boundary conditions
-      do iCell = 1,nCells
+      do iCell = 1, nCells
         wbsfc = gravity * (alphaT(1,iCell)*wtsfc(iCell) - betaS(1,iCell)*wssfc(iCell))
         if (wbsfc > 0.0_RKIND) then
           wstar = abs(wbsfc*boundaryLayerDepth(iCell))**(1.0_RKIND/3.0_RKIND)
         else
           wstar = 0.0_RKIND
-        endif
+        end if
 
         tumd(1,iCell) = 0.0_RKIND
         wumd(1,iCell) = 0.0_RKIND
@@ -191,57 +191,43 @@ module ocn_adc_mixing_fused
         length(nVertLevels+1,iCell) = 1e-15_RKIND
         length(1,iCell) = ze(1,iCell) - ze(2,iCell)
 
-        sfcFrictionVelocity = sqrt(uwsfc(iCell)**2 + vwsfc(iCell)**2)
-        do k = 1,2
-          u2(k,1,iCell) = 2.0_RKIND*sfcFrictionVelocity + 0.3_RKIND*wstar**2
-          v2(k,1,iCell) = 2.0_RKIND*sfcFrictionVelocity + 0.3_RKIND*wstar**2
+        ustarSquared = sqrt(uwsfc(iCell)**2 + vwsfc(iCell)**2)
+        do k = 1, 2
+          u2(k,1,iCell) = 2.0_RKIND*ustarSquared + 0.3_RKIND*wstar**2
+          v2(k,1,iCell) = 2.0_RKIND*ustarSquared + 0.3_RKIND*wstar**2
           uw(k,1,iCell) = -uwsfc(iCell)
           vw(k,1,iCell) = -vwsfc(iCell)
           wt(k,1,iCell) =  wtsfc(iCell)
           ws(k,1,iCell) =  wssfc(iCell)
           KE = 0.5_RKIND*(u2(i1,1,iCell) + v2(i1,1,iCell))
-          !eps(k,1,iCell) = KE**1.5/(0.5*(ze(1,iCell) - ze(2,iCell) + 1.0E-10_RKIND))
-          ! TODO
           eps(k,1,iCell) = 2.0_RKIND*KE**1.5_RKIND/(length(1,iCell)+smallNum)
-        enddo
-      enddo
+        end do
+      end do
 
       ! time loop
-      do iIter = 1,niter
-        ! We should test the use of this value versus the one above
-        do iCell = 1,nCells
-          ! on u levels
-          sigav = 0.5_RKIND*(areaFraction(1,iCell) + areaFraction(2,iCell))
-          wtav  = 0.5_RKIND*(wt(i1,1,iCell) + wt(i1,2,iCell))
-          w2av  = 0.5_RKIND*(w2(i1,1,iCell) + w2(i1,2,iCell))
-          ! TODO: Check the coefficient
-          ! w2t(1,iCell) = (1.0_RKIND - 2.0_RKIND*sigav)*wtav*sqrt(w2av) / (EPSILON + &
-          !                sigav*(1.0_RKIND-sigav))
-          w2t(1,iCell) = - (1.0_RKIND - 2.0_RKIND*sigav) * wtav * &
-                         sqrt(w2av / (sigav*(1.0_RKIND-sigav)))
-        enddo
+      do iIter = 1, niter
 
-        !Kernel 1 inlined versions of the base arrays, needed for later to make them collapsible
-        do iCell = 1,nCells
-          do k = 2,nVertLevels
-            ! on w levels
-            w3av = 0.5_RKIND*(w3(i1,k-1,iCell) + w3(i1,k,iCell))
+         ! update mass flux arrays
+         do iCell = 1, nCells
+            do k = 2, nVertLevels
+               ! layer interfaces
+               w3av = 0.5_RKIND*(w3(i1,k-1,iCell) + w3(i1,k,iCell))
 
-            Sw = w3av / max(w2(i1,k,iCell), epsilon)**1.5_RKIND
-            lareaFraction = 0.5_RKIND + 0.5_RKIND * Sw / sqrt(4.0_RKIND + Sw**2)
-            lareaFraction = min(max(lareaFraction, 0.01_RKIND), 0.99_RKIND)
+               Sw = w3av / max(w2(i1,k,iCell), smallNum)**1.5_RKIND
+               lareaFraction = 0.5_RKIND + 0.5_RKIND * Sw / sqrt(4.0_RKIND + Sw**2)
+               lareaFraction = min(max(lareaFraction, 0.01_RKIND), 0.99_RKIND)
 
-            areaFraction(k,iCell) = lareaFraction
-            wumd(k,iCell) = sqrt(w2(i1,k,iCell) / (lareaFraction*(1.0_RKIND-lareaFraction)))
-            Mc(k,iCell) = lareaFraction*(1.0_RKIND-lareaFraction) * wumd(k,iCell)
+               areaFraction(k,iCell) = lareaFraction
+               wumd(k,iCell) = sqrt(w2(i1,k,iCell) / (lareaFraction*(1.0_RKIND-lareaFraction)))
+               Mc(k,iCell) = lareaFraction*(1.0_RKIND-lareaFraction) * wumd(k,iCell)
 
-            tumd(k,iCell) = wt(i1,k,iCell) / (smallNum + Mc(k,iCell))
-            sumd(k,iCell) = ws(i1,k,iCell) / (smallNum + Mc(k,iCell))
-          enddo
-        enddo
+               tumd(k,iCell) = wt(i1,k,iCell) / (smallNum + Mc(k,iCell))
+               sumd(k,iCell) = ws(i1,k,iCell) / (smallNum + Mc(k,iCell))
+            end do
+         end do
 
-        do iCell = 1,nCells
-          do k = 2,nVertLevels
+        do iCell = 1, nCells
+          do k = 2, nVertLevels
             ! on u levels
             sigav  = 0.5_RKIND*(areaFraction(k,iCell) + areaFraction(k+1,iCell))
             tumdav = 0.5_RKIND*(tumd(k,iCell) + tumd(k+1,iCell))
@@ -256,506 +242,445 @@ module ocn_adc_mixing_fused
           enddo
         enddo
 
-        !This cell loop computes w3Tend and TOMs for later tendencies.  Should be okay to collapse loops here
-        do iCell = 1,nCells
-          do k = 1,nVertLevels
-            ! on u levels
-            Eav  = 0.5_RKIND*(Entrainment(k,iCell) + Entrainment(k+1,iCell))
-            Dav  = 0.5_RKIND*(Detrainment(k,iCell) + Detrainment(k+1,iCell))
-            u2av = 0.5_RKIND*(u2(i1,k,iCell) + u2(i1,k+1,iCell))
-            v2av = 0.5_RKIND*(v2(i1,k,iCell) + v2(i1,k+1,iCell))
-            w2av = 0.5_RKIND*(w2(i1,k,iCell) + w2(i1,k+1,iCell))
+        ! compute dissipation length scale
+        call dissipation_lengths2(nCells, nVertLevels, activeTracers, alphaT, betaS)
 
-            sigav   = 0.5_RKIND*(areaFraction(k,iCell) + areaFraction(k+1,iCell))
-            wumdav  = 0.5_RKIND*(wumd(k,iCell) + wumd(k+1,iCell))
-            tumdav  = 0.5_RKIND*(tumd(k,iCell) + tumd(k+1,iCell))
-            sumdav  = 0.5_RKIND*(sumd(k,iCell) + sumd(k+1,iCell))
-            KspsUav = 0.5_RKIND*(KspsU(i1,k,iCell) + KspsU(i1,k+1,iCell))
-            KspsDav = 0.5_RKIND*(KspsD(i1,k,iCell) + KspsD(i1,k+1,iCell))
-            Mcav    = 0.5_RKIND*(Mc(k,iCell) + Mc(k+1,iCell))
-            lenav   = 0.5_RKIND*(length(k,iCell) + length(k+1,iCell))
+        ! w3 tendency
+        do iCell = 1, nCells
+           ! level centers
+           do k = 1, nVertLevels
+              Eav  = 0.5_RKIND * (Entrainment(k,iCell) + Entrainment(k+1,iCell))
+              Dav  = 0.5_RKIND * (Detrainment(k,iCell) + Detrainment(k+1,iCell))
 
-            ! subplume scale TKE
-            KEsps = sigav*KspsDav + (1.0_RKIND - sigav)*KspsUav
-            ! velocity scale
-            ! TODO: Should we include the subplume scale KE in the velocity scale?
-            vscale = sqrt((u2av+v2av+w2av) + 0.0*KEsps)
-            ! inverse of the time scale
-            invTauAv(k,iCell) = vscale / (sqrt(2.0_RKIND) * lenAv)
+              u2av = 0.5_RKIND * (u2(i1,k,iCell) + u2(i1,k+1,iCell))
+              v2av = 0.5_RKIND * (v2(i1,k,iCell) + v2(i1,k+1,iCell))
+              w2av = 0.5_RKIND * (w2(i1,k,iCell) + w2(i1,k+1,iCell))
 
-            ! layer thickness
-            dz = ze(k,iCell) - ze(k+1,iCell)
+              sigav   = 0.5_RKIND * (areaFraction(k,iCell) + areaFraction(k+1,iCell))
+              wumdav  = 0.5_RKIND * (wumd(k,iCell) + wumd(k+1,iCell))
+              tumdav  = 0.5_RKIND * (tumd(k,iCell) + tumd(k+1,iCell))
+              sumdav  = 0.5_RKIND * (sumd(k,iCell) + sumd(k+1,iCell))
+              lenav   = 0.5_RKIND * (length(k,iCell) + length(k+1,iCell))
 
-            ! last term (SPS) in (40) of LR01a, also using (35) of LR01b
-            Swumd(k,iCell) = - 2.0_RKIND/3.0_RKIND * ( &
-                              1.0_RKIND/(1.0_RKIND-sigav) * &
-                              ((1.0_RKIND-areaFraction(k,  iCell))*KspsU(i1,k,  iCell) - &
-                               (1.0_RKIND-areaFraction(k+1,iCell))*KspsU(i1,k+1,iCell)) / dz &
-                              - 1.0_RKIND/sigav * &
-                              (areaFraction(k,  iCell)*KspsD(i1,k,  iCell) - &
-                               areaFraction(k+1,iCell)*KspsD(i1,k+1,iCell)) / dz )
+              Mcav    = sigav * (1.0_RKIND - sigav) * wumdav
 
-            ! first and second terms in (52) of LR01a, see also (20) of LR01b
-            w3tend1(k,iCell) = - wumdav**3 * (Eav*(3.0_RKIND*sigav - 2.0_RKIND) + &
-                                              Dav*(3.0_RKIND*sigav - 1.0_RKIND))
-            !LPV trying new formulation of d/dz(w4) and 3w2 d/dz(w2) -- Not convinced the LR01a equation is correct
-            ! w3tend2 + w3tend3 = third + fourth terms in (52) of LR01a
-            ! w4k   = areaFraction(k,iCell)*(1.0_RKIND - areaFraction(k,iCell))* &
-            !         (1.0_RKIND - 3.0_RKIND*areaFraction(k,iCell) + 3.0_RKIND* &
-            !         areaFraction(k,iCell)**2)*wumd(k,iCell)**4
-            ! w4kp1 = areaFraction(k+1,iCell)*(1.0_RKIND - areaFraction(k+1,iCell))* &
-            !         (1.0_RKIND - 3.0_RKIND*areaFraction(k+1,iCell) + 3.0_RKIND* &
-            !         areaFraction(k+1,iCell)**2)*wumd(k+1,iCell)**4
-            ! w3tend2(k,iCell) = -(w4k - w4kp1) / dz
-            !now the w3term
-            ! w2k   = areaFraction(k,iCell)*(1.0_RKIND-areaFraction(k,iCell))*wumd(k,iCell)**2
-            ! w2kp1 = areaFraction(k+1,iCell)*(1.0_RKIND-areaFraction(k+1,iCell))*wumd(k+1,iCell)**2
-            ! w3tend3(k,iCell) = 1.5_RKIND*(w2k**2 - w2kp1**2) / dz
+              ! velocity scale
+              vscale = sqrt(0.5_RKIND * (u2av+v2av+w2av))
+              ! inverse of the time scale
+              invTauAv(k,iCell) = vscale / lenAv
 
-            ! third term in (52) of LR01a
-            w3tend2(k,iCell) = - wumdav**3 * (6.0_RKIND*sigav**2 - 6.0_RKIND*sigav + 1.0_RKIND) * &
-                                 ( Mc(k,iCell)-Mc(k+1,iCell) ) / dz
-            ! fourth term in (52) of LR01a
-            w3tend3(k,iCell) = - 1.5_RKIND * sigav * (1.0_RKIND - sigav)*(1.0_RKIND - 2.0_RKIND*sigav) * &
-                                 wumdav**2 * &
-                                 ( (1.0_RKIND - 2.0_RKIND*areaFraction(k,  iCell))*wumd(k,  iCell)**2 &
-                                 - (1.0_RKIND - 2.0_RKIND*areaFraction(k+1,iCell))*wumd(k+1,iCell)**2 &
-                                 ) / dz
+              ! layer thickness
+              dz = ze(k,iCell) - ze(k+1,iCell)
 
-            ! the buoyancy term in the sources and sinks in (52) of LR01a
-            w3tend4(k,iCell) = - 3.0_RKIND * (1.0_RKIND - Cb_w3) * (1.0_RKIND - 2.0_RKIND*sigav) * &
-                                 Mcav * wumdav * gravity * &
-                                 (alphaT(k,iCell)*tumdav - betaS(k,iCell)*sumdav)
+              ! last term (SPS) in (40) of LR01a, also using (35) of LR01b
+              Swumd(k,iCell) = - 2.0_RKIND/3.0_RKIND * ( &
+                                1.0_RKIND/(1.0_RKIND-sigav) * &
+                                ((1.0_RKIND-areaFraction(k,  iCell))*KspsU(i1,k,  iCell) - &
+                                 (1.0_RKIND-areaFraction(k+1,iCell))*KspsU(i1,k+1,iCell)) / dz &
+                                - 1.0_RKIND/sigav * &
+                                (areaFraction(k,  iCell)*KspsD(i1,k,  iCell) - &
+                                 areaFraction(k+1,iCell)*KspsD(i1,k+1,iCell)) / dz )
 
-            ! the SPS term in the sources and sinks in (52) of LR01a
-            w3tend5(k,iCell) = - 3.0_RKIND * (1.0_RKIND - 2.0_RKIND*sigav) * Mcav * wumdav * Swumd(k,iCell)
+              ! first and second terms in (52) of LR01a, see also (20) of LR01b
+              ! negative sign due to the different definition of sigma
+              w3tend1(k,iCell) = - wumdav**3 * (Eav*(3.0_RKIND*sigav - 2.0_RKIND) + &
+                                                Dav*(3.0_RKIND*sigav - 1.0_RKIND))
+              ! third term in (52) of LR01a
+              w3tend2(k,iCell) = - wumdav**3 * (6.0_RKIND*sigav**2 - 6.0_RKIND*sigav + 1.0_RKIND) * &
+                                   ( Mc(k,iCell)-Mc(k+1,iCell) ) / dz
+              ! fourth term in (52) of LR01a
+              w3tend3(k,iCell) = - 1.5_RKIND * (1.0_RKIND - 2.0_RKIND*sigav) * Mcav * wumdav * &
+                                   ( (1.0_RKIND - 2.0_RKIND*areaFraction(k,  iCell))*wumd(k,  iCell)**2 &
+                                   - (1.0_RKIND - 2.0_RKIND*areaFraction(k+1,iCell))*wumd(k+1,iCell)**2 &
+                                   ) / dz
+              ! the buoyancy term in the sources and sinks in (52) of LR01a
+              ! negative sign due to the different definition of sigma
+              w3tend4(k,iCell) = - 3.0_RKIND * (1.0_RKIND - 2.0_RKIND*sigav) * Mcav * wumdav * &
+                                   (1.0_RKIND - Cb_w3) * gravity * (alphaT(k,iCell)*tumdav - betaS(k,iCell)*sumdav)
+              ! the SPS term in the sources and sinks in (52) of LR01a
+              ! negative sign due to the different definition of sigma
+              w3tend5(k,iCell) = - 3.0_RKIND * (1.0_RKIND - 2.0_RKIND*sigav) * Mcav * wumdav * Swumd(k,iCell)
+              ! w3 tendency
+              w3tend(k,iCell) = w3tend1(k,iCell) + w3tend2(k,iCell) + w3tend3(k,iCell) + &
+                                w3tend4(k,iCell) + w3tend5(k,iCell)
+           end do !nVertLevels
+        enddo !nCells
 
-            ! w3 tendency
-            w3tend(k,iCell) = w3tend1(k,iCell) + w3tend2(k,iCell) + w3tend3(k,iCell) + &
-                              w3tend4(k,iCell) + w3tend5(k,iCell)
+        ! other third order moments
+        do iCell = 1, nCells
+           ! level centers
+           do k = 1, nVertLevels
+              ! now get all the downgradient third order moments
+              Ksps = 0.5_RKIND * ( (areaFraction(k,iCell) * KspsD(i1,k,iCell) + &
+                                   (1.0_RKIND-areaFraction(k,iCell)) * KspsU(i1,k,iCell)) &
+                                 + (areaFraction(k+1,iCell) * KspsD(i1,k+1,iCell) + &
+                                   (1.0_RKIND-areaFraction(k+1,iCell)) * KspsU(i1,k+1,iCell)))
+              KE    = 0.5_RKIND * (u2(i1,k,iCell) + v2(i1,k,iCell) + w2(i1,k,iCell))
+              KEp1  = 0.5_RKIND * (u2(i1,k+1,iCell) + v2(i1,k+1,iCell) + w2(i1,k+1,iCell))
+              lenav = 0.5_RKIND * (length(k,iCell) + length(k+1,iCell))
+              diff = Cmom * sqrt(0.5_RKIND*(KE + KEp1)) * lenav
+              dz = ze(k,iCell) - ze(k+1,iCell)
+              uw2(k,iCell) = - 1.2_RKIND * diff * (uw(i1,k,iCell) - uw(i1,k+1,iCell)) / dz
+              vw2(k,iCell) = - 1.2_RKIND * diff * (vw(i1,k,iCell) - vw(i1,k+1,iCell)) / dz
+              u2w(k,iCell) = - 0.6_RKIND * diff * (u2(i1,k,iCell) - u2(i1,k+1,iCell)) / dz
+              v2w(k,iCell) = - 0.6_RKIND * diff * (v2(i1,k,iCell) - v2(i1,k+1,iCell)) / dz
+              uvw(k,iCell) = - 0.6_RKIND * diff * (uv(i1,k,iCell) - uv(i1,k+1,iCell)) / dz
 
-            if (k>1 .and. k < nVertLevels) then
-              ! TODO: why do we need a diffusion term?
-              w3tend(k,iCell) = w3tend(k,iCell) + kappa_w3*(w3(i1,k-1,iCell) &
-                 - w3(i1,k+1,iCell)) / (zm(k-1,iCell) - zm(k+1,iCell))**2
-            endif
-
-            ! now get all the downgradient TOMs
-            Ksps = 0.5_RKIND * ( (areaFraction(k,iCell) * KspsD(i1,k,iCell) + &
-                                 (1.0_RKIND-areaFraction(k,iCell)) * KspsU(i1,k,iCell)) &
-                               + (areaFraction(k+1,iCell) * KspsD(i1,k+1,iCell) + &
-                                 (1.0_RKIND-areaFraction(k+1,iCell)) * KspsU(i1,k+1,iCell)))
-            KE    = 0.5_RKIND * (u2(i1,k,iCell) + v2(i1,k,iCell) + w2(i1,k,iCell))
-            KEp1  = 0.5_RKIND * (u2(i1,k+1,iCell) + v2(i1,k+1,iCell) + w2(i1,k+1,iCell))
-            lenav = 0.5_RKIND * (length(k,iCell) + length(k+1,iCell))
-            diff = Cmom * sqrt(0.5_RKIND*(KE + KEp1)) * lenav
-            dz = ze(k,iCell) - ze(k+1,iCell)
-            uw2(k,iCell) = - 1.2_RKIND * diff * (uw(i1,k,iCell) - uw(i1,k+1,iCell)) / dz
-            vw2(k,iCell) = - 1.2_RKIND * diff * (vw(i1,k,iCell) - vw(i1,k+1,iCell)) / dz
-            u2w(k,iCell) = - 0.6_RKIND * diff * (u2(i1,k,iCell) - u2(i1,k+1,iCell)) / dz
-            v2w(k,iCell) = - 0.6_RKIND * diff * (v2(i1,k,iCell) - v2(i1,k+1,iCell)) / dz
-            uvw(k,iCell) = - 0.6_RKIND * diff * (uv(i1,k,iCell) - uv(i1,k+1,iCell)) / dz
-
-            diff = Ctherm * sqrt(0.5_RKIND*(KE + KEp1)) * lenav
-            uwt(k,iCell) = - diff * (ut(i1,k,iCell) - ut(i1,k+1,iCell)) / dz
-            vwt(k,iCell) = - diff * (vt(i1,k,iCell) - vt(i1,k+1,iCell)) / dz
-            uws(k,iCell) = - diff * (us(i1,k,iCell) - us(i1,k+1,iCell)) / dz
-            vws(k,iCell) = - diff * (vs(i1,k,iCell) - vs(i1,k+1,iCell)) / dz
+              diff = Ctherm * sqrt(0.5_RKIND*(KE + KEp1)) * lenav
+              uwt(k,iCell) = - diff * (ut(i1,k,iCell) - ut(i1,k+1,iCell)) / dz
+              vwt(k,iCell) = - diff * (vt(i1,k,iCell) - vt(i1,k+1,iCell)) / dz
+              uws(k,iCell) = - diff * (us(i1,k,iCell) - us(i1,k+1,iCell)) / dz
+              vws(k,iCell) = - diff * (vs(i1,k,iCell) - vs(i1,k+1,iCell)) / dz
 
           enddo !nVertLevels
         enddo !nCells
 
-        ! Ashwath -- I'm removing this possibility from this branch since it will be near impossible to
-        ! parallelize well.  It's a loop over k with an inner loop expanding underneath.
-        if (config_adc_use_old_length_scale) then
-		    call dissipation_lengths2(nCells,nVertLevels,activeTracers,alphaT,betaS)
-        endif
+        ! all second order moment tendencies
+        do iCell = 1, nCells
+        ! level interfaces
+           do k = 2, nVertLevels
+              dzmid = (zm(k-1,iCell) - zm(k,iCell))
+              dz = ze(k,iCell) - ze(k+1,iCell)
+              wb = Mc(k,iCell) * gravity * (alphaT(k,iCell)*tumd(k,iCell) - betaS(k,iCell)*sumd(k,iCell))
 
-        !next all second order moment tendencies also apply tendencies
-        do iCell = 1,nCells
-          do k = 2,nVertLevels
-            ! on w level
-            dzmid = (zm(k-1,iCell) - zm(k,iCell))
-            dz = ze(k,iCell) - ze(k+1,iCell)
-            wb = Mc(k,iCell) * gravity * &
-                 (alphaT(k,iCell)*tumd(k,iCell) - betaS(k,iCell)*sumd(k,iCell))
+              Uz = (uvel(k-1,iCell) - uvel(k,iCell)) / dzmid
+              Vz = (vvel(k-1,iCell) - vvel(k,iCell)) / dzmid
+              Tz = (activeTracers(1,k-1,iCell) - activeTracers(1,k,iCell)) / dzmid
+              Sz = (activeTracers(2,k-1,iCell) - activeTracers(2,k,iCell)) / dzmid
 
-            Uz = (uvel(k-1,iCell) - uvel(k,iCell)) / dzmid
-            Vz = (vvel(k-1,iCell) - vvel(k,iCell)) / dzmid
-            Tz = (activeTracers(1,k-1,iCell) - activeTracers(1,k,iCell)) / dzmid
-            Sz = (activeTracers(2,k-1,iCell) - activeTracers(2,k,iCell)) / dzmid
+              KE = 0.5_RKIND * (u2(i1,k,iCell) + v2(i1,k,iCell) + w2(i1,k,iCell))
 
-            KEsps = areaFraction(k,iCell) * KspsD(i1,k,iCell) +  &
-                    (1.0_RKIND-areaFraction(k,iCell)) * KspsU(i1,k,iCell)
-            KE = 0.5_RKIND * (u2(i1,k,iCell) + v2(i1,k,iCell) + w2(i1,k,iCell))
-            ! velocity scale
-            ! TODO: Should we include the subplume scale KE in the velocity scale?
-            vscale = sqrt(2.0_RKIND * KE)
-            ! inverse of the time scale
-            invTau(k,iCell) = vscale / (sqrt(2.0_RKIND) * length(k,iCell))
+              ! velocity scale
+              vscale = sqrt(KE)
+              ! inverse of the time scale
+              invTau(k,iCell) = vscale / length(k,iCell)
 
-            ! See (48) of LR01a for the w2 equation
-            ! dissipation by entrainment/detrainment of plumes
-            ! (18) of LR01b
-            w2tend1(k,iCell) = - wumd(k,iCell)**2 * (Entrainment(k,iCell) + Detrainment(k,iCell))
-            ! turbulent transport
-            w2tend2(k,iCell) = ( Mc(k-1,iCell) * &
-                               (1.0_RKIND - 2.0_RKIND*areaFraction(k-1,iCell)) * wumd(k-1,iCell)**2 &
-                                 - Mc(k+1,iCell) * &
-                               (1.0_RKIND - 2.0_RKIND*areaFraction(k+1,iCell)) * wumd(k+1,iCell)**2 &
-                               ) / (ze(k-1,iCell) - ze(k+1,iCell))
-            ! pressure term: slow
-            ! the missing w2 term is added when time-stepping the w2 equation
-            w2tend3(k,iCell) = Cslow * invTau(k,iCell) * (u2(i1,k,iCell) + v2(i1,k,iCell))/3.0_RKIND
-            ! buoyancy term + the buoyancy contribution in the pressure term
-            w2tend4(k,iCell) = (2.0_RKIND - 4.0_RKIND/3.0_RKIND*Cb) * wb
-            ! pressure term: rapid
-            w2tend5(k,iCell) = (1.0_RKIND/3.0_RKIND*alpha1 - alpha2) * &
-                               (uw(i1,k,iCell)*Uz + vw(i1,k,iCell)*Vz)
-            ! subplume scale term
-            w2tend6(k,iCell) = Mc(k,iCell) * (Swumd(k-1,iCell) + Swumd(k,iCell))
+              ! See (48) of LR01a for the w2 equation
+              ! dissipation by entrainment/detrainment of plumes
+              ! (18) of LR01b
+              w2tend1(k,iCell) = - wumd(k,iCell)**2 * (Entrainment(k,iCell) + Detrainment(k,iCell))
+              ! turbulent transport
+              w2tend2(k,iCell) = ( Mc(k-1,iCell) * &
+                                 (1.0_RKIND - 2.0_RKIND*areaFraction(k-1,iCell)) * wumd(k-1,iCell)**2 &
+                                   - Mc(k+1,iCell) * &
+                                 (1.0_RKIND - 2.0_RKIND*areaFraction(k+1,iCell)) * wumd(k+1,iCell)**2 &
+                                 ) / (ze(k-1,iCell) - ze(k+1,iCell))
+              ! pressure term: slow
+              ! the missing w2 term is added when time-stepping the w2 equation
+              w2tend3(k,iCell) = Cslow * invTau(k,iCell) * (u2(i1,k,iCell) + v2(i1,k,iCell))/3.0_RKIND
+              ! buoyancy term + the buoyancy contribution in the pressure term
+              w2tend4(k,iCell) = (2.0_RKIND - 4.0_RKIND/3.0_RKIND*Cb) * wb
+              ! pressure term: rapid
+              w2tend5(k,iCell) = (1.0_RKIND/3.0_RKIND*alpha1 - alpha2) * &
+                                 (uw(i1,k,iCell)*Uz + vw(i1,k,iCell)*Vz)
+              ! subplume scale term
+              w2tend6(k,iCell) = Mc(k,iCell) * (Swumd(k-1,iCell) + Swumd(k,iCell))
+              ! w2 tendency
+              w2tend(k,iCell) = w2tend1(k,iCell) + w2tend2(k,iCell) + w2tend3(k,iCell) + &
+                                w2tend4(k,iCell) + w2tend5(k,iCell) + w2tend6(k,iCell)
 
-            ! w2 tendency
-            w2tend(k,iCell) = w2tend1(k,iCell) + w2tend2(k,iCell) + w2tend3(k,iCell) + &
-                              w2tend4(k,iCell) + w2tend5(k,iCell) + w2tend6(k,iCell)
-
-            ! See (49) of LR01a for the wt equation
-            ! sources/sinks due to entrainment/detrainment + transport term
-            wttend1(k,iCell) = - (Entrainment(k,iCell) + Detrainment(k,iCell)) * &
-                                 wumd(k,iCell) * tumd(k,iCell) &
-                               + ( (1.0_RKIND - 2.0_RKIND*areaFraction(k-1,iCell)) * &
+              ! See (49) of LR01a for the wt equation
+              ! sources/sinks due to entrainment/detrainment
+              wttend1(k,iCell) = - (Entrainment(k,iCell) + Detrainment(k,iCell)) * &
+                                   wumd(k,iCell) * tumd(k,iCell)
+              ! transport term
+              wttend2(k,iCell) = ( (1.0_RKIND - 2.0_RKIND*areaFraction(k-1,iCell)) * &
                                    wumd(k-1,iCell) * tumd(k-1,iCell) * Mc(k-1,iCell) &
                                  - (1.0_RKIND - 2.0_RKIND*areaFraction(k+1,iCell)) * &
                                    wumd(k+1,iCell) * tumd(k+1,iCell) * Mc(k+1,iCell) &
                                  ) / (ze(k-1,iCell) - ze(k+1,iCell))
-            ! gradient production term
-            wttend2(k,iCell) = - Mc(k,iCell) * wumd(k,iCell) * Tz
-            ! buoyancy term
-            wttend3(k,iCell) = (1.0_RKIND - Cb_tracer) * gravity * &
-                               areaFraction(k,iCell) * (1.0_RKIND - areaFraction(k,iCell)) * &
-                               (alphaT(k,iCell)*tumd(k,iCell)**2 - &
-                                betaS(k,iCell)*tumd(k,iCell)*sumd(k,iCell))
-            ! pressure term: rapid term
-            wttend4(k,iCell) = (alpha1_tracer - alpha2_tracer) / 2.0_RKIND * &
-                               (ut(i1,k,iCell)*Uz + vt(i1,k,iCell)*Vz)
-            ! pressure term:
-            ! the missing wt term is added when time-stepping wt equation
-            ! TODO: why do we need a diffusion term?
-            wttend5(k,iCell) = kappa_FL * (wt(i1,k-1,iCell) - wt(i1,k+1,iCell)) / &
-                               (ze(k-1,iCell) - ze(k+1,iCell))**2
-            ! sources/sinks due to subplume terms
-            wttend6(k,iCell) = areaFraction(k,iCell)*(1.0_RKIND - areaFraction(k,iCell)) * &
-                               tumd(k,iCell) * 0.5_RKIND * (Swumd(k-1,iCell) + Swumd(k,iCell)) &
-                             - Mc(k,iCell) * ( 1.0_RKIND / (1.0_RKIND - areaFraction(k,iCell)) * &
-                               ( (1.0_RKIND - areaFraction(k-1,iCell)) * wt_spsU(k-1,iCell) &
-                               - (1.0_RKIND - areaFraction(k+1,iCell)) * wt_spsU(k+1,iCell) &
-                               ) / (ze(k-1,iCell) - ze(k+1,iCell)) &
-                                             - 1.0_RKIND / areaFraction(k,iCell) * &
-                               ( areaFraction(k-1,iCell) * wt_spsD(k-1,iCell) &
-                               - areaFraction(k+1,iCell) * wt_spsD(k+1,iCell) &
-                               ) / (ze(k-1,iCell) - ze(k+1,iCell)) &
-                                             )
-            ! wt tendency
-            wttend(k,iCell) = wttend1(k,iCell) + wttend2(k,iCell) + wttend3(k,iCell) + &
-                              wttend4(k,iCell) + wttend5(k,iCell) + wttend6(k,iCell)
+              ! gradient production term
+              wttend3(k,iCell) = - Mc(k,iCell) * wumd(k,iCell) * Tz
+              ! buoyancy term
+              wttend4(k,iCell) = (1.0_RKIND - Cb_tracer) * gravity * &
+                                 areaFraction(k,iCell) * (1.0_RKIND - areaFraction(k,iCell)) * &
+                                 (alphaT(k,iCell)*tumd(k,iCell)**2 - &
+                                  betaS(k,iCell)*tumd(k,iCell)*sumd(k,iCell))
+              ! pressure term: only the rapid term here
+              ! the slow term is added when time-stepping wt equation
+              wttend5(k,iCell) = (alpha1_tracer - alpha2_tracer) / 2.0_RKIND * &
+                                 (ut(i1,k,iCell)*Uz + vt(i1,k,iCell)*Vz)
+              ! sources/sinks due to subplume terms
+              wttend6(k,iCell) = areaFraction(k,iCell)*(1.0_RKIND - areaFraction(k,iCell)) * &
+                                 tumd(k,iCell) * 0.5_RKIND * (Swumd(k-1,iCell) + Swumd(k,iCell)) &
+                               - Mc(k,iCell) * ( 1.0_RKIND / (1.0_RKIND - areaFraction(k,iCell)) * &
+                                 ( (1.0_RKIND - areaFraction(k-1,iCell)) * wt_spsU(k-1,iCell) &
+                                 - (1.0_RKIND - areaFraction(k+1,iCell)) * wt_spsU(k+1,iCell) &
+                                 ) / (ze(k-1,iCell) - ze(k+1,iCell)) &
+                                               - 1.0_RKIND / areaFraction(k,iCell) * &
+                                 ( areaFraction(k-1,iCell) * wt_spsD(k-1,iCell) &
+                                 - areaFraction(k+1,iCell) * wt_spsD(k+1,iCell) &
+                                 ) / (ze(k-1,iCell) - ze(k+1,iCell)) &
+                                               )
+              ! wt tendency
+              wttend(k,iCell) = wttend1(k,iCell) + wttend2(k,iCell) + wttend3(k,iCell) + &
+                                wttend4(k,iCell) + wttend5(k,iCell) + wttend6(k,iCell)
 
-            ! See (49) of LR01a for the wt equation
-            ! sources/sinks due to entrainment/detrainment + transport term
-            wstend1(k,iCell) = - (Entrainment(k,iCell) + Detrainment(k,iCell)) * &
-                                 wumd(k,iCell)*sumd(k,iCell) &
-                               + ( (1.0_RKIND - 2.0_RKIND*areaFraction(k-1,iCell)) * &
+              ! See (49) of LR01a for the wt equation
+              ! sources/sinks due to entrainment/detrainment
+              wstend1(k,iCell) = - (Entrainment(k,iCell) + Detrainment(k,iCell)) * &
+                                   wumd(k,iCell)*sumd(k,iCell)
+              ! transport term
+              wstend2(k,iCell) = ( (1.0_RKIND - 2.0_RKIND*areaFraction(k-1,iCell)) * &
                                    wumd(k-1,iCell) * sumd(k-1,iCell) * Mc(k-1,iCell) &
                                  - (1.0_RKIND - 2.0_RKIND*areaFraction(k+1,iCell)) * &
                                    wumd(k+1,iCell) * sumd(k+1,iCell) * Mc(k+1,iCell) &
                                  ) / (ze(k-1,iCell) - ze(k+1,iCell))
-            ! gradient production term
-            wstend2(k,iCell) = - Mc(k,iCell) * wumd(k,iCell) * Sz
-            ! buoyancy term
-            wstend3(k,iCell) = (1.0_RKIND - Cb_tracer) * gravity * &
-                               areaFraction(k,iCell) * (1.0_RKIND - areaFraction(k,iCell)) * &
-                               (alphaT(k,iCell)*tumd(k,iCell)*sumd(k,iCell) - &
-                                betaS(k,iCell)*sumd(k,iCell)**2)
-            ! pressure term: rapid term
-            wstend4(k,iCell) = (alpha1_tracer - alpha2_tracer) / 2.0_RKIND * &
-                               (us(i1,k,iCell)*Uz + vs(i1,k,iCell)*Vz)
-            ! pressure term:
-            ! the missing ws term is added when time-stepping ws equation
-            ! TODO: why do we need a diffusion term?
-            wsTend5(k,iCell) = kappa_FL * (ws(i1,k-1,iCell) - ws(i1,k+1,iCell)) / &
-                               (ze(k-1,iCell) - ze(k+1,iCell))**2
-            ! sources/sinks due to subplume terms
-            wstend6(k,iCell) = areaFraction(k,iCell)*(1.0_RKIND - areaFraction(k,iCell)) * &
-                               sumd(k,iCell) * 0.5_RKIND * (Swumd(k-1,iCell) + Swumd(k,iCell)) &
-                             - Mc(k,iCell) * ( 1.0_RKIND / (1.0_RKIND - areaFraction(k,iCell)) * &
-                               ( (1.0_RKIND - areaFraction(k-1,iCell)) * ws_spsU(k-1,iCell) &
-                               - (1.0_RKIND - areaFraction(k+1,iCell)) * ws_spsU(k+1,iCell) &
-                               ) / (ze(k-1,iCell) - ze(k+1,iCell)) &
-                                             - 1.0_RKIND / areaFraction(k,iCell) * &
-                               ( areaFraction(k-1,iCell) * ws_spsD(k-1,iCell) &
-                               - areaFraction(k+1,iCell) * ws_spsD(k+1,iCell) &
-                               ) / (ze(k-1,iCell) - ze(k+1,iCell)) &
-                                             )
-            ! ws tendency
-            wstend(k,iCell) = wstend1(k,iCell) + wstend2(k,iCell) + wstend3(k,iCell) + &
-                              wstend4(k,iCell) + wstend5(k,iCell) + wstend6(k,iCell)
+              ! gradient production term
+              wstend2(k,iCell) = - Mc(k,iCell) * wumd(k,iCell) * Sz
+              ! buoyancy term
+              wstend3(k,iCell) = (1.0_RKIND - Cb_tracer) * gravity * &
+                                 areaFraction(k,iCell) * (1.0_RKIND - areaFraction(k,iCell)) * &
+                                 (alphaT(k,iCell)*tumd(k,iCell)*sumd(k,iCell) - &
+                                  betaS(k,iCell)*sumd(k,iCell)**2)
+              ! pressure term: only the rapid term here
+              ! the slow term is added when time-stepping ws equation
+              wstend4(k,iCell) = (alpha1_tracer - alpha2_tracer) / 2.0_RKIND * &
+                                 (us(i1,k,iCell)*Uz + vs(i1,k,iCell)*Vz)
+              ! sources/sinks due to subplume terms
+              wstend6(k,iCell) = areaFraction(k,iCell)*(1.0_RKIND - areaFraction(k,iCell)) * &
+                                 sumd(k,iCell) * 0.5_RKIND * (Swumd(k-1,iCell) + Swumd(k,iCell)) &
+                               - Mc(k,iCell) * ( 1.0_RKIND / (1.0_RKIND - areaFraction(k,iCell)) * &
+                                 ( (1.0_RKIND - areaFraction(k-1,iCell)) * ws_spsU(k-1,iCell) &
+                                 - (1.0_RKIND - areaFraction(k+1,iCell)) * ws_spsU(k+1,iCell) &
+                                 ) / (ze(k-1,iCell) - ze(k+1,iCell)) &
+                                               - 1.0_RKIND / areaFraction(k,iCell) * &
+                                 ( areaFraction(k-1,iCell) * ws_spsD(k-1,iCell) &
+                                 - areaFraction(k+1,iCell) * ws_spsD(k+1,iCell) &
+                                 ) / (ze(k-1,iCell) - ze(k+1,iCell)) &
+                                               )
+              ! ws tendency
+              wstend(k,iCell) = wstend1(k,iCell) + wstend2(k,iCell) + wstend3(k,iCell) + &
+                                wstend4(k,iCell) + wstend5(k,iCell) + wstend6(k,iCell)
 
-            ! uw equation
-            ! transport term
-            uwtend1(k,iCell) = - (uw2(k-1,iCell) - uw2(k,iCell)) / dzmid
-            ! shear production + rapid pressure term: dU/dz
-            uwtend2(k,iCell) = 0.5_RKIND * ( (alpha0 - 4.0_RKIND/3.0_RKIND*alpha1) * KE + &
-                                             (alpha1 - alpha2) * u2(i1,k,iCell) + &
-                                             (alpha1 + alpha2 - 2.0_RKIND) * w2(i1,k,iCell) &
-                                           ) * Uz
-            ! rapid pressure term: dV/dz
-            uwtend3(k,iCell) = 0.5_RKIND * (alpha1 - alpha2) * uv(i1,k,iCell) * Vz
-            ! buoyancy term
-            uwtend4(k,iCell) = (1.0_RKIND - Cb) * gravity * &
-                               (alphaT(k,iCell)*ut(i1,k,iCell) - betaS(k,iCell)*us(i1,k,iCell))
-            ! diffusion
-            uwtend5(k,iCell) = kappa_FL * (uw(i1,k-1,iCell) - uw(i1,k+1,iCell)) / &
-                               (ze(k-1,iCell) - ze(k+1,iCell))**2
-            ! uw tendency
-            uwtend(k,iCell) = uwtend1(k,iCell) + uwtend2(k,iCell) + uwtend3(k,iCell) + &
-                              uwtend4(k,iCell) + uwtend5(k,iCell)
+              ! uw equation
+              ! transport term
+              uwtend1(k,iCell) = - (uw2(k-1,iCell) - uw2(k,iCell)) / dzmid
+              ! shear production + rapid pressure term: dU/dz
+              ! note that the slow pressure term is in time stepping
+              uwtend2(k,iCell) = 0.5_RKIND * ( (alpha0 - 4.0_RKIND/3.0_RKIND*alpha1) * KE + &
+                                               (alpha1 - alpha2) * u2(i1,k,iCell) + &
+                                               (alpha1 + alpha2 - 2.0_RKIND) * w2(i1,k,iCell) &
+                                             ) * Uz
+              ! rapid pressure term: dV/dz
+              uwtend3(k,iCell) = 0.5_RKIND * (alpha1 - alpha2) * uv(i1,k,iCell) * Vz
+              ! buoyancy term
+              uwtend4(k,iCell) = (1.0_RKIND - Cb) * gravity * &
+                                 (alphaT(k,iCell)*ut(i1,k,iCell) - betaS(k,iCell)*us(i1,k,iCell))
+              ! uw tendency
+              uwtend(k,iCell) = uwtend1(k,iCell) + uwtend2(k,iCell) + uwtend3(k,iCell) + &
+                                uwtend4(k,iCell)
 
-            ! vw equation
-            ! transport term
-            vwtend1(k,iCell) = - (vw2(k-1,iCell) - vw2(k,iCell)) / dzmid
-            ! rapid pressure term: dU/dz
-            vwtend2(k,iCell) = 0.5_RKIND * (alpha1 - alpha2) * uv(i1,k,iCell) * Uz
-            ! shear production + rapid pressure term: dV/dz
-            vwtend3(k,iCell) = 0.5_RKIND * ( (alpha0 - 4.0_RKIND/3.0_RKIND*alpha1) * KE + &
-                                             (alpha1 - alpha2) * v2(i1,k,iCell) + &
-                                             (alpha1 + alpha2 - 2.0_RKIND) * w2(i1,k,iCell) &
-                                           ) * Vz
-            ! buoyancy term
-            vwtend4(k,iCell) = (1.0_RKIND - Cb) * gravity * &
-                               (alphaT(k,iCell)*vt(i1,k,iCell) - betaS(k,iCell)*vs(i1,k,iCell))
-            ! diffusion
-            vwtend5(k,iCell) = kappa_FL * (vw(i1,k-1,iCell) - vw(i1,k+1,iCell)) / &
-                               (ze(k-1,iCell) - ze(k+1,iCell))**2
-            ! vw tendency
-            vwtend(k,iCell) = vwtend1(k,iCell) + vwtend2(k,iCell) + vwtend3(k,iCell) + &
-                              vwtend4(k,iCell) + vwtend5(k,iCell)
+              ! vw equation
+              ! transport term
+              vwtend1(k,iCell) = - (vw2(k-1,iCell) - vw2(k,iCell)) / dzmid
+              ! rapid pressure term: dU/dz
+              ! note that the slow pressure term is in time stepping
+              vwtend2(k,iCell) = 0.5_RKIND * (alpha1 - alpha2) * uv(i1,k,iCell) * Uz
+              ! shear production + rapid pressure term: dV/dz
+              vwtend3(k,iCell) = 0.5_RKIND * ( (alpha0 - 4.0_RKIND/3.0_RKIND*alpha1) * KE + &
+                                               (alpha1 - alpha2) * v2(i1,k,iCell) + &
+                                               (alpha1 + alpha2 - 2.0_RKIND) * w2(i1,k,iCell) &
+                                             ) * Vz
+              ! buoyancy term
+              vwtend4(k,iCell) = (1.0_RKIND - Cb) * gravity * &
+                                 (alphaT(k,iCell)*vt(i1,k,iCell) - betaS(k,iCell)*vs(i1,k,iCell))
+              ! vw tendency
+              vwtend(k,iCell) = vwtend1(k,iCell) + vwtend2(k,iCell) + vwtend3(k,iCell) + &
+                                vwtend4(k,iCell)
 
-            ! uv tendency
-            uvtend(k,iCell) = &
-            ! transport
-                             - (uvw(k-1,iCell) - uvw(k,iCell)) / dz &
-            ! shear production + rapid pressure term
-                             - (1.0_RKIND - 0.5_RKIND*(alpha1+alpha2)) * &
-                               (uw(i1,k,iCell)*Vz + vw(i1,k,iCell)*Uz) &
-            ! diffusion
-                             + kappa_VAR * (uv(i1,k-1,iCell) - uv(i1,k+1,iCell)) / &
-                               (ze(k-1,iCell) - ze(k+1,iCell))**2
+              ! uv tendency
+              uvtend(k,iCell) = &
+              ! transport
+                               - (uvw(k-1,iCell) - uvw(k,iCell)) / dz &
+              ! shear production + rapid pressure term
+              ! note that the slow pressure term is in time stepping
+                               - (1.0_RKIND - 0.5_RKIND*(alpha1+alpha2)) * &
+                                 (uw(i1,k,iCell)*Vz + vw(i1,k,iCell)*Uz)
 
-            ! u2 equation
-            ! transport
-            u2tend1(k,iCell) = - (u2w(k-1,iCell) - u2w(k,iCell)) / dzmid
-            ! shear production + rapid pressure term: dU/dz
-            u2tend2(k,iCell) = (1.0_RKIND/3.0_RKIND*alpha1 + alpha2 - 2.0_RKIND) * uw(i1,k,iCell) * Uz
-            ! rapid pressure term: dV/dz
-            u2tend3(k,iCell) = - 2.0_RKIND/3.0_RKIND*alpha1 * vw(i1,k,iCell) * Vz
-            ! buoyancy term
-            u2tend4(k,iCell) = 2.0_RKIND/3.0_RKIND * Cb * wb
-            ! dissipation + return to isotropy
-            ! TODO: note that the term proportional to u2 is in time stepping
-!            u2tend5(k,iCell) = -2.0_RKIND/3.0_RKIND*eps(i1,k,iCell) + &
-!              invTaupv(k,iCell)*(2.0_RKIND*KE/3.0_RKIND - u2(i1,k,iCell))
-            u2tend5(k,iCell) = - 2.0_RKIND/3.0_RKIND*eps(i1,k,iCell) + &
-                               Cslow * invTau(k,iCell) * (v2(i1,k,iCell) + w2(i1,k,iCell)) / 3.0_RKIND
-            ! u2 tendency
-            u2tend(k,iCell) = u2tend1(k,iCell) + u2tend2(k,iCell) + u2tend3(k,iCell) + &
-                              u2tend4(k,iCell) + u2tend5(k,iCell)
+              ! u2 equation
+              ! transport
+              u2tend1(k,iCell) = - (u2w(k-1,iCell) - u2w(k,iCell)) / dzmid
+              ! shear production + rapid pressure term: dU/dz
+              u2tend2(k,iCell) = (1.0_RKIND/3.0_RKIND*alpha1 + alpha2 - 2.0_RKIND) * uw(i1,k,iCell) * Uz
+              ! rapid pressure term: dV/dz
+              u2tend3(k,iCell) = - 2.0_RKIND/3.0_RKIND*alpha1 * vw(i1,k,iCell) * Vz
+              ! buoyancy term
+              u2tend4(k,iCell) = 2.0_RKIND/3.0_RKIND * Cb * wb
+              ! dissipation + return to isotropy
+              ! note that the term proportional to u2 is in time stepping
+              u2tend5(k,iCell) = - 2.0_RKIND/3.0_RKIND*eps(i1,k,iCell) + &
+                                 Cslow * invTau(k,iCell) * (v2(i1,k,iCell) + w2(i1,k,iCell)) / 3.0_RKIND
+              ! u2 tendency
+              u2tend(k,iCell) = u2tend1(k,iCell) + u2tend2(k,iCell) + u2tend3(k,iCell) + &
+                                u2tend4(k,iCell) + u2tend5(k,iCell)
 
-            ! v2 equation
-            ! transport
-            v2tend1(k,iCell) = - (v2w(k-1,iCell) - v2w(k,iCell)) / dzmid
-            ! rapid pressure term: dU/dz
-            v2tend2(k,iCell) = - 2.0_RKIND/3.0_RKIND*alpha1*uw(i1,k,iCell)*Uz
-            ! shear production + rapid pressure term: dV/dz
-            v2tend3(k,iCell) = (1.0_RKIND/3.0_RKIND*alpha1 + alpha2 - 2.0_RKIND) * vw(i1,k,iCell) * Vz
-            ! buoyancy term
-            v2tend4(k,iCell) = 2.0_RKIND/3.0_RKIND * Cb * wb
-            ! dissipation + return to isotropy
-            ! TODO: note that the term proportional to v2 is in time stepping
-!            v2tend5(k,iCell) = -2.0_RKIND/3.0_RKIND*eps(i1,k,iCell) + invTaupv(k,iCell)* &
-!              (2.0_RKIND*KE/3. - v2(i1,k,iCell))
-            v2tend5(k,iCell) = - 2.0_RKIND/3.0_RKIND*eps(i1,k,iCell) + &
-                               Cslow * invTau(k,iCell) * (u2(i1,k,iCell) + w2(i1,k,iCell)) / 3.0_RKIND
-            ! v2 tendency
-            v2tend(k,iCell) = v2tend1(k,iCell) + v2tend2(k,iCell) + v2tend3(k,iCell) + &
-                              v2tend4(k,iCell) + v2tend5(k,iCell)
+              ! v2 equation
+              ! transport
+              v2tend1(k,iCell) = - (v2w(k-1,iCell) - v2w(k,iCell)) / dzmid
+              ! rapid pressure term: dU/dz
+              v2tend2(k,iCell) = - 2.0_RKIND/3.0_RKIND*alpha1*uw(i1,k,iCell)*Uz
+              ! shear production + rapid pressure term: dV/dz
+              v2tend3(k,iCell) = (1.0_RKIND/3.0_RKIND*alpha1 + alpha2 - 2.0_RKIND) * vw(i1,k,iCell) * Vz
+              ! buoyancy term
+              v2tend4(k,iCell) = 2.0_RKIND/3.0_RKIND * Cb * wb
+              ! dissipation + return to isotropy
+              ! note that the term proportional to v2 is in time stepping
+              v2tend5(k,iCell) = - 2.0_RKIND/3.0_RKIND*eps(i1,k,iCell) + &
+                                 Cslow * invTau(k,iCell) * (u2(i1,k,iCell) + w2(i1,k,iCell)) / 3.0_RKIND
+              ! v2 tendency
+              v2tend(k,iCell) = v2tend1(k,iCell) + v2tend2(k,iCell) + v2tend3(k,iCell) + &
+                                v2tend4(k,iCell) + v2tend5(k,iCell)
 
-            ! ut tendency
-            uttend(k,iCell) = &
-            ! transport
-                             - (uwt(k-1,iCell) - uwt(k,iCell))/dz &
-            ! gradient term
-                             - uw(i1,k,iCell) * Tz &
-            ! rapid pressure term
-                             - (1.0_RKIND - 0.5_RKIND*(alpha1_tracer+alpha2_tracer)) * wt(i1,k,iCell) * Uz
+              ! ut tendency
+              uttend(k,iCell) = &
+              ! transport
+                               - (uwt(k-1,iCell) - uwt(k,iCell))/dz &
+              ! gradient term
+                               - uw(i1,k,iCell) * Tz &
+              ! rapid pressure term
+                               - (1.0_RKIND - 0.5_RKIND*(alpha1_tracer+alpha2_tracer)) * wt(i1,k,iCell) * Uz
 
-            ! vt tendency
-            vttend(k,iCell) = &
-            ! transport
-                             - (vwt(k-1,iCell) - vwt(k,iCell)) / dz &
-            ! gradient term
-                             - vw(i1,k,iCell) * Tz &
-            ! rapid pressure term
-                             - (1.0_RKIND - 0.5_RKIND*(alpha1_tracer+alpha2_tracer)) * wt(i1,k,iCell) * Vz
+              ! vt tendency
+              vttend(k,iCell) = &
+              ! transport
+                               - (vwt(k-1,iCell) - vwt(k,iCell)) / dz &
+              ! gradient term
+                               - vw(i1,k,iCell) * Tz &
+              ! rapid pressure term
+                               - (1.0_RKIND - 0.5_RKIND*(alpha1_tracer+alpha2_tracer)) * wt(i1,k,iCell) * Vz
 
-            ! us tendency
-            ustend(k,iCell) = &
-            ! transport
-                             - (uws(k-1,iCell) - uws(k,iCell)) / dz &
-            ! gradient term
-                             - uw(i1,k,iCell) * Sz &
-            ! rapid pressure term
-                             - (1.0_RKIND - 0.5_RKIND*(alpha1_tracer+alpha2_tracer)) * ws(i1,k,iCell) * Uz
+              ! us tendency
+              ustend(k,iCell) = &
+              ! transport
+                               - (uws(k-1,iCell) - uws(k,iCell)) / dz &
+              ! gradient term
+                               - uw(i1,k,iCell) * Sz &
+              ! rapid pressure term
+                               - (1.0_RKIND - 0.5_RKIND*(alpha1_tracer+alpha2_tracer)) * ws(i1,k,iCell) * Uz
 
-            ! vs tendency
-            vstend(k,iCell) = &
-            ! transport
-                             - (vws(k-1,iCell) - vws(k,iCell)) / dz &
-            ! gradient term
-                             - vw(i1,k,iCell) * Sz &
-            ! rapid pressure term
-                             - (1.0_RKIND - 0.5_RKIND*(alpha1_tracer+alpha2_tracer)) * ws(i1,k,iCell) * Vz
+              ! vs tendency
+              vstend(k,iCell) = &
+              ! transport
+                               - (vws(k-1,iCell) - vws(k,iCell)) / dz &
+              ! gradient term
+                               - vw(i1,k,iCell) * Sz &
+              ! rapid pressure term
+                               - (1.0_RKIND - 0.5_RKIND*(alpha1_tracer+alpha2_tracer)) * ws(i1,k,iCell) * Vz
 
-            ! TODO: not used? <
-            t2(i2,k,iCell) = tumd(k,iCell)**2*areaFraction(k,iCell)* &
-              (1.0_RKIND-areaFraction(k,iCell))
-            s2(i2,k,iCell) = sumd(k,iCell)**2*areaFraction(k,iCell)* &
-              (1.0_RKIND-areaFraction(k,iCell))
-            ts(i2,k,iCell) = tumd(k,iCell)*sumd(k,iCell)* &
-              areaFraction(k,iCell)*(1.0_RKIND-areaFraction(k,iCell))
-            ! >
+              ! output tracer statistics
+              t2(i2,k,iCell) = tumd(k,iCell)**2 * areaFraction(k,iCell) * (1.0_RKIND-areaFraction(k,iCell))
+              s2(i2,k,iCell) = sumd(k,iCell)**2 * areaFraction(k,iCell) * (1.0_RKIND-areaFraction(k,iCell))
+              ts(i2,k,iCell) = tumd(k,iCell) * sumd(k,iCell) * areaFraction(k,iCell) * (1.0_RKIND-areaFraction(k,iCell))
 
-            if (.not. config_adc_use_old_length_scale) then
-              !epsilon tendency is next
-              KEm1  = 0.5_RKIND * (u2(i1,k-1,iCell) + v2(i1,k-1,iCell) + w2(i1,k-1,iCell))
-              KE    = 0.5_RKIND * (u2(i1,k,iCell) + v2(i1,k,iCell) + w2(i1,k,iCell))
-              KEp1  = 0.5_RKIND * (u2(i1,k+1,iCell) + v2(i1,k+1,iCell) + w2(i1,k+1,iCell))
-              tauM1 = 2.0_RKIND * KEm1 / (eps(i1,k-1,iCell) + smallNum )
-              tau   = 2.0_RKIND * KE / (eps(i1,k,iCell) + smallNum)
-              tauP1 = 2.0_RKIND * KEp1 / (eps(i1,k+1,iCell) + smallNum)
-              tauAV = 0.5_RKIND * (tauUP + tauDN)
+           end do ! nVertLevels
+        end do ! nCells
 
-              tomUP = 0.5577_RKIND/1.3_RKIND * (0.5_RKIND*(KEm1+KE))**2 / &
-                      (0.5_RKIND*(eps(i1,k-1,iCell) + eps(i1,k,iCell)) + smallNum) * &
-                      (eps(i1,k-1,iCell) - eps(i1,k,iCell)) / (ze(k-1,iCell) - ze(k,iCell))
-              tomDN = 0.5577_RKIND/1.3_RKIND * (0.5_RKIND*(KE+KEp1))**2 / &
-                      (0.5_RKIND*(eps(i1,k,iCell) + eps(i1,k+1,iCell)) + smallNum) * &
-                      (eps(i1,k,iCell) - eps(i1,k+1,iCell)) / (ze(k,iCell) - ze(k+1,iCell))
+        ! subplume scale fluxes
+        do iCell = 1, nCells
+           ! level interfaces
+           do k = 2, nVertLevels
 
-              epstend(k,iCell) = (tomUP - tomDN) / (zm(k-1,iCell) - zm(k,iCell)) - &
-              !-0.8_RKIND*((tomUP / (0.5_RKIND*(tauM1 + tau) + 1.0E-10_RKIND) - tomDN / &
-               ! (0.5_RKIND*(tau + tauP1) + 1.0E-10_RKIND)) / (zm(k-1,iCell) - zm(k,iCell))) - &
-                                 2.88_RKIND/(tau + smallNum) * uw(i1,k,iCell) * &
-                                 (uvel(k-1,iCell) - uvel(k,iCell)) / (zm(k-1,iCell) - zm(k,iCell)) - &
-                                 2.88_RKIND/(tau + smallNum) * vw(i1,k,iCell) * &
-                                 (vvel(k-1,iCell) - vvel(k,iCell)) / (zm(k-1,iCell) - zm(k,iCell)) + &
-                                 2.88_RKIND/(tau + smallNum) * wb - &
-                                 3.84_RKIND * eps(i1,k,iCell)/(tau + smallNum)
-            endif
+              dzmid = (zm(k-1,iCell) - zm(k,iCell))
+              Uz = (uvel(k-1,iCell) - uvel(k,iCell)) / dzmid
+              Vz = (vvel(k-1,iCell) - vvel(k,iCell)) / dzmid
+              Tz = (activeTracers(1,k-1,iCell) - activeTracers(1,k,iCell)) / dzmid
+              Sz = (activeTracers(2,k-1,iCell) - activeTracers(2,k,iCell)) / dzmid
 
-            ! finally update all subplume fluxes
-            ! (32) and (33) of LR01b
-            if (BVF(k,iCell) <= 0.0_RKIND) then
-              lenspsU(k,iCell) = dzmid
-              lenspsD(k,iCell) = dzmid
-            else
-              lenspsU(k,iCell) = min(dz,0.76_RKIND*sqrt(KspsU(i1,k,iCell)/BVF(k,iCell)))
-              lenspsD(k,iCell) = min(dz,0.76_RKIND*sqrt(KspsD(i1,k,iCell)/BVF(k,iCell)))
-            endif
+              ! (32) and (33) of LR01b
+              if (BVF(k,iCell) <= 0.0_RKIND) then
+                lenspsU(k,iCell) = dzmid
+                lenspsD(k,iCell) = dzmid
+              else
+                lenspsU(k,iCell) = min(dzmid, 0.76_RKIND*sqrt(KspsU(i1,k,iCell)/BVF(k,iCell)))
+                lenspsD(k,iCell) = min(dzmid, 0.76_RKIND*sqrt(KspsD(i1,k,iCell)/BVF(k,iCell)))
+              endif
 
-            ! (34) of LR01b
-            KmU(k,iCell) = 0.1_RKIND*lenspsU(k,iCell)*sqrt( KspsU(i1,k,iCell) )
-            KhU(k,iCell) = (1.0_RKIND+2.0_RKIND*lenspsU(k,iCell)/dz)*KmU(k,iCell)
-            wt_spsU(k,iCell) =  -KhU(k,iCell)*Tz
-            ws_spsU(k,iCell) =  -KhU(k,iCell)*Sz
+              ! (34) of LR01b
+              KmU(k,iCell) = 0.1_RKIND * lenspsU(k,iCell) * sqrt(KspsU(i1,k,iCell))
+              KhU(k,iCell) = (1.0_RKIND + 2.0_RKIND*lenspsU(k,iCell)/dzmid) * KmU(k,iCell)
+              wt_spsU(k,iCell) = - KhU(k,iCell) * Tz
+              ws_spsU(k,iCell) = - KhU(k,iCell) * Sz
 
-            KmD(k,iCell) = 0.1_RKIND*lenspsD(k,iCell)*sqrt( KspsD(i1,k,iCell) )
-            KhD(k,iCell) = (1.0_RKIND+2.0_RKIND*lenspsD(k,iCell)/dz)*KmD(k,iCell)
-            wt_spsD(k,iCell) = -KhD(k,iCell)*Tz
-            ws_spsD(k,iCell) = -KhD(k,iCell)*Sz
+              KmD(k,iCell) = 0.1_RKIND * lenspsD(k,iCell) * sqrt( KspsD(i1,k,iCell) )
+              KhD(k,iCell) = (1.0_RKIND + 2.0_RKIND*lenspsD(k,iCell)/dzmid) * KmD(k,iCell)
+              wt_spsD(k,iCell) = - KhD(k,iCell) * Tz
+              ws_spsD(k,iCell) = - KhD(k,iCell) * Sz
 
-            !change length scale to lenup and lendown
-            ! (11) of LR01b
-            Entrainment(k,iCell) = Cww_E * areaFraction(k,iCell) * (1.0_RKIND-areaFraction(k,iCell)) * &
-                                   Mc(k,iCell) / ( lenup(k,iCell) + smallNum )
-            Detrainment(k,iCell) = Cww_D * areaFraction(k,iCell) * (1.0_RKIND-areaFraction(k,iCell)) * &
-                                   Mc(k,iCell) / ( lendn(k,iCell) + smallNum )
+              !change length scale to lenup and lendown
+              ! (11) of LR01b
+              Entrainment(k,iCell) = Cww_E * areaFraction(k,iCell) * (1.0_RKIND-areaFraction(k,iCell)) * &
+                                     Mc(k,iCell) / lenup(k,iCell)
+              Detrainment(k,iCell) = Cww_D * areaFraction(k,iCell) * (1.0_RKIND-areaFraction(k,iCell)) * &
+                                     Mc(k,iCell) / lendn(k,iCell)
 
-            ! (31) of LR01b
-            if (k==2) then
-              Cval = 3.96_RKIND
-            else
-              Cval = 0.19_RKIND+0.51_RKIND*lenspsU(k,iCell)/dzmid
-            endif
+              ! (31) of LR01b
+              if (k==2) then
+                Cval = 3.96_RKIND
+              else
+                Cval = 0.19_RKIND+0.51_RKIND*lenspsU(k,iCell)/dzmid
+              endif
 
-            ! subplume scale TKE equation
-            ! (28) of LR01b
-            KspsUtend(k,iCell) = &
-            ! buoyancy
-                       gravity * (alphaT(k,iCell)*wt_spsU(k,iCell) - betaS(k,iCell)*ws_spsU(k,iCell)) &
-            ! transport of SPS TKE and pressure term: (29) of LR01b
-                     + ((KmU(k-1,iCell) + KmU(k,iCell)) * (KspsU(i1,k-1,iCell) - KspsU(i1,k,iCell)) / &
-                        (ze(k-1,iCell) - ze(k,iCell)) &
-                      - (KmU(k,iCell) + KmU(k+1,iCell)) * (KspsU(i1,k,iCell) - KspsU(i1,k+1,iCell)) / &
-                        (ze(k,iCell) - ze(k+1,iCell)) &
-                       ) / dzmid &
-            ! dissipation: (30) of LR01b
-                     - Cval*KspsU(i1,k,iCell)**1.5_RKIND / (lenspsU(k,iCell) + smallNum) &
-            ! large scale dissipation
-                     + eps(i1,k,iCell) / (2.0_RKIND*(1.0_RKIND-areaFraction(k,iCell))) &
-            ! shear production
-                     + KmU(k,iCell) * (Uz**2 + Vz**2)
+              ! subplume scale TKE equation
+              ! (28) of LR01b
+              KspsUtend(k,iCell) = &
+              ! buoyancy
+                         gravity * (alphaT(k,iCell)*wt_spsU(k,iCell) - betaS(k,iCell)*ws_spsU(k,iCell)) &
+              ! transport of SPS TKE and pressure term: (29) of LR01b
+                       + ((KmU(k-1,iCell) + KmU(k,iCell)) * (KspsU(i1,k-1,iCell) - KspsU(i1,k,iCell)) / &
+                          (ze(k-1,iCell) - ze(k,iCell)) &
+                        - (KmU(k,iCell) + KmU(k+1,iCell)) * (KspsU(i1,k,iCell) - KspsU(i1,k+1,iCell)) / &
+                          (ze(k,iCell) - ze(k+1,iCell)) &
+                         ) / dzmid &
+              ! dissipation: (30) of LR01b
+                       - Cval*KspsU(i1,k,iCell)**1.5_RKIND / lenspsU(k,iCell) &
+              ! large scale dissipation
+                       + eps(i1,k,iCell) / (2.0_RKIND*(1.0_RKIND-areaFraction(k,iCell))) &
+              ! shear production
+                       + KmU(k,iCell) * (Uz**2 + Vz**2)
 
-            if (k==2) then
-              Cval = 3.96_RKIND
-            else
-              Cval = 0.19_RKIND+0.51_RKIND*lenspsD(k,iCell)/dzmid
-            endif
+              if (k==2) then
+                Cval = 3.96_RKIND
+              else
+                Cval = 0.19_RKIND+0.51_RKIND*lenspsD(k,iCell)/dzmid
+              endif
 
-            ! subplume scale TKE equation
-            ! (28) of LR01b
-            KspsDtend(k,iCell) = &
-            ! buoyancy
-                       gravity * (alphaT(k,iCell)*wt_spsD(k,iCell) - betaS(k,iCell)*ws_spsD(k,iCell)) &
-            ! transport of SPS TKE and pressure term: (29) of LR01b
-                     + ((KmD(k-1,iCell) + KmD(k,iCell)) * (KspsD(i1,k-1,iCell) - KspsD(i1,k,iCell)) / &
-                        (ze(k-1,iCell) - ze(k,iCell)) &
-                      - (KmD(k,iCell) + KmD(k+1,iCell)) * (KspsD(i1,k,iCell) - KspsD(i1,k+1,iCell)) / &
-                        (ze(k,iCell) - ze(k+1,iCell)) &
-                       ) / dzmid &
-            ! dissipation: (30) of LR01b
-                     - Cval*KspsD(i1,k,iCell)**1.5_RKIND / (lenspsD(k,iCell) + smallNum) &
-            ! large scale dissipation
-                     + eps(i1,k,iCell) / (2.0_RKIND*areaFraction(k,iCell)) &
-            ! shear production
-                     + KmD(k,iCell) * (Uz**2 + Vz**2)
+              ! subplume scale TKE equation
+              ! (28) of LR01b
+              KspsDtend(k,iCell) = &
+              ! buoyancy
+                         gravity * (alphaT(k,iCell)*wt_spsD(k,iCell) - betaS(k,iCell)*ws_spsD(k,iCell)) &
+              ! transport of SPS TKE and pressure term: (29) of LR01b
+                       + ((KmD(k-1,iCell) + KmD(k,iCell)) * (KspsD(i1,k-1,iCell) - KspsD(i1,k,iCell)) / &
+                          (ze(k-1,iCell) - ze(k,iCell)) &
+                        - (KmD(k,iCell) + KmD(k+1,iCell)) * (KspsD(i1,k,iCell) - KspsD(i1,k+1,iCell)) / &
+                          (ze(k,iCell) - ze(k+1,iCell)) &
+                         ) / dzmid &
+              ! dissipation: (30) of LR01b
+                       - Cval*KspsD(i1,k,iCell)**1.5_RKIND / lenspsD(k,iCell) &
+              ! large scale dissipation
+                       + eps(i1,k,iCell) / (2.0_RKIND*areaFraction(k,iCell)) &
+              ! shear production
+                       + KmD(k,iCell) * (Uz**2 + Vz**2)
 
-          enddo ! nVertLevels
+           enddo ! nVertLevels
         enddo ! nCells
 
         !In this step we update second moments except w3 which needs updated w2
-        do iCell = 1,nCells
-          do k = 2,nVertLevels
-            !update second order moment tendency here
-            w2(i2,k,iCell) = (w2(i1,k,iCell) + dt_small*w2tend(k,iCell)) / &
-                             (1.0_RKIND + dt_small*Cslow*invTau(k,iCell)*2.0_RKIND/3.0_RKIND)
-            if (w2(i2,k,iCell) < epsilon) then
-              w2cliptend(k,iCell) = epsilon-w2(i2,k,iCell)
-              w2(i2,k,iCell) = epsilon
-            endif
+        do iCell = 1, nCells
+           do k = 2, nVertLevels
+              !update second order moment tendency here
+              w2(i2,k,iCell) = (w2(i1,k,iCell) + dt_small*w2tend(k,iCell)) / &
+                               (1.0_RKIND + dt_small*Cslow*invTau(k,iCell)*2.0_RKIND/3.0_RKIND)
+              if (w2(i2,k,iCell) < epsilon) then
+                 w2cliptend(k,iCell) = epsilon-w2(i2,k,iCell)
+                 w2(i2,k,iCell) = epsilon
+              endif
 
-            if (abs(w2(i2,k,iCell)) > 1.0_RKIND) then
-              call mpas_log_write("ERROR: w2 out of range, w2 = $r, location = $i, $i", &
-                                  MPAS_LOG_CRIT,realArgs=(/w2(i2,k,iCell)/),intArgs=(/k,iCell/))
-            endif
+              if (abs(w2(i2,k,iCell)) > 1.0_RKIND) then
+                call mpas_log_write("ERROR: w2 out of range, w2 = $r, location = $i, $i", &
+                                    MPAS_LOG_CRIT,realArgs=(/w2(i2,k,iCell)/),intArgs=(/k,iCell/))
+              endif
 
             u2(i2,k,iCell) = (u2(i1,k,iCell) + dt_small*u2tend(k,iCell)) / &
                              (1.0_RKIND + dt_small*Cslow*invTau(k,iCell)*2.0_RKIND/3.0_RKIND)
@@ -809,19 +734,8 @@ module ocn_adc_mixing_fused
                                   MPAS_LOG_CRIT,realArgs=(/v2(i2,k,iCell)/),intArgs=(/k,iCell/))
             endif
 
-            if (.not. config_adc_use_old_length_scale)then
-              eps(i2,k,iCell) = eps(i1,k,iCell) + dt_small*epstend(k,iCell)
-              if (eps(i2,k,iCell) < 1.0E-10_RKIND) then
-                eps(i2,k,iCell) = 1.0E-10_RKIND
-              endif
-              !Amrapalli: 16.6 here can be tuned if needed, would show up in u2 and v2 primarily
-              ! also in KEspsU/D
-              KE = 0.5_RKIND * (u2(i2,k,iCell) + v2(i2,k,iCell) + w2(i2,k,iCell))
-              length(k,iCell) = KE**1.5_RKIND / 16.6_RKIND * eps(i2,k,iCell)
-            else
-              KE = 0.5_RKIND * (u2(i2,k,iCell) + v2(i2,k,iCell) + w2(i2,k,iCell))
-              eps(i2,k,iCell) = KE**1.5_RKIND / 16.6_RKIND * length(k,iCell)
-            endif
+            KE = 0.5_RKIND * (u2(i2,k,iCell) + v2(i2,k,iCell) + w2(i2,k,iCell))
+            eps(i2,k,iCell) = KE**1.5_RKIND / 16.6_RKIND * length(k,iCell)
             KspsU(i2,k,iCell) = max(epsilon, KspsU(i1,k,iCell) + dt_small*KspsUtend(k,iCell))
             KspsD(i2,k,iCell) = max(epsilon, KspsD(i1,k,iCell) + dt_small*KspsDtend(k,iCell))
 
