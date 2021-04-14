@@ -15,23 +15,6 @@
 !> \details
 !>  This module contains the routines for initializing the
 !>  idealized estuary initial condition
-!>
-!>  In order to add a new analysis member, do the following:
-!>  1. In src/core_ocean/mode_init, copy these to your new analysis member name:
-!>     cp mpas_ocn_init_TEMPLATE.F mpas_ocn_init_your_new_name.F
-!>     cp Registry_TEMPLATE.xml Registry_ocn_your_new_name.xml
-!>
-!>  2. In those two new files, replace the following text:
-!>     TEMPLATE, FILL_IN_AUTHOR, FILL_IN_DATE
-!>     TEMPLATE uses underscores (subroutine names), like your_new_name.
-!>
-!>  3. Add a #include line for your registry to
-!>     src/core_ocean/mode_init/Registry.xml
-!>
-!>  4. Copy and change TEMPLATE lines in src/core_ocean/mode_init/mpas_ocn_init_mode.F
-!>
-!>  5. Add these dependency lines by following TEMPLATE examples in:
-!>     in src/core_ocean/mode_init/Makefile
 !
 !-----------------------------------------------------------------------
 
@@ -151,10 +134,6 @@ contains
     allocate(interfaceLocations(nVertLevelsP1))
     call ocn_generate_vertical_grid( config_vertical_grid, interfaceLocations )
 
-    !--------------------------------------------------------------------
-    ! Use this section to make boundaries non-periodic
-    !--------------------------------------------------------------------
-
     ! Initalize min/max values to large positive and negative values
     yMin = 1.0E10_RKIND
     yMax = -1.0E10_RKIND
@@ -184,20 +163,6 @@ contains
     call mpas_dmpar_min_real(domain % dminfo, dcEdgeMin, dcEdgeMinGlobal)
 
     yMidGlobal = ( yMinGlobal + yMaxGlobal ) * 0.5_RKIND
-
-    block_ptr => domain % blocklist
-    do while(associated(block_ptr))
-       call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
-
-       call ocn_mark_north_boundary(meshPool, yMaxGlobal, dcEdgeMinGlobal, iErr)
-       call ocn_mark_south_boundary(meshPool, yMinGlobal, dcEdgeMinGlobal, iErr)
-
-       block_ptr => block_ptr % next
-    end do
-
-    !--------------------------------------------------------------------
-    ! Use this section to set initial values
-    !--------------------------------------------------------------------
 
     block_ptr => domain % blocklist
     do while(associated(block_ptr))
@@ -235,11 +200,14 @@ contains
        call mpas_pool_get_array(tracersInteriorRestoringFieldsPool, &
                  'activeTracersInteriorRestoringValue', activeTracersInteriorRestoringValue, 1)
 
+       call ocn_mark_north_boundary(meshPool, yMaxGlobal, dcEdgeMinGlobal, iErr)
+       call ocn_mark_south_boundary(meshPool, yMinGlobal, dcEdgeMinGlobal, iErr)
+
        tidalInputMask(:) = 0.0_RKIND
        activeTracersInteriorRestoringRate(:,:,:) = 0.0_RKIND
        activeTracersInteriorRestoringValue(:,:,:) = 0.0_RKIND
 
-       ! ! Set refBottomDepth and refZMid
+       ! Set refBottomDepth and refZMid
        do k = 1, nVertLevels
           refBottomDepth(k) = config_idealized_estuary_depth_ocean * interfaceLocations(k+1)
           refZMid(k) = - 0.5_RKIND * (interfaceLocations(k+1) + interfaceLocations(k)) * config_idealized_estuary_depth_ocean
