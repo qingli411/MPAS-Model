@@ -45,6 +45,7 @@ module ocn_init_idealized_estuary
    use mpas_dmpar
 
    use ocn_constants
+   use ocn_config
    use ocn_init_vertical_grids
    use ocn_init_cell_markers
 
@@ -109,23 +110,6 @@ contains
     real (kind=RKIND) :: yMin, yMax, dcEdgeMin, dcEdgeMinGlobal
     real (kind=RKIND) :: yMinGlobal, yMaxGlobal, yMidGlobal
     real (kind=RKIND) :: salinity
-    real (kind=RKIND), dimension(:), pointer :: interfaceLocations
-    real (kind=RKIND), dimension(:), pointer :: tidalInputMask
-
-    ! Define config variable pointers
-    character (len=StrKIND), pointer :: config_init_configuration, config_vertical_grid
-    integer, pointer :: config_idealized_estuary_vert_levels
-    real (kind=RKIND), pointer :: config_idealized_estuary_coriolis_parameter
-    real (kind=RKIND), pointer :: config_idealized_estuary_depth_ocean
-    real (kind=RKIND), pointer :: config_idealized_estuary_depth_river
-    real (kind=RKIND), pointer :: config_idealized_estuary_initial_temperature
-    real (kind=RKIND), pointer :: config_idealized_estuary_initial_salinity_ocean
-    real (kind=RKIND), pointer :: config_idealized_estuary_initial_salinity_river
-    real (kind=RKIND), pointer :: config_idealized_estuary_initial_salinity_width
-    real (kind=RKIND), pointer :: config_idealized_estuary_tidal_boundary_width
-    real (kind=RKIND), pointer :: config_idealized_estuary_restoring_salinity_width_ocean
-    real (kind=RKIND), pointer :: config_idealized_estuary_restoring_salinity_width_river
-    real (kind=RKIND), pointer :: config_idealized_estuary_restoring_salinity_tau
 
     ! Define dimension pointers
     integer, pointer :: nCellsSolve, nEdgesSolve, nVertLevels, nVertLevelsP1
@@ -134,35 +118,21 @@ contains
     ! Define variable pointers
     logical, pointer :: on_a_sphere
     integer, dimension(:), pointer :: maxLevelCell
+    real (kind=RKIND), dimension(:), pointer :: tidalInputMask
     real (kind=RKIND), dimension(:), pointer :: yCell,refBottomDepth, refZMid, &
-         vertCoordMovementWeights, bottomDepth, &
-         fCell, fEdge, fVertex, dcEdge
+                                                vertCoordMovementWeights, bottomDepth, &
+                                                fCell, fEdge, fVertex, dcEdge
     real (kind=RKIND), dimension(:,:), pointer :: layerThickness, restingThickness
-    real (kind=RKIND), dimension(:,:,:), pointer :: activeTracersInteriorRestoringValue, activeTracersInteriorRestoringRate
+    real (kind=RKIND), dimension(:,:,:), pointer :: activeTracersInteriorRestoringValue, &
+                                                    activeTracersInteriorRestoringRate
     real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
+
+    ! Define local interfaceLocations variable
+    real (kind=RKIND), dimension(:), pointer :: interfaceLocations
 
     iErr = 0
 
-    call mpas_pool_get_config(ocnConfigs, 'config_init_configuration', config_init_configuration)
-
     if(config_init_configuration .ne. trim('idealized_estuary')) return
-
-    ! Get config flag settings
-
-    call mpas_pool_get_config(ocnConfigs, 'config_vertical_grid', config_vertical_grid)
-
-    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_vert_levels', config_idealized_estuary_vert_levels)
-    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_coriolis_parameter', config_idealized_estuary_coriolis_parameter)
-    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_depth_ocean', config_idealized_estuary_depth_ocean)
-    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_depth_river', config_idealized_estuary_depth_river)
-    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_initial_temperature', config_idealized_estuary_initial_temperature)
-    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_initial_salinity_ocean', config_idealized_estuary_initial_salinity_ocean)
-    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_initial_salinity_river', config_idealized_estuary_initial_salinity_river)
-    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_initial_salinity_width', config_idealized_estuary_initial_salinity_width)
-    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_tidal_boundary_width', config_idealized_estuary_tidal_boundary_width)
-    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_restoring_salinity_width_ocean', config_idealized_estuary_restoring_salinity_width_ocean)
-    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_restoring_salinity_width_river', config_idealized_estuary_restoring_salinity_width_river)
-    call mpas_pool_get_config(ocnConfigs, 'config_idealized_estuary_restoring_salinity_tau', config_idealized_estuary_restoring_salinity_tau)
 
     ! check configuration parameters
     if (config_idealized_estuary_depth_ocean .lt. config_idealized_estuary_depth_river) then
