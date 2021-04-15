@@ -92,7 +92,7 @@ contains
     integer :: iCell, k, idx
     real (kind=RKIND) :: yMin, yMax, dcEdgeMin, dcEdgeMinGlobal
     real (kind=RKIND) :: yMinGlobal, yMaxGlobal, yMidGlobal
-    real (kind=RKIND) :: salinity
+    real (kind=RKIND) :: salinity, invAreaCell
 
     ! Define dimension pointers
     integer, pointer :: nCellsSolve, nEdgesSolve, nVertLevels, nVertLevelsP1
@@ -100,12 +100,13 @@ contains
 
     ! Define variable pointers
     logical, pointer :: on_a_sphere
-    integer, dimension(:), pointer :: maxLevelCell
+    integer, dimension(:), pointer :: maxLevelCell, minLevelCell
     real (kind=RKIND), dimension(:), pointer :: tidalInputMask
     real (kind=RKIND), dimension(:), pointer :: yCell,refBottomDepth, refZMid, &
                                                 vertCoordMovementWeights, bottomDepth, &
-                                                fCell, fEdge, fVertex, dcEdge
+                                                fCell, fEdge, fVertex, dcEdge, areaCell
     real (kind=RKIND), dimension(:,:), pointer :: layerThickness, restingThickness
+    real (kind=RKIND), dimension(:,:), pointer :: boundaryThickTend
     real (kind=RKIND), dimension(:,:,:), pointer :: activeTracersInteriorRestoringValue, &
                                                     activeTracersInteriorRestoringRate
     real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
@@ -183,14 +184,17 @@ contains
        call mpas_pool_get_array(meshPool, 'vertCoordMovementWeights', vertCoordMovementWeights)
        call mpas_pool_get_array(meshPool, 'bottomDepth', bottomDepth)
        call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
+       call mpas_pool_get_array(meshPool, 'minLevelCell', minLevelCell)
        call mpas_pool_get_array(meshPool, 'fCell', fCell)
        call mpas_pool_get_array(meshPool, 'fEdge', fEdge)
        call mpas_pool_get_array(meshPool, 'fVertex', fVertex)
+       call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
 
        call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, 1)
        call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, 1)
 
        call mpas_pool_get_array(forcingPool, 'tidalInputMask', tidalInputMask)
+       call mpas_pool_get_array(forcingPool, 'boundaryThickTend', boundaryThickTend)
 
        call mpas_pool_get_array(verticalMeshPool, 'refZMid', refZMid)
        call mpas_pool_get_array(verticalMeshPool, 'restingThickness', restingThickness)
@@ -204,6 +208,7 @@ contains
        call ocn_mark_south_boundary(meshPool, yMinGlobal, dcEdgeMinGlobal, iErr)
 
        tidalInputMask(:) = 0.0_RKIND
+       boundaryThickTend(:,:) = 0.0_RKIND
        activeTracersInteriorRestoringRate(:,:,:) = 0.0_RKIND
        activeTracersInteriorRestoringValue(:,:,:) = 0.0_RKIND
 
@@ -260,16 +265,19 @@ contains
              end do
           end if
 
+          ! Set minLevelCell
+          minLevelCell(iCell) = 1
+
           ! Set tidal boundary mask
-          if(yMaxGlobal-yCell(iCell) <= 3.0_RKIND*config_idealized_estuary_tidal_boundary_width) then
+          if (yMaxGlobal-yCell(iCell) <= 3.0_RKIND*config_idealized_estuary_tidal_boundary_width) then
              ! tidal forcing exponentially decay away from the boundary at the ocean side
              tidalInputMask(iCell) = exp( (yCell(iCell) - yMaxGlobal) / &
                                            config_idealized_estuary_tidal_boundary_width )
           end if
 
           ! Set restoring at the ocean side boundary
-          if(yMaxGlobal-yCell(iCell) <= 3.0_RKIND*config_idealized_estuary_restoring_salinity_width_ocean) then
-             do k = 1, nVertLevels
+          if (yMaxGlobal-yCell(iCell) <= 3.0_RKIND*config_idealized_estuary_restoring_salinity_width_ocean) then
+             do k = minLevelCell(iCell), maxLevelCell(iCell)
                 ! no restoring for temperature
                 idx = index_temperature
                 activeTracersInteriorRestoringValue(idx, k, iCell) = config_idealized_estuary_initial_temperature
@@ -284,8 +292,8 @@ contains
           end if
 
           ! Set restoring at the river side boundary
-          if(yCell(iCell)-yMinGlobal <= 3.0_RKIND*config_idealized_estuary_restoring_salinity_width_river) then
-             do k = 1, nVertLevels
+          if (yCell(iCell)-yMinGlobal <= 3.0_RKIND*config_idealized_estuary_restoring_salinity_width_river) then
+             do k = minLevelCell(iCell), maxLevelCell(iCell)
                 ! no restoring for temperature
                 idx = index_temperature
                 activeTracersInteriorRestoringValue(idx, k, iCell) = config_idealized_estuary_initial_temperature
@@ -296,6 +304,26 @@ contains
                                  exp( (yMidGlobal - yCell(iCell)) / &
                                  config_idealized_estuary_restoring_salinity_width_river ) * &
                                  ( 1.0_RKIND / (config_idealized_estuary_restoring_salinity_tau*86400.0_RKIND))
+             end do
+          end if
+
+          ! Set inflow at river side boundary
+          if (yCell(iCell)-yMinGlobal <= 0.5_RKIND*dcEdgeMinGlobal) then
+             invAreaCell = 1.0_RKIND / areaCell(iCell)
+             do k = minLevelCell(iCell), maxLevelCell(iCell)
+               boundaryThickTend(k, iCell) = config_idealized_estuary_velocity_river * &
+                                             dcEdgeMinGlobal * layerThickness(k, iCell) * invAreaCell
+             end do
+          end if
+
+          ! Set outflow at ocean side boundary
+          if (yMaxGlobal-yCell(iCell) <= 0.5_RKIND*dcEdgeMinGlobal) then
+             invAreaCell = 1.0_RKIND / areaCell(iCell)
+             do k = minLevelCell(iCell), maxLevelCell(iCell)
+               boundaryThickTend(k, iCell) = - config_idealized_estuary_velocity_river * &
+                                             config_idealized_estuary_depth_river / &
+                                             config_idealized_estuary_depth_ocean * &
+                                             dcEdgeMinGlobal * layerThickness(k, iCell) * invAreaCell
              end do
           end if
 

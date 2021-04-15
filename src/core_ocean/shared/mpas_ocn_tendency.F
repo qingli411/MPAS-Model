@@ -54,6 +54,7 @@ module ocn_tendency
    use ocn_thick_hadv
    use ocn_thick_vadv
    use ocn_thick_surface_flux
+   use ocn_thick_lateral_boundary_flux
 
    use ocn_vel_hadv_coriolis
    use ocn_vel_pressure_grad
@@ -162,7 +163,7 @@ contains
                                              fractionAbsorbedRunoff)
 
       !
-      ! layer thickness tendency: 
+      ! layer thickness tendency:
       !    initialize to zero and start accumulating tendency terms
       !
 
@@ -218,6 +219,10 @@ contains
       ! Compute thickness change due to tidal forcing
       call ocn_tidal_forcing_layer_thickness(meshPool, forcingPool, &
                                              tendThick, err)
+
+      ! Compute thickness change due to lateral flux tendency
+      call ocn_thick_lateral_boundary_flux_tend(meshPool, forcingPool, &
+                                                tendThick, err)
 
       call mpas_timer_stop("ocn_tend_thick")
 
@@ -347,7 +352,7 @@ contains
       !$acc    thermExpCoeff, salineContractCoeff, wettingVelocity)
 
       !*** Set output variables to zero before accumulating results
-      
+
 #ifdef MPAS_OPENACC
       !$acc parallel loop present(sfcStress, tendVel) private(k)
 #else
@@ -411,11 +416,11 @@ contains
                                thermExpCoeff, salineContractCoeff, &
                                tendVel, err)
 
-      ! Add tidal potential (if needed) 
+      ! Add tidal potential (if needed)
       call ocn_compute_tidal_potential_forcing(err)
       if (config_time_integrator == 'RK4') then
         ! for split explicit, tidal forcing is added in barotropic subcycles
-        call ocn_vel_tidal_potential_tend(ssh, tendVel, err) 
+        call ocn_vel_tidal_potential_tend(ssh, tendVel, err)
       endif
 
       ! Add horizontal mixing
@@ -515,7 +520,7 @@ contains
 
       integer :: &
          iCell, iEdge, k, n, &! loop counters for cell,edge,vert,tracer
-         err,                &! internal error flag 
+         err,                &! internal error flag
          timeLevel,          &! time level to use for state variables
          indxTemp, indxSalt, &! tracer index for temperature, salinity
          nTracersGroup,      &! number of tracers in each tracer group
@@ -585,7 +590,7 @@ contains
          tracerGroupTend, &! tendencies for current tracer group
          activeTracers,   &! retain active tracers
          ecosysTracers,   &! retain ecosys tracers for DMS, MacroMols
-         tracerGroupInteriorRestoringRate, &! int restoring timescale 
+         tracerGroupInteriorRestoringRate, &! int restoring timescale
          tracerGroupInteriorRestoringValue  ! int restoring value
 
       ! Scratch Arrays
@@ -598,7 +603,7 @@ contains
 
       ! return if all tracer tendencies disabled
       ! otherwise start timer and proceed
-   
+
       if (config_disable_tr_all_tend) return
       call mpas_timer_start("ocn_tend_tracer")
 
@@ -616,7 +621,7 @@ contains
          activeTracersOnly = .false.
       end if
 
-      ! retrieve data from pools 
+      ! retrieve data from pools
       call mpas_pool_get_subpool(statePool,   'tracers', &
                                                tracersPool)
       call mpas_pool_get_subpool(tendPool,    'tracersTend', &
@@ -661,7 +666,7 @@ contains
       !  - the pool member is a field
       !  - the group is the active tracer group
       !  - other groups if the active tracer only flag not on
-      !  - the specific use flag for the given group is enabled 
+      !  - the specific use flag for the given group is enabled
       ! We do not indent these various loops/conditions to avoid
       ! excessive indentation.
       !
@@ -691,7 +696,7 @@ contains
 
       if ( config_use_tracerGroup ) then
 
-         ! This group meets all requirements, now check for 
+         ! This group meets all requirements, now check for
          ! requested options
 
          computeBudgets =  (isActiveTracer .and.  &
@@ -733,7 +738,7 @@ contains
                                   modifiedGroupName, &
                                   tracerGroupSurfaceFlux)
 
-         ! Get Array of total surface temp/salt flux 
+         ! Get Array of total surface temp/salt flux
          ! (includes thickness tendencies)
          call mpas_pool_get_array(tracersSurfaceFluxPool, &
                                   'nonLocalSurfaceTracerFlux', &
@@ -815,7 +820,7 @@ contains
                                            zMid, minLevelCell, indxTemp, &
                                            indxSalt, tracerGroupSurfaceFlux, &
                                            err)
-                                           
+
          endif ! ecosys tracers
 
          !

@@ -793,6 +793,16 @@
 					possible_values="0.0 to turn off, 0.09 is typical value to use for scalar approximation"
 		/>
 	</nml_record>
+	<nml_record name="lateral_boundary_forcing" mode="init;forward">
+		<nml_option name="config_use_lateral_boundary_forcing" type="logical" default_value=".false." units="unitless"
+					description="Controls if lateral boundary forcing is used."
+					possible_values=".true. or .false."
+		/>
+		<nml_option name="config_use_lateral_boundary_forcing_thickness" type="logical" default_value=".false." units="unitless"
+					description="Controls if lateral boundary forcing for layer thickness is used."
+					possible_values=".true. or .false."
+		/>
+	</nml_record>
 	<nml_record name="vegetation_drag" mode="init;forward">
 		<nml_option name="config_use_vegetation_drag" type="logical" default_value=".false." units="unitless"
 					description="Controls if vegetation_drag is used."
@@ -1364,6 +1374,7 @@
 		<package name="landIceCouplingPKG" description="This package includes varibles required for land ice coupling but not land ice fluxes in standalone mode."/>
 		<package name="frazilIce" description="This package includes variables required for frazil ice formation."/>
 		<package name="tidalForcing" description="This package includes variables required for tidal forcing on a boundary."/>
+		<package name="lateralBoundaryForcing" description="This package includes variables required for forcing on lateral boundaries."/>
 		<package name="vegetationDragPKG" description="This package includes vegetation properties used for computing vegetation drag"/>
 		<package name="forwardMode" description="This package controls variables that are intended to be used within the forward run mode of the ocean model."/>
 		<package name="analysisMode" description="This package controls variables that are intended to be used within the analysis run mode of the ocean model."/>
@@ -3345,6 +3356,12 @@
 		<var name="tidalBCValue" type="real" dimensions="nCells Time" units="m"
 			 description="Value of ssh height in cell for tidal boundary condition"
 			 packages="tidalForcing"
+		/>
+
+		<!-- Input fields for forcing due to lateral boundary flux -->
+        <var name="boundaryThickTend" type="real" dimensions="nVertLevels nCells" units="m s^{-1}"
+			 description="Thickness tendency at lateral boundaries"
+			 packages="lateralBoundaryForcing"
 		/>
 
 		<!-- Input fields for vegetation properties -->

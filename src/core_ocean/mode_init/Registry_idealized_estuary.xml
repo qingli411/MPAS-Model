@@ -47,4 +47,8 @@
 		description="Time scale for restoring of salinity at the ocean and river boundaries."
 		possible_values="Any real number."
 		/>
+    <nml_option name="config_idealized_estuary_velocity_river" type="real" default_value="0.08" units="m s^{-1}"
+		description="Flow velocity at river side."
+		possible_values="Any real number."
+		/>
 </nml_record>

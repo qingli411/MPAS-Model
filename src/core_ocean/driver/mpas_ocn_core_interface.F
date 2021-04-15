@@ -125,6 +125,7 @@ module ocn_core_interface
       logical, pointer :: frazilIceActive
       logical, pointer :: tidalForcingActive
       logical, pointer :: tidalPotentialForcingPKGActive
+      logical, pointer :: lateralBoundaryForcingActive
       logical, pointer :: vegetationDragPKGActive
       logical, pointer :: inSituEOSActive
       logical, pointer :: variableShortwaveActive
@@ -156,6 +157,7 @@ module ocn_core_interface
       logical, pointer :: config_use_frazil_ice_formation
       logical, pointer :: config_use_tidal_forcing
       logical, pointer :: config_use_tidal_potential_forcing
+      logical, pointer :: config_use_lateral_boundary_forcing
       logical, pointer :: config_use_GM
       logical, pointer :: config_use_Redi
       logical, pointer :: config_use_vegetation_drag
@@ -318,6 +320,15 @@ module ocn_core_interface
       call mpas_pool_get_config(configPool, 'config_use_tidal_potential_forcing', config_use_tidal_potential_forcing)
       if (config_use_tidal_potential_forcing) then
          tidalPotentialForcingPKGActive = .true.
+      end if
+
+      !
+      ! test for use of lateral boundary forcing, lateralBoundaryActive
+      !
+      call mpas_pool_get_package(packagePool, 'lateralBoundaryForcingActive', lateralBoundaryForcingActive)
+      call mpas_pool_get_config(configPool, 'config_use_lateral_boundary_forcing', config_use_lateral_boundary_forcing)
+      if (config_use_lateral_boundary_forcing) then
+         lateralBoundaryForcingActive = .true.
       end if
 
       !

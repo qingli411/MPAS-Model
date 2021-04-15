@@ -47,6 +47,7 @@ module ocn_forward_mode
    use ocn_thick_vadv
    use ocn_thick_ale
    use ocn_thick_surface_flux
+   use ocn_thick_lateral_boundary_flux
 
    use ocn_vel_pressure_grad
    use ocn_vel_vadv
@@ -187,6 +188,8 @@ module ocn_forward_mode
       ierr = ior(ierr, err_tmp)
       call ocn_thick_ale_init(err_tmp)
       ierr = ior(ierr,err_tmp)
+      call ocn_thick_lateral_boundary_flux_init(err_tmp)
+      ierr = ior(ierr, err_tmp)
 
       call ocn_vel_hadv_coriolis_init(err_tmp)
       ierr = ior(ierr, err_tmp)
