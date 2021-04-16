@@ -256,10 +256,15 @@ contains
           ! Set maxLevelCell
           maxLevelCell(iCell) = nVertLevels
           if (nVertLevels > 1) then
-             do k = 1, nVertLevels
-                if (bottomDepth(iCell) < refBottomDepth(k)) then
+             do k = 2, nVertLevels
+                if (bottomDepth(iCell) <= -refZMid(k) .and. bottomDepth(iCell) > refBottomDepth(k-1)) then
                    maxLevelCell(iCell) = k-1
                    bottomDepth(iCell) = refBottomDepth(k-1)
+                   exit
+                end if
+                if (bottomDepth(iCell) > -refZMid(k) .and. bottomDepth(iCell) < refBottomDepth(k)) then
+                   maxLevelCell(iCell) = k
+                   bottomDepth(iCell) = refBottomDepth(k)
                    exit
                 end if
              end do
