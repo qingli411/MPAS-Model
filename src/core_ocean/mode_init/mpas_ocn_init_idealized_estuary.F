@@ -306,7 +306,7 @@ contains
                 idx = index_salinity
                 activeTracersInteriorRestoringValue(idx, k, iCell) = config_idealized_estuary_initial_salinity_river
                 activeTracersInteriorRestoringRate(idx, k, iCell) = &
-                                 exp( (yMidGlobal - yCell(iCell)) / &
+                                 exp( (yMinGlobal - yCell(iCell)) / &
                                  config_idealized_estuary_restoring_salinity_width_river ) * &
                                  ( 1.0_RKIND / (config_idealized_estuary_restoring_salinity_tau*86400.0_RKIND))
              end do
