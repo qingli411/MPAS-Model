@@ -35,6 +35,7 @@ module ocn_tendency
    use ocn_surface_land_ice_fluxes
    use ocn_frazil_forcing
    use ocn_tidal_forcing
+   use ocn_lateral_boundary_forcing
 
    use ocn_tracer_hmix
    use ocn_high_freq_thickness_hmix_del2
@@ -54,7 +55,6 @@ module ocn_tendency
    use ocn_thick_hadv
    use ocn_thick_vadv
    use ocn_thick_surface_flux
-   use ocn_thick_lateral_boundary_flux
 
    use ocn_vel_hadv_coriolis
    use ocn_vel_pressure_grad
@@ -1226,6 +1226,9 @@ contains
          call ocn_frazil_forcing_tracers(meshPool, tracersPool, &
                      groupName, forcingPool, tracerGroupTend, err)
 
+         ! Compute tracer tendency due to lateral boundary forcing
+         call ocn_lateral_boundary_forcing_tracers(meshPool, tracersPool, &
+                     groupName, forcingPool, tracerGroupTend, err)
 
       end if ! config use flag on
       end if ! active only

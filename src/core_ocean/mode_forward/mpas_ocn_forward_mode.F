@@ -47,7 +47,6 @@ module ocn_forward_mode
    use ocn_thick_vadv
    use ocn_thick_ale
    use ocn_thick_surface_flux
-   use ocn_thick_lateral_boundary_flux
 
    use ocn_vel_pressure_grad
    use ocn_vel_vadv
@@ -60,6 +59,7 @@ module ocn_forward_mode
    use ocn_frazil_forcing
    use ocn_tidal_forcing
    use ocn_vel_tidal_potential
+   use ocn_lateral_boundary_forcing
 
    use ocn_tracer_hmix
    use ocn_tracer_hmix_redi
@@ -188,8 +188,6 @@ module ocn_forward_mode
       ierr = ior(ierr, err_tmp)
       call ocn_thick_ale_init(err_tmp)
       ierr = ior(ierr,err_tmp)
-      call ocn_thick_lateral_boundary_flux_init(err_tmp)
-      ierr = ior(ierr, err_tmp)
 
       call ocn_vel_hadv_coriolis_init(err_tmp)
       ierr = ior(ierr, err_tmp)
@@ -212,6 +210,8 @@ module ocn_forward_mode
       call ocn_tidal_forcing_init(err_tmp)
       ierr = ior(ierr, err_tmp)
       call ocn_vel_tidal_potential_init(domain,err_tmp)
+      ierr = ior(ierr, err_tmp)
+      call ocn_lateral_boundary_forcing_init(err_tmp)
       ierr = ior(ierr, err_tmp)
 
       call ocn_tracer_hmix_init(err_tmp)
