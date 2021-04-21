@@ -193,7 +193,7 @@ contains
 
       call mpas_pool_get_array(forcingPool, 'boundaryLayerThicknessTendency', boundaryLayerThicknessTendency)
 
-      nCells = nCellsArray( 1 )
+      nCells = nCellsArray( 2 )
 
       !$omp parallel
       !$omp do schedule(runtime) private(k, iCell)
@@ -292,7 +292,7 @@ contains
       call mpas_pool_get_array(forcingPool, 'boundaryTemperatureTendency', boundaryTemperatureTendency)
       call mpas_pool_get_array(forcingPool, 'boundarySalinityTendency', boundarySalinityTendency)
 
-      nCells = nCellsArray( 1 )
+      nCells = nCellsArray( 2 )
 
       !$omp parallel
       !$omp do schedule(runtime) private(k, iCell)
