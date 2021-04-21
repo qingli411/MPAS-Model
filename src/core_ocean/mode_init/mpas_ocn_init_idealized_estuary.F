@@ -106,9 +106,7 @@ contains
                                                 vertCoordMovementWeights, bottomDepth, &
                                                 fCell, fEdge, fVertex, dcEdge, areaCell
     real (kind=RKIND), dimension(:,:), pointer :: layerThickness, restingThickness
-    real (kind=RKIND), dimension(:,:), pointer :: boundaryLayerThicknessTendency, &
-                                                  boundaryTemperatureTendency, &
-                                                  boundarySalinityTendency
+    real (kind=RKIND), dimension(:,:), pointer :: boundaryLayerThicknessTendency
     real (kind=RKIND), dimension(:,:,:), pointer :: activeTracersInteriorRestoringValue, &
                                                     activeTracersInteriorRestoringRate
     real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
@@ -199,8 +197,6 @@ contains
 
        call mpas_pool_get_array(forcingPool, 'tidalInputMask', tidalInputMask)
        call mpas_pool_get_array(forcingPool, 'boundaryLayerThicknessTendency', boundaryLayerThicknessTendency)
-       call mpas_pool_get_array(forcingPool, 'boundaryTemperatureTendency', boundaryTemperatureTendency)
-       call mpas_pool_get_array(forcingPool, 'boundarySalinityTendency', boundarySalinityTendency)
 
        call mpas_pool_get_array(verticalMeshPool, 'refZMid', refZMid)
        call mpas_pool_get_array(verticalMeshPool, 'restingThickness', restingThickness)
@@ -215,8 +211,6 @@ contains
 
        tidalInputMask(:) = 0.0_RKIND
        boundaryLayerThicknessTendency(:,:) = 0.0_RKIND
-       boundaryTemperatureTendency(:,:) = 0.0_RKIND
-       boundarySalinityTendency(:,:) = 0.0_RKIND
        activeTracersInteriorRestoringRate(:,:,:) = 0.0_RKIND
        activeTracersInteriorRestoringValue(:,:,:) = 0.0_RKIND
 
@@ -326,10 +320,6 @@ contains
              do k = minLevelCell(iCell), maxLevelCell(iCell)
                boundaryLayerThicknessTendency(k, iCell) = config_idealized_estuary_velocity_river * &
                                              dcEdgeMinGlobal * layerThickness(k, iCell) * invAreaCell
-               boundaryTemperatureTendency(k, iCell) = boundaryLayerThicknessTendency(k, iCell) * &
-                                                   config_idealized_estuary_initial_temperature
-               boundarySalinityTendency(k, iCell) = boundaryLayerThicknessTendency(k, iCell) * &
-                                                config_idealized_estuary_initial_salinity_river
              end do
           end if
 
@@ -341,10 +331,6 @@ contains
                                              config_idealized_estuary_depth_river / &
                                              config_idealized_estuary_depth_ocean * &
                                              dcEdgeMinGlobal * layerThickness(k, iCell) * invAreaCell
-               boundaryTemperatureTendency(k, iCell) = boundaryLayerThicknessTendency(k, iCell) * &
-                                                   config_idealized_estuary_initial_temperature
-               boundarySalinityTendency(k, iCell) = boundaryLayerThicknessTendency(k, iCell) * &
-                                                config_idealized_estuary_initial_salinity_ocean
              end do
           end if
 

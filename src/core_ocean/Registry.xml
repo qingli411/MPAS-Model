@@ -798,6 +798,14 @@
 					description="Controls if lateral boundary forcing is used."
 					possible_values=".true. or .false."
 		/>
+		<nml_option name="config_lateral_boundary_forcing_inflow_temperature" type="real" default_value="15.0" units="degC"
+					description="Temperature of the inflow at the lateral boundary."
+					possible_values="Any real number larger than zero."
+		/>
+		<nml_option name="config_lateral_boundary_forcing_inflow_salinity" type="real" default_value="0.0" units="PSU"
+					description="Salinity of the inflow at the lateral boundary."
+					possible_values="Any real number larger than zero."
+		/>
 	</nml_record>
 	<nml_record name="vegetation_drag" mode="init;forward">
 		<nml_option name="config_use_vegetation_drag" type="logical" default_value=".false." units="unitless"
@@ -3357,14 +3365,6 @@
 		<!-- Input fields for forcing due to lateral boundary flux -->
         <var name="boundaryLayerThicknessTendency" type="real" dimensions="nVertLevels nCells" units="m s^{-1}"
 			 description="Layer thickness tendency at lateral boundaries"
-			 packages="lateralBoundaryForcing"
-		/>
-        <var name="boundaryTemperatureTendency" type="real" dimensions="nVertLevels nCells" units="degC m s^{-1}"
-			 description="Temperature tendency at lateral boundaries"
-			 packages="lateralBoundaryForcing"
-		/>
-        <var name="boundarySalinityTendency" type="real" dimensions="nVertLevels nCells" units="PSU m s^{-1}"
-			 description="Salinity tendency at lateral boundaries"
 			 packages="lateralBoundaryForcing"
 		/>
 

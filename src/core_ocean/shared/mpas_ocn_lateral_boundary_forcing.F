@@ -263,12 +263,13 @@ contains
       !-----------------------------------------------------------------
 
       integer :: k, iCell, nCells
+      real (kind=RKIND) :: inflow, outflow
       integer, pointer :: indexTemperature
       integer, pointer :: indexSalinity
       integer, dimension(:), pointer :: nCellsArray
       integer, dimension(:), pointer :: maxLevelCell, minLevelCell
-      real (kind=RKIND), dimension(:,:), pointer :: boundaryTemperatureTendency, &
-                                                    boundarySalinityTendency
+      real (kind=RKIND), dimension(:,:), pointer :: boundaryLayerThicknessTendency
+      real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
 
       !-----------------------------------------------------------------
       !
@@ -285,23 +286,27 @@ contains
       call mpas_pool_get_dimension(meshPool, 'nCellsArray', nCellsArray)
       call mpas_pool_get_dimension(tracersPool, 'index_temperature', indexTemperature)
       call mpas_pool_get_dimension(tracersPool, 'index_salinity', indexSalinity)
+      call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, 1)
 
       call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
       call mpas_pool_get_array(meshPool, 'minLevelCell', minLevelCell)
 
-      call mpas_pool_get_array(forcingPool, 'boundaryTemperatureTendency', boundaryTemperatureTendency)
-      call mpas_pool_get_array(forcingPool, 'boundarySalinityTendency', boundarySalinityTendency)
+      call mpas_pool_get_array(forcingPool, 'boundaryLayerThicknessTendency', boundaryLayerThicknessTendency)
 
       nCells = nCellsArray( 2 )
 
       !$omp parallel
-      !$omp do schedule(runtime) private(k, iCell)
+      !$omp do schedule(runtime) private(k, iCell, inflow, outflow)
       do iCell = 1, nCells
         do k = minLevelCell(iCell), maxLevelCell(iCell)
+           inflow  = max(0.0_RKIND, boundaryLayerThicknessTendency(k,iCell))
+           outflow = min(0.0_RKIND, boundaryLayerThicknessTendency(k,iCell))
            activeTracersTend(indexTemperature,k,iCell) = activeTracersTend(indexTemperature,k,iCell) &
-                                                       + boundaryTemperatureTendency(k,iCell)
+               + inflow * config_lateral_boundary_forcing_inflow_temperature &
+               + outflow * activeTracers(indexTemperature,k,iCell)
            activeTracersTend(indexSalinity,k,iCell) = activeTracersTend(indexSalinity,k,iCell) &
-                                                       + boundarySalinityTendency(k,iCell)
+               + inflow * config_lateral_boundary_forcing_inflow_salinity &
+               + outflow * activeTracers(indexSalinity,k,iCell)
         end do
       end do
       !$omp end do
