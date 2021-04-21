@@ -89,13 +89,13 @@ contains
     type (mpas_pool_type), pointer :: tracersInteriorRestoringFieldsPool
 
     ! local variables
-    integer :: iCell, k, idx
+    integer :: iCell, iEdge, iVertex, k, idx
     real (kind=RKIND) :: yMin, yMax, dcEdgeMin, dcEdgeMinGlobal
     real (kind=RKIND) :: yMinGlobal, yMaxGlobal, yMidGlobal
     real (kind=RKIND) :: salinity, invAreaCell
 
     ! Define dimension pointers
-    integer, pointer :: nCellsSolve, nEdgesSolve, nVertLevels, nVertLevelsP1
+    integer, pointer :: nCellsSolve, nEdgesSolve, nVerticesSolve, nVertLevels, nVertLevelsP1
     integer, pointer :: index_temperature, index_salinity
 
     ! Define variable pointers
@@ -177,6 +177,8 @@ contains
        call mpas_pool_get_subpool(forcingPool, 'tracersInteriorRestoringFields', tracersInteriorRestoringFieldsPool)
        call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels)
        call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCellsSolve)
+       call mpas_pool_get_dimension(meshPool, 'nEdgesSolve', nEdgesSolve)
+       call mpas_pool_get_dimension(meshPool, 'nVerticesSolve', nVerticesSolve)
 
        call mpas_pool_get_dimension(tracersPool, 'index_temperature', index_temperature)
        call mpas_pool_get_dimension(tracersPool, 'index_salinity', index_salinity)
@@ -348,9 +350,14 @@ contains
 
           ! Set Coriolis parameters, if other than zero
           fCell(iCell) = config_idealized_estuary_coriolis_parameter
-          fEdge(iCell) = config_idealized_estuary_coriolis_parameter
-          fVertex(iCell) = config_idealized_estuary_coriolis_parameter
+       end do ! do iCell
 
+       do iEdge = 1, nEdgesSolve
+          fEdge(iEdge) = config_idealized_estuary_coriolis_parameter
+       end do
+
+       do iVertex = 1, nVerticesSolve
+          fVertex(iVertex) = config_idealized_estuary_coriolis_parameter
        end do
 
        block_ptr => block_ptr % next
