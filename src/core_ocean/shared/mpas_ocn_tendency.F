@@ -221,8 +221,8 @@ contains
                                              tendThick, err)
 
       ! Compute thickness change due to lateral flux tendency
-      call ocn_thick_lateral_boundary_flux_tend(meshPool, forcingPool, &
-                                                tendThick, err)
+      call ocn_lateral_boundary_forcing_layer_thickness(meshPool, forcingPool, &
+                                                        tendThick, err)
 
       call mpas_timer_stop("ocn_tend_thick")
 
