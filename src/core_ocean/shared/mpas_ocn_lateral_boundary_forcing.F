@@ -79,17 +79,24 @@ contains
       ! input variables
       !
       !-----------------------------------------------------------------
-      character (len=*) :: groupName !< Input: Name of tracer group
+      character (len=*) :: &
+         groupName         !< Input: Name of tracer group
+      type (mpas_pool_type), intent(in) :: &
+         meshPool          !< Input: mesh information
+      type (mpas_pool_type), intent(in) :: &
+         tracersPool       !< Input: tracer tendency pool
+      type (mpas_pool_type), intent(in) :: &
+         forcingPool       !< Input: forcing pool holding lateral boundary forcing tendencies
 
       !-----------------------------------------------------------------
       !
       ! input/output variables
       !
       !-----------------------------------------------------------------
-      type (mpas_pool_type), intent(inout) :: meshPool !< Input/Output: mesh information
-      type (mpas_pool_type), intent(inout) :: tracersPool !< Input/Output: tracer tendency pool
-      type (mpas_pool_type), intent(inout) :: forcingPool  !< Input/Output: forcing pool holding lateral boundary forcing tendencies
-      real (kind=RKIND), dimension(:,:,:), intent(inout) ::  tracersTend
+
+      real (kind=RKIND), dimension(:,:,:), intent(inout) :: &
+         tracersTend   !< Input/Output: tracers tendency
+
       !-----------------------------------------------------------------
       !
       ! output variables
@@ -127,7 +134,7 @@ contains
 !> \date    15 April 2021
 !> \details
 !>  This routine adds a tendency to layer thickness due to lateral
-!>  boundary forcing
+!>  boundary ftorcing
 !
 !-----------------------------------------------------------------------
 
