@@ -1227,6 +1227,10 @@ contains
                      groupName, forcingPool, tracerGroupTend, err)
 
          ! Compute tracer tendency due to lateral boundary forcing
+         call ocn_tidal_forcing_tracers(meshPool, tracersPool, &
+                     groupName, forcingPool, tracerGroupTend, err)
+
+         ! Compute tracer tendency due to lateral boundary forcing
          call ocn_lateral_boundary_forcing_tracers(meshPool, tracersPool, &
                      groupName, forcingPool, tracerGroupTend, err)
 

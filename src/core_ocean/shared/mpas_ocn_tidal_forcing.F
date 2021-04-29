@@ -48,6 +48,7 @@ module ocn_tidal_forcing
 
    public :: ocn_tidal_forcing_build_array, &
              ocn_tidal_forcing_layer_thickness, &
+             ocn_tidal_forcing_tracers, &
              ocn_tidal_forcing_init
 
    !--------------------------------------------------------------------
@@ -112,7 +113,7 @@ contains
 
       err = 0
 
-      if ( .not. tidalfluxOn ) return
+      if ( .not. tidalFluxOn ) return
 
       call mpas_timer_start("tidal thickness tendency")
 
@@ -142,6 +143,176 @@ contains
 
    end subroutine ocn_tidal_forcing_layer_thickness !}}}
 
+!***********************************************************************
+!
+!  routine ocn_tidal_forcing_tracers
+!
+!> \brief   Add the tracer tendency due to tidal forcing
+!> \author  Qing Li
+!> \date    27 April 2021
+!> \details
+!>
+!>  This routine adds to the tracer tendency arrays the tidal forcing
+!
+!-----------------------------------------------------------------------
+
+   subroutine ocn_tidal_forcing_tracers(meshPool, tracersPool, groupName, forcingPool, tracersTend, err)!{{{
+
+      !-----------------------------------------------------------------
+      !
+      ! input variables
+      !
+      !-----------------------------------------------------------------
+      character (len=*) :: &
+         groupName         !< Input: Name of tracer group
+      type (mpas_pool_type), intent(in) :: &
+         meshPool          !< Input: mesh information
+      type (mpas_pool_type), intent(in) :: &
+         tracersPool       !< Input: tracer tendency pool
+      type (mpas_pool_type), intent(in) :: &
+         forcingPool       !< Input: forcing pool
+
+      !-----------------------------------------------------------------
+      !
+      ! input/output variables
+      !
+      !-----------------------------------------------------------------
+
+      real (kind=RKIND), dimension(:,:,:), intent(inout) :: &
+         tracersTend   !< Input/Output: tracers tendency
+
+      !-----------------------------------------------------------------
+      !
+      ! output variables
+      !
+      !-----------------------------------------------------------------
+
+      integer, intent(out) :: err !< Output: Error flag
+
+      !-----------------------------------------------------------------
+      !
+      ! local variables
+      !
+      !-----------------------------------------------------------------
+
+      err = 0
+
+      if ( .not. tidalFluxOn ) return
+
+      call mpas_timer_start("tidal tracer tendency")
+
+      if ( trim(groupName) == 'activeTracers' ) then
+         call ocn_tidal_forcing_active_tracers(meshPool, tracersPool, forcingPool, tracersTend, err)
+      end if
+
+      call mpas_timer_stop("tidal tracer tendency")
+
+   end subroutine ocn_tidal_forcing_tracers!}}}
+
+!***********************************************************************
+!
+!  routine ocn_tidal_forcing_active_tracers
+!
+!> \brief   Add the active tracer tendency due to tidal forcing
+!> \author  Qing Li
+!> \date    27 April 2021
+!> \details
+!>  This routine adds the active tracer tendency due to tidal forcing.
+!
+!-----------------------------------------------------------------------
+
+   subroutine ocn_tidal_forcing_active_tracers(meshPool, tracersPool, forcingPool, activeTracersTend, err)!{{{
+
+      !-----------------------------------------------------------------
+      !
+      ! input variables
+      !
+      !-----------------------------------------------------------------
+
+      type (mpas_pool_type), intent(in) :: &
+         meshPool          !< Input: mesh information
+      type (mpas_pool_type), intent(in) :: &
+         tracersPool       !< Input:
+      type (mpas_pool_type), intent(in) :: &
+         forcingPool       !< Input: Forcing information
+
+      !-----------------------------------------------------------------
+      !
+      ! input/output variables
+      !
+      !-----------------------------------------------------------------
+
+      real (kind=RKIND), dimension(:,:,:), intent(inout) :: &
+         activeTracersTend          !< Input/Output: tracers tendency
+
+      !-----------------------------------------------------------------
+      !
+      ! output variables
+      !
+      !-----------------------------------------------------------------
+
+      integer, intent(out) :: err !< Output: error flag
+
+      !-----------------------------------------------------------------
+      !
+      ! local variables
+      !
+      !-----------------------------------------------------------------
+
+      integer :: k, iCell, nCells
+      real (kind=RKIND) :: inflow, outflow
+      integer, pointer :: indexTemperature
+      integer, pointer :: indexSalinity
+      integer, dimension(:), pointer :: nCellsArray
+      integer, dimension(:), pointer :: maxLevelCell, minLevelCell
+      real (kind=RKIND), dimension(:,:), pointer :: tidalLayerThicknessTendency
+      real (kind=RKIND), dimension(:,:,:), pointer :: activeTracers
+
+      !-----------------------------------------------------------------
+      !
+      ! call relevant routines for computing tendencies
+      ! note that the user can choose multiple options and the
+      !   tendencies will be added together
+      !
+      !-----------------------------------------------------------------
+
+      err = 0
+
+      if (.not. tidalFluxOn) return
+
+      call mpas_pool_get_dimension(meshPool, 'nCellsArray', nCellsArray)
+      call mpas_pool_get_dimension(tracersPool, 'index_temperature', indexTemperature)
+      call mpas_pool_get_dimension(tracersPool, 'index_salinity', indexSalinity)
+      call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, 1)
+
+      call mpas_pool_get_array(meshPool, 'maxLevelCell', maxLevelCell)
+      call mpas_pool_get_array(meshPool, 'minLevelCell', minLevelCell)
+
+      call mpas_pool_get_array(forcingPool, 'tidalLayerThicknessTendency', &
+                                             tidalLayerThicknessTendency)
+
+      nCells = nCellsArray( 2 )
+
+      !$omp parallel
+      !$omp do schedule(runtime) private(k, iCell, inflow, outflow)
+      do iCell = 1, nCells
+        do k = minLevelCell(iCell), maxLevelCell(iCell)
+           inflow  = max(0.0_RKIND, tidalLayerThicknessTendency(k,iCell))
+           outflow = min(0.0_RKIND, tidalLayerThicknessTendency(k,iCell))
+           activeTracersTend(indexTemperature,k,iCell) = activeTracersTend(indexTemperature,k,iCell) &
+               + inflow * config_tidal_forcing_inflow_temperature &
+               + outflow * activeTracers(indexTemperature,k,iCell)
+           activeTracersTend(indexSalinity,k,iCell) = activeTracersTend(indexSalinity,k,iCell) &
+               + inflow * config_tidal_forcing_inflow_salinity &
+               + outflow * activeTracers(indexSalinity,k,iCell)
+        end do
+      end do
+      !$omp end do
+      !$omp end parallel
+
+   !--------------------------------------------------------------------
+
+   end subroutine ocn_tidal_forcing_active_tracers!}}}
 
 !***********************************************************************
 !
@@ -216,7 +387,7 @@ contains
       character (len=StrKIND), pointer :: simulationStartTime, xtime
       type (MPAS_Time_type) :: startTime, xtime_timeType, simulationStartTime_timeType
 
-      if ( .not. tidalfluxOn ) return
+      if ( .not. tidalFluxOn ) return
 
       call mpas_pool_get_array(statePool, 'ssh', ssh, 1)
       call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, 1)
@@ -266,8 +437,14 @@ contains
         if (trim(config_tidal_forcing_type) == 'thickness_source') then
           ! distribute tidal forcing tendency fractionally over water column
           do k = minLevelCell(iCell), maxLevelCell(iCell)
-            tidalLayerThicknessTendency(k,iCell) = tidalInputMask(iCell) / config_use_tidal_forcing_tau &
-              * (layerThickness(k,iCell)/totalDepth) * (tidalHeight - ssh(iCell))
+            ! tidalLayerThicknessTendency(k,iCell) = tidalInputMask(iCell) / config_use_tidal_forcing_tau &
+            !   * (layerThickness(k,iCell)/totalDepth) * (tidalHeight - ssh(iCell))
+            tidalLayerThicknessTendency(k,iCell) = tidalInputMask(iCell) &
+               * (layerThickness(k,iCell)/totalDepth) &
+               * 2.0_RKIND * pii * config_tidal_forcing_monochromatic_amp &
+               / config_tidal_forcing_monochromatic_period / 86400.0_RKIND &
+               * cos(2.0_RKIND * pii / config_tidal_forcing_monochromatic_period &
+               * daysSinceStartOfSim - pii * config_tidal_forcing_monochromatic_phaseLag / 180.0_RKIND)
           end do
           ! else if
           ! using the 'direct' option to immediately force the free surface as a prescribe boundary

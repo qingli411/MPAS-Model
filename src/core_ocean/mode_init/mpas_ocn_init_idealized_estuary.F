@@ -275,13 +275,6 @@ contains
           ! Set minLevelCell
           minLevelCell(iCell) = 1
 
-          ! Set tidal boundary mask
-          if (yMaxGlobal-yCell(iCell) <= 3.0_RKIND*config_idealized_estuary_tidal_boundary_width) then
-             ! tidal forcing exponentially decay away from the boundary at the ocean side
-             tidalInputMask(iCell) = exp( (yCell(iCell) - yMaxGlobal) / &
-                                           config_idealized_estuary_tidal_boundary_width )
-          end if
-
           ! Set restoring at the ocean side boundary
           if (yMaxGlobal-yCell(iCell) <= 3.0_RKIND*config_idealized_estuary_restoring_salinity_width_ocean) then
              do k = minLevelCell(iCell), maxLevelCell(iCell)
@@ -332,7 +325,19 @@ contains
                                              config_idealized_estuary_depth_ocean * &
                                              dcEdgeMinGlobal * layerThickness(k, iCell) * invAreaCell
              end do
+             ! Set tidal boundary mask for thickness source
+             tidalInputMask(iCell) = 1.0_RKIND
           end if
+
+          if (trim(config_tidal_forcing_type) == 'direct') then
+             ! Set tidal boundary mask
+             if (yMaxGlobal-yCell(iCell) <= 3.0_RKIND*config_idealized_estuary_tidal_boundary_width) then
+                ! tidal forcing exponentially decay away from the boundary at the ocean side
+                tidalInputMask(iCell) = exp( (yCell(iCell) - yMaxGlobal) / &
+                                              config_idealized_estuary_tidal_boundary_width )
+             end if
+          end if
+
 
           ! Set Coriolis parameters, if other than zero
           fCell(iCell) = config_idealized_estuary_coriolis_parameter
