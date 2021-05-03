@@ -101,10 +101,10 @@ contains
     ! Define variable pointers
     logical, pointer :: on_a_sphere
     integer, dimension(:), pointer :: maxLevelCell, minLevelCell
-    real (kind=RKIND), dimension(:), pointer :: tidalInputMask
     real (kind=RKIND), dimension(:), pointer :: yCell,refBottomDepth, refZMid, &
                                                 vertCoordMovementWeights, bottomDepth, &
                                                 fCell, fEdge, fVertex, dcEdge, areaCell
+    real (kind=RKIND), dimension(:), pointer :: tidalInputFactor
     real (kind=RKIND), dimension(:,:), pointer :: layerThickness, restingThickness
     real (kind=RKIND), dimension(:,:), pointer :: boundaryLayerThicknessTendency
     real (kind=RKIND), dimension(:,:,:), pointer :: activeTracersInteriorRestoringValue, &
@@ -195,7 +195,7 @@ contains
        call mpas_pool_get_array(tracersPool, 'activeTracers', activeTracers, 1)
        call mpas_pool_get_array(statePool, 'layerThickness', layerThickness, 1)
 
-       call mpas_pool_get_array(forcingPool, 'tidalInputMask', tidalInputMask)
+       call mpas_pool_get_array(forcingPool, 'tidalInputFactor', tidalInputFactor)
        call mpas_pool_get_array(forcingPool, 'boundaryLayerThicknessTendency', boundaryLayerThicknessTendency)
 
        call mpas_pool_get_array(verticalMeshPool, 'refZMid', refZMid)
@@ -209,7 +209,7 @@ contains
        call ocn_mark_north_boundary(meshPool, yMaxGlobal, dcEdgeMinGlobal, iErr)
        call ocn_mark_south_boundary(meshPool, yMinGlobal, dcEdgeMinGlobal, iErr)
 
-       tidalInputMask(:) = 0.0_RKIND
+       tidalInputFactor(:) = 0.0_RKIND
        boundaryLayerThicknessTendency(:,:) = 0.0_RKIND
        activeTracersInteriorRestoringRate(:,:,:) = 0.0_RKIND
        activeTracersInteriorRestoringValue(:,:,:) = 0.0_RKIND
@@ -325,19 +325,9 @@ contains
                                              config_idealized_estuary_depth_ocean * &
                                              dcEdgeMinGlobal * layerThickness(k, iCell) * invAreaCell
              end do
-             ! Set tidal boundary mask for thickness source
-             tidalInputMask(iCell) = 1.0_RKIND
+             ! Set tidal input factor to convert tidal flow to tidal layer thickness tendency
+             tidalInputFactor(iCell) = dcEdgeMinGlobal * invAreaCell * config_idealized_estuary_depth_ocean
           end if
-
-          if (trim(config_tidal_forcing_type) == 'direct') then
-             ! Set tidal boundary mask
-             if (yMaxGlobal-yCell(iCell) <= 3.0_RKIND*config_idealized_estuary_tidal_boundary_width) then
-                ! tidal forcing exponentially decay away from the boundary at the ocean side
-                tidalInputMask(iCell) = exp( (yCell(iCell) - yMaxGlobal) / &
-                                              config_idealized_estuary_tidal_boundary_width )
-             end if
-          end if
-
 
           ! Set Coriolis parameters, if other than zero
           fCell(iCell) = config_idealized_estuary_coriolis_parameter

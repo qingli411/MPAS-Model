@@ -25,6 +25,7 @@ module ocn_tidal_forcing
    use mpas_pool_routines
    use mpas_timekeeping
    use mpas_timer
+   use mpas_log
    use ocn_constants
    use ocn_config
    use ocn_equation_of_state
@@ -368,6 +369,7 @@ contains
       real (kind=RKIND), dimension(:,:), pointer :: tidalLayerThicknessTendency
       real (kind=RKIND), dimension(:), pointer :: tidalInputMask
       real (kind=RKIND), dimension(:), pointer :: tidalBCValue
+      real (kind=RKIND), dimension(:), pointer :: tidalInputFactor
       real (kind=RKIND), dimension(:), pointer :: bottomDepth
 
       integer :: iCell, k, nCells
@@ -395,6 +397,7 @@ contains
                                              tidalLayerThicknessTendency)
       call mpas_pool_get_array(forcingPool, 'tidalInputMask', tidalInputMask)
       call mpas_pool_get_array(forcingPool, 'tidalBCValue', tidalBCValue)
+      call mpas_pool_get_array(forcingPool, 'tidalInputFactor', tidalInputFactor)
 
       call mpas_pool_get_array(meshPool, 'bottomDepth', bottomDepth)
       call mpas_pool_get_array(meshPool, 'minLevelCell', minLevelCell)
@@ -404,57 +407,69 @@ contains
       ! tidal fields are needed only over 0 and 1 halos
       nCells = nCellsArray( 2 )
 
-      ! loop over all columns
-      do iCell = 1, nCells
+      if (trim(config_tidal_forcing_type) == 'boundary_flux') then
 
-        ! compute the tidalHeight
-        if (trim(config_tidal_forcing_model) == 'monochromatic') then
-          tidalHeight = config_tidal_forcing_monochromatic_amp * &
-            SIN(2.0_RKIND*pii/config_tidal_forcing_monochromatic_period * daysSinceStartOfSim - &
-            pii*config_tidal_forcing_monochromatic_phaseLag/180.0_RKIND) - &
-            config_tidal_forcing_monochromatic_baseline
-        !else if (trim(config_tidal_forcing_type) == 'data') then
-        !  ! data option
-        !  ! pass
-        else
-          tidalHeight = 0.0_RKIND
-        end if
-
-        ! ensure tidalHeight can't push flow below anticipated minimum
-        if (config_use_wetting_drying .and. tidalInputMask(iCell) == 1.0_RKIND) then
-          ! ensure that tidal height can't force below total minimum thickness
-          ! condition wrong to ensure that there isn't any drying according to criteria
-          tidalHeight = max(-bottomDepth(iCell) + (float(maxLevelCell(iCell))+1.0_RKIND)*config_drying_min_cell_height, tidalHeight)
-        end if
-
-        ! compute total depth for relative thickness contribution
-        totalDepth = 0.0_RKIND
-        do k = minLevelCell(iCell), maxLevelCell(iCell)
-          totalDepth = totalDepth + layerThickness(k,iCell)
-        end do
-
-        tidalLayerThicknessTendency(:,iCell) = 0.0_RKIND
-        if (trim(config_tidal_forcing_type) == 'thickness_source') then
-          ! distribute tidal forcing tendency fractionally over water column
+        ! loop over all columns
+        do iCell = 1, nCells
+          ! compute total depth for relative thickness contribution
+          totalDepth = 0.0_RKIND
           do k = minLevelCell(iCell), maxLevelCell(iCell)
-            ! tidalLayerThicknessTendency(k,iCell) = tidalInputMask(iCell) / config_use_tidal_forcing_tau &
-            !   * (layerThickness(k,iCell)/totalDepth) * (tidalHeight - ssh(iCell))
-            tidalLayerThicknessTendency(k,iCell) = tidalInputMask(iCell) &
+            totalDepth = totalDepth + layerThickness(k,iCell)
+          end do
+
+          ! compute layer thickness
+          tidalLayerThicknessTendency(:,iCell) = 0.0_RKIND
+          do k = minLevelCell(iCell), maxLevelCell(iCell)
+            ! compute the tidal layer thickness tendency from the tidal velocity
+            tidalLayerThicknessTendency(k,iCell) = tidalInputFactor(iCell) &
+               * config_tidal_forcing_monochromatic_velocity &
                * (layerThickness(k,iCell)/totalDepth) &
-               * 2.0_RKIND * pii * config_tidal_forcing_monochromatic_amp &
-               / config_tidal_forcing_monochromatic_period / 86400.0_RKIND &
-               * cos(2.0_RKIND * pii / config_tidal_forcing_monochromatic_period &
+               * sin(2.0_RKIND * pii / config_tidal_forcing_monochromatic_period &
                * daysSinceStartOfSim - pii * config_tidal_forcing_monochromatic_phaseLag / 180.0_RKIND)
           end do
-          ! else if
-          ! using the 'direct' option to immediately force the free surface as a prescribe boundary
-          ! in src/core_ocean/mode_forward/mpas_ocn_time_integration_rk4.F
-        end if
+        end do   ! do iCell = 1, nCells
 
-        ! store tidal boundary cell values (e.g., for config_tidal_forcing_type == 'direct')
-        tidalBCValue(iCell) = tidalHeight
+      else
 
-      end do   ! do iCell = 1, nCells
+        ! loop over all columns
+        do iCell = 1, nCells
+          ! compute the tidalHeight
+          tidalHeight = config_tidal_forcing_monochromatic_amp * &
+            sin(2.0_RKIND*pii/config_tidal_forcing_monochromatic_period * daysSinceStartOfSim - &
+            pii*config_tidal_forcing_monochromatic_phaseLag/180.0_RKIND) - &
+            config_tidal_forcing_monochromatic_baseline
+
+          ! ensure tidalHeight can't push flow below anticipated minimum
+          if (config_use_wetting_drying .and. tidalInputMask(iCell) == 1.0_RKIND) then
+            ! ensure that tidal height can't force below total minimum thickness
+            ! condition wrong to ensure that there isn't any drying according to criteria
+            tidalHeight = max(-bottomDepth(iCell) + (real(maxLevelCell(iCell), RKIND)+1.0_RKIND)*config_drying_min_cell_height, tidalHeight)
+          end if
+
+          ! compute total depth for relative thickness contribution
+          totalDepth = 0.0_RKIND
+          do k = minLevelCell(iCell), maxLevelCell(iCell)
+            totalDepth = totalDepth + layerThickness(k,iCell)
+          end do
+
+          tidalLayerThicknessTendency(:,iCell) = 0.0_RKIND
+          if (trim(config_tidal_forcing_type) == 'thickness_source') then
+            ! distribute tidal forcing tendency fractionally over water column
+            do k = minLevelCell(iCell), maxLevelCell(iCell)
+              tidalLayerThicknessTendency(k,iCell) = tidalInputMask(iCell) / config_use_tidal_forcing_tau &
+                * (layerThickness(k,iCell)/totalDepth) * (tidalHeight - ssh(iCell))
+            end do
+            ! else if
+            ! using the 'direct' option to immediately force the free surface as a prescribe boundary
+            ! in src/core_ocean/mode_forward/mpas_ocn_time_integration_rk4.F
+          end if
+
+          ! store tidal boundary cell values (e.g., for config_tidal_forcing_type == 'direct')
+          tidalBCValue(iCell) = tidalHeight
+
+        end do   ! do iCell = 1, nCells
+
+     end if
 
    end subroutine ocn_tidal_forcing_build_array !}}}
 
@@ -481,6 +496,24 @@ contains
 
       if(config_use_tidal_forcing) then
         tidalFluxOn = .true.
+        if (trim(config_tidal_forcing_model) .ne. 'monochromatic') then
+          call mpas_log_write( &
+             "Unknown value for config_tidal_forcing_model, supported values are:" // &
+             "         monochromatic", &
+             MPAS_LOG_CRIT)
+          err = 1
+          return
+        end if
+        if (trim(config_tidal_forcing_type) .ne. 'direct' .and. &
+            trim(config_tidal_forcing_type) .ne. 'thickness_source' .and. &
+            trim(config_tidal_forcing_type) .ne. 'boundary_flux') then
+          call mpas_log_write( &
+             "Unknown value for config_tidal_forcing_type, supported values are:" // &
+             "         direct, thickness_source, boundary_flux", &
+             MPAS_LOG_CRIT)
+          err = 1
+          return
+        end if
       end if
 
    end subroutine ocn_tidal_forcing_init!}}}

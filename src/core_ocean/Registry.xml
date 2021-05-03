@@ -720,7 +720,7 @@
 		/>
 		<nml_option name="config_tidal_forcing_type" type="character" default_value="off" units="unitless"
 					description="Selects the way tidal forcing is applied."
-					possible_values="'thickness_source','direct'"
+					possible_values="'thickness_source','direct','boundary_flux'"
 		/>
 		<nml_option name="config_tidal_forcing_model" type="character" default_value="off" units="unitless"
 					description="Selects the mode in which tidal forcing is computed."
@@ -740,6 +740,10 @@
 		/>
 		<nml_option name="config_tidal_forcing_monochromatic_baseline" type="real" default_value="0.0" units="days"
 					description="Value of baseline monochromatic tide, e.g., sea level rise."
+					possible_values="Any positive real number."
+		/>
+		<nml_option name="config_tidal_forcing_monochromatic_velocity" type="real" default_value="0.4" units="m s^{-1}"
+					description="Value of velocity of monochromatic tide. Only used when config_tidal_forcing_type = 'boundary_flux'"
 					possible_values="Any positive real number."
 		/>
 		<nml_option name="config_tidal_forcing_inflow_temperature" type="real" default_value="15.0" units="degC"
@@ -3367,6 +3371,10 @@
 		/>
 		<var name="tidalBCValue" type="real" dimensions="nCells Time" units="m"
 			 description="Value of ssh height in cell for tidal boundary condition"
+			 packages="tidalForcing"
+		/>
+		<var name="tidalInputFactor" type="real" dimensions="nCells" units="unitless"
+			 description="Factor to convert tidal flow to tidal layer thickness tendency at the tidal boundary"
 			 packages="tidalForcing"
 		/>
 
